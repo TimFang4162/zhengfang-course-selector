@@ -444,12 +444,14 @@ def fetch_big_list(log_func, debug_func):
         return []
 
 
-def fetch_small_list(target, log_func, debug_func):
+def fetch_small_list(target, log_func, debug_func, page=1):
     rwlx = "1" if target[0] == "主修课程" else "2"
     zyh_id = target[4]
     kklxdm = target[1]
     grade = target[3]
     xkkz_id = target[2]
+    start = (page - 1) * COURSE_PAGE_SIZE + 1
+    end = page * COURSE_PAGE_SIZE
     url = base_url + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512"
     data = {
         "xklc": "3",
@@ -491,12 +493,12 @@ def fetch_small_list(target, log_func, debug_func):
         "xkkz_id": xkkz_id,
         "rlkz": "0",
         "xkzgbj": "0",
-        "kspage": "1",
-        "jspage": "10000",
+        "kspage": str(start),
+        "jspage": str(end),
         "jxbzb": "",
     }
     try:
-        debug_func(f"Fetch small list: {target[0]}")
+        debug_func(f"Fetch small list: {target[0]} [range {start}-{end}]")
         req = sess.post(url=url, data=data, timeout=10).json()
         ret_data = {}
         if "tmpList" in req:
@@ -505,11 +507,24 @@ def fetch_small_list(target, log_func, debug_func):
                     ret_data[clz["kch_id"]].append(clz)
                 else:
                     ret_data[clz["kch_id"]] = [clz]
-        return ret_data
+        item_count = len(req.get("tmpList", []))
+        return {
+            "courses": ret_data,
+            "page": page,
+            "count": item_count,
+            "has_more": item_count >= COURSE_PAGE_SIZE,
+            "next_page": page + 1,
+        }
     except Exception as e:
         log_func(Text(f"获取课程详情失败: {e}", style="bold red"))
         debug_func(f"获取小类异常: {e}[/]")
-        return {}
+        return {
+            "courses": {},
+            "page": page,
+            "count": 0,
+            "has_more": False,
+            "next_page": page,
+        }
 
 
 def fetch_class_detail_and_plan(
@@ -649,6 +664,7 @@ def fetch_choosed_list(log_func=None, debug_func=None):
 WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 MAX_WEEK = 19
 MAX_JIECI = 13
+COURSE_PAGE_SIZE = 50
 
 
 def parse_sksj_to_slots(sksj_str):
@@ -1228,9 +1244,10 @@ class CourseApp(App):
 
     def activate_category_context(self, target_big):
         cache_key = make_category_key(target_big)
-        small_list = self.category_course_cache.get(cache_key)
-        if small_list is None:
+        category_state = self.category_course_cache.get(cache_key)
+        if category_state is None:
             return
+        small_list = category_state.get("courses", {})
         self.current_small_list = small_list
         self.current_small_list_keys = list(small_list.keys())
         self.current_context["target_big"] = target_big
@@ -1239,18 +1256,44 @@ class CourseApp(App):
         rwlx = "1" if target_big[0] == "主修课程" else "2"
         return [rwlx, target_big[2], target_big[3], target_big[4], target_big[1]]
 
-    def populate_category_node(self, node, target, small_list):
+    def populate_category_node(self, node, target, page_result, append=False):
         node.remove_children()
-        node.data["loaded"] = True
         node.data["loading"] = False
         cache_key = make_category_key(target)
-        self.category_course_cache[cache_key] = small_list
+        existing_state = self.category_course_cache.get(
+            cache_key,
+            {
+                "courses": {},
+                "loaded_count": 0,
+                "has_more": False,
+                "next_page": 2,
+            },
+        )
+        merged_courses = dict(existing_state.get("courses", {})) if append else {}
+        for kch_id, course_info_list in page_result.get("courses", {}).items():
+            if kch_id in merged_courses:
+                merged_courses[kch_id].extend(course_info_list)
+            else:
+                merged_courses[kch_id] = list(course_info_list)
+        category_state = {
+            "courses": merged_courses,
+            "loaded_count": len(merged_courses),
+            "has_more": page_result.get("has_more", False),
+            "next_page": page_result.get("next_page", 2),
+        }
+        self.category_course_cache[cache_key] = category_state
+        node.data["loaded"] = True
+        node.data["has_more"] = category_state["has_more"]
+        node.data["next_page"] = category_state["next_page"]
         self.activate_category_context(target)
+        small_list = category_state["courses"]
         if not small_list:
             node.add_leaf("无课程", data={"type": "placeholder"})
             node.set_label(f"{target[0]} (0)")
             return
-        node.set_label(f"{target[0]} ({len(small_list)})")
+        loaded_count = category_state["loaded_count"]
+        more_suffix = "+" if category_state["has_more"] else ""
+        node.set_label(f"{target[0]} ({loaded_count}{more_suffix})")
         for kch_id, course_info_list in small_list.items():
             course_name = course_info_list[0].get("kcmc", kch_id)
             course_node = node.add(
@@ -1266,6 +1309,15 @@ class CourseApp(App):
                 },
             )
             course_node.add_leaf("展开后加载教学班", data={"type": "placeholder"})
+        if category_state["has_more"]:
+            node.add_leaf(
+                "加载更多...",
+                data={
+                    "type": "load_more_courses",
+                    "target": target,
+                    "next_page": category_state["next_page"],
+                },
+            )
 
     def populate_course_node(self, node, target_big, kch_id, course_name, final_data):
         node.remove_children()
@@ -1383,10 +1435,12 @@ class CourseApp(App):
         self.fetch_timetable()
 
     @work(thread=True)
-    def load_category_courses(self, node, target):
-        self.debug_write(f"加载分类课程: {target[0]}")
-        small_list = fetch_small_list(target, self.log_write, self.debug_write)
-        self.call_from_thread(self.populate_category_node, node, target, small_list)
+    def load_category_courses(self, node, target, page=1, append=False):
+        self.debug_write(f"加载分类课程: {target[0]} page={page}")
+        page_result = fetch_small_list(target, self.log_write, self.debug_write, page)
+        self.call_from_thread(
+            self.populate_category_node, node, target, page_result, append
+        )
 
     @work(thread=True)
     def load_course_classes(self, node, target_big, kch_id, course_info_list):
@@ -1442,6 +1496,21 @@ class CourseApp(App):
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         data = event.node.data or {}
+        if data.get("type") == "load_more_courses":
+            parent = event.node.parent
+            if parent is None:
+                return
+            parent_data = parent.data or {}
+            if parent_data.get("loading"):
+                return
+            parent_data["loading"] = True
+            self.load_category_courses(
+                parent,
+                data["target"],
+                page=data.get("next_page", 2),
+                append=True,
+            )
+            return
         if data.get("type") in {"category", "course", "class"}:
             self.set_selected_context(data)
 
