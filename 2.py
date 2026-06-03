@@ -5,14 +5,11 @@ import textwrap
 from Crypto.Util.number import bytes_to_long
 import rsa, base64, time, json
 import urllib3
-import asyncio
 from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.widgets import (
-    Header,
     Footer,
     RichLog,
-    Input,
     Static,
     Tree,
     TabbedContent,
@@ -74,7 +71,6 @@ current_credit_display = 0.0
 
 num_map = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7}
 kb = {}
-clz_qk_list = {}
 is_authenticated = False
 request_logger = None
 
@@ -85,81 +81,6 @@ def rsa_encryption(n, e, msg):
     E = bytes_to_long(base64.b64decode(e))
     key = rsa.PublicKey(N, E)
     return rsa.encrypt(msg.encode("UTF-8"), key)
-
-
-def init_kb():
-    global kb
-    kb = {}
-    for i in range(1, 20):
-        tmp = {}
-        for ix in range(1, 8):
-            tmp2 = {}
-            for ix2 in range(1, 14):
-                tmp2[ix2] = []
-            tmp[ix] = tmp2.copy()
-        kb[i] = tmp.copy()
-
-
-def add_to_kb(date: int, clz_num: str, week: str, class_name: str, real: bool):
-    weeks = []
-    is_odd = "(单)" in week
-    is_even = "(双)" in week
-    week_clean = week.replace("(单)", "").replace("(双)", "")
-    if "-" in week_clean:
-        start_week = int(week_clean.split("-")[0])
-        end_week = int(week_clean.split("-")[1])
-        all_weeks = range(start_week, end_week + 1)
-        if is_odd:
-            weeks = [w for w in all_weeks if w % 2 == 1]
-        elif is_even:
-            weeks = [w for w in all_weeks if w % 2 == 0]
-        else:
-            weeks = list(all_weeks)
-    else:
-        try:
-            single_week = int(week_clean)
-            if is_odd and single_week % 2 == 1:
-                weeks = [single_week]
-            elif is_even and single_week % 2 == 0:
-                weeks = [single_week]
-            elif not is_odd and not is_even:
-                weeks = [single_week]
-            else:
-                weeks = []
-        except:
-            weeks = []
-    clzs = range(int(clz_num.split("-")[0]), int(clz_num.split("-")[1]) + 1)
-    for w in weeks:
-        for clz in clzs:
-            if len(kb[w][date][clz]):
-                return False, kb[w][date][clz][0]
-            else:
-                if real:
-                    kb[w][date][clz].append(class_name)
-    return True, class_name
-
-
-def insert(name: str, tm: str, real: bool):
-    if "星期" not in tm:
-        return True, ""
-    tm_lst = tm.split(", ")
-    for c in tm_lst:
-        try:
-            ans = re.findall(r"星期(.*)第(.*)节{(.*)}", c)[0]
-            date = num_map[ans[0]]
-            clz_num = ans[1].split(",")
-            week = ans[2]
-            weeks = week.split(",")
-            for i in range(len(weeks)):
-                weeks[i] = weeks[i].replace("周", "")
-            for i in clz_num:
-                for weeki in weeks:
-                    res = add_to_kb(date, i, weeki, name, real)
-                    if res[0] == False:
-                        return False
-        except:
-            pass
-    return True
 
 
 def reset_runtime_state():
@@ -291,9 +212,35 @@ def style_category_label(label: str) -> str:
 
 
 def style_course_label(label: str, selected: bool) -> str:
-    color = "green" if selected else "white"
+    color = "green" if selected else "blue"
     suffix = " (已选)" if selected else ""
     return f"[{color}]{label}{suffix}[/]"
+
+
+def get_course_credit_text(course_info_list) -> str:
+    if not course_info_list:
+        return ""
+    first = course_info_list[0]
+    return format_credit_text(first.get("xf") or first.get("jxbxf"))
+
+
+def build_course_node_label(
+    course_name: str, kch_id: str, course_info_list, class_count: int, selected: bool
+) -> str:
+    return style_course_label(
+        build_course_tree_label(
+            course_name, kch_id, get_course_credit_text(course_info_list), class_count
+        ),
+        selected,
+    )
+
+
+def is_selected_class_pair(
+    clz: dict, detail: dict, selected_class_ids, selected_do_jxb_ids
+) -> bool:
+    jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
+    do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
+    return jxb_id in selected_class_ids or do_jxb_id in selected_do_jxb_ids
 
 
 def format_week_ranges(weeks: list[int]) -> str:
@@ -336,26 +283,6 @@ def parse_teacher_display(jsxx: str) -> tuple[str, str]:
         if len(parts) >= 3 and parts[2]:
             titles.append(parts[2])
     return "、".join(names), "、".join(titles)
-
-
-def format_teacher_summary(jsxx: str) -> str:
-    if not jsxx:
-        return "未标注教师"
-    parts_out = []
-    for teacher in jsxx.split(";"):
-        teacher = teacher.strip()
-        if not teacher:
-            continue
-        parts = [part.strip() for part in teacher.split("/")]
-        name = parts[1] if len(parts) >= 2 and parts[1] else (parts[0] if parts else "")
-        title = parts[2] if len(parts) >= 3 and parts[2] else ""
-        if name and title:
-            parts_out.append(f"{name}/{title}")
-        elif name:
-            parts_out.append(name)
-        elif title:
-            parts_out.append(title)
-    return "、".join(parts_out) or "未标注教师"
 
 
 def format_teacher_summary_dim_title(jsxx: str) -> str:
@@ -1275,7 +1202,6 @@ class CourseApp(App):
     current_context = {}
     category_course_cache = {}
     course_class_cache = {}
-    is_running = False
     display_week = 1
     filter_no_conflict = False
     timetable_entries = []
@@ -1319,10 +1245,6 @@ class CourseApp(App):
                                 yield Static("", id="timetable-detail-content")
             with Container(id="right-pane"):
                 yield RichLog(id="logger", highlight=True, wrap=True)
-        yield Input(
-            placeholder="add | scan | start | stop | reload | help",
-            id="cmd_input",
-        )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -1773,13 +1695,11 @@ class CourseApp(App):
         )
         for kch_id, course_info_list in small_list.items():
             course_name = course_info_list[0].get("kcmc", kch_id)
-            credit_text = format_credit_text(
-                course_info_list[0].get("xf") or course_info_list[0].get("jxbxf")
-            )
-            course_label = style_course_label(
-                build_course_tree_label(
-                    course_name, kch_id, credit_text, len(course_info_list)
-                ),
+            course_label = build_course_node_label(
+                course_name,
+                kch_id,
+                course_info_list,
+                len(course_info_list),
                 kch_id in self.selected_course_ids,
             )
             course_node = node.add(
@@ -1815,32 +1735,22 @@ class CourseApp(App):
         self.course_class_cache[(make_category_key(target_big), kch_id)] = final_data
         if not final_data:
             node.add_leaf("无教学班", data={"type": "placeholder"})
-            node.set_label(
-                style_course_label(
-                    build_course_tree_label(course_name, kch_id, "", 0), False
-                )
-            )
+            node.set_label(build_course_node_label(course_name, kch_id, [], 0, False))
             return
         course_info_list = node.data.get("course_info_list") or []
-        course_credit = format_credit_text(
-            (course_info_list[0].get("xf") if course_info_list else "")
-            or (course_info_list[0].get("jxbxf") if course_info_list else "")
-        )
-        course_header = style_course_label(
-            build_course_tree_label(
-                course_name, kch_id, course_credit, len(final_data)
-            ),
+        course_header = build_course_node_label(
+            course_name,
+            kch_id,
+            course_info_list,
+            len(final_data),
             kch_id in self.selected_course_ids,
         )
         node.set_label(course_header)
         for index, item in enumerate(final_data, start=1):
             clz, detail = item
             label = build_class_tree_label(index, course_name, clz, detail)
-            jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
-            do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
-            if (
-                jxb_id in self.selected_class_ids
-                or do_jxb_id in self.selected_do_jxb_ids
+            if is_selected_class_pair(
+                clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
             ):
                 label = f"[green]{label}[/]"
             node.add_leaf(
@@ -1866,19 +1776,16 @@ class CourseApp(App):
                 kch_id = data.get("kch_id", "")
                 course_name = data.get("course_name", kch_id)
                 course_info_list = data.get("course_info_list") or []
-                credit_text = format_credit_text(
-                    (course_info_list[0].get("xf") if course_info_list else "")
-                    or (course_info_list[0].get("jxbxf") if course_info_list else "")
-                )
                 class_count = (
                     len(data.get("final_data", []))
                     if data.get("loaded")
                     else len(course_info_list)
                 )
-                label = style_course_label(
-                    build_course_tree_label(
-                        course_name, kch_id, credit_text, class_count
-                    ),
+                label = build_course_node_label(
+                    course_name,
+                    kch_id,
+                    course_info_list,
+                    class_count,
                     kch_id in self.selected_course_ids,
                 )
                 course_node.set_label(label)
@@ -1890,11 +1797,8 @@ class CourseApp(App):
                     class_label = build_class_tree_label(
                         class_data.get("class_index", 1), course_name, clz, detail
                     )
-                    jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
-                    do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
-                    if (
-                        jxb_id in self.selected_class_ids
-                        or do_jxb_id in self.selected_do_jxb_ids
+                    if is_selected_class_pair(
+                        clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
                     ):
                         class_label = f"[green]{class_label}[/]"
                     class_node.set_label(class_label)
@@ -1907,24 +1811,6 @@ class CourseApp(App):
         if data.get("type") in {"course", "class"} and data.get("final_data"):
             self.current_context["final_data"] = data["final_data"]
             self.current_context["extra_params"] = data["extra_params"]
-
-    def add_selected_task(self):
-        data = self.current_context.get("selected_node_data")
-        if not data:
-            self.log_write(Text("请先在树中选择课程或教学班", style="red"))
-            return
-        if data.get("type") not in {"course", "class"}:
-            self.log_write(Text("只能添加课程节点或教学班节点", style="red"))
-            return
-        final_data = data.get("final_data")
-        extra_params = data.get("extra_params")
-        if not final_data or not extra_params:
-            self.log_write(Text("请先展开课程节点加载教学班", style="red"))
-            return
-        course_name = data.get("course_name", "未命名课程")
-        task_name = f"{course_name}_{time.time()}"
-        clz_qk_list[task_name] = [final_data, [], extra_params]
-        self.log_write(Text(f"任务已添加: {course_name}", style="bold green"))
 
     @work(thread=True)
     def fetch_timetable(self):
@@ -2172,180 +2058,6 @@ class CourseApp(App):
             payload = {"raw": res.text}
         self.call_from_thread(self.log_write, Text(str(payload), style="cyan"))
         self.fetch_timetable()
-
-    @work(thread=True)
-    def run_grab_loop(self):
-        self.is_running = True
-        self.log_write(Text("后台抢课线程已启动！", style="bold green"))
-
-        round_count = 1
-        while self.is_running:
-            if not clz_qk_list:
-                self.log_write(Text("当前无任务，等待添加...", style="yellow"))
-                time.sleep(3)
-                continue
-
-            init_kb()
-            tasks = list(clz_qk_list.items())
-
-            status_table = make_simple_table(f"抢课轮次 #{round_count}")
-            status_table.add_column("课程", style="cyan")
-            status_table.add_column("状态", style="bold")
-
-            for key_v, task_data in tasks:
-                if not self.is_running:
-                    break
-                qk_data = task_data[0]
-                extra = task_data[2]
-
-                for clz_info in qk_data:
-                    clz = clz_info[0]
-                    clz_detail = clz_info[1]
-
-                    if insert(
-                        clz_detail["jxbmc"], clz["sksj"].replace("<br/>", ", "), False
-                    ):
-                        res = execute_choose(
-                            clz["do_jxb_id"],
-                            clz_detail["kch_id"],
-                            clz_detail.get("kcmc", ""),
-                            extra[0],
-                            extra[1],
-                            extra[2],
-                            extra[3],
-                            extra[4],
-                            self.debug_write,
-                        )
-
-                        msg = "请求发送"
-                        if res:
-                            try:
-                                res_json = res.json()
-                                if res_json.get("flag") == "1":
-                                    msg = "抢课成功！[/]"
-                                    clz_qk_list.pop(key_v)
-                                    self.log_write(
-                                        Text(
-                                            f"SUCCESS: {clz_detail['jxbmc']}",
-                                            style="bold green reverse",
-                                        )
-                                    )
-                                    break
-                                else:
-                                    msg = f"{res.text}[/]"
-                            except Exception:
-                                pass
-                        status_table.add_row(clz_detail["jxbmc"], msg)
-                        time.sleep(0.5)
-
-            if round_count % 5 == 0:
-                self.log_write(status_table)
-
-            round_count += 1
-            time.sleep(1)
-
-        self.log_write(Text("抢课线程已停止", style="bold red"))
-
-    def on_input_submitted(self, message: Input.Submitted) -> None:
-        cmd = message.value.strip()
-        self.query_one(Input).value = ""
-        if not cmd:
-            return
-        self.debug_write(f"Command: {cmd}")
-        action = cmd.split()[0]
-
-        if action == "help":
-            self.log_write("""[bold]可用命令:[/bold]
-- [cyan]展开左侧树[/]: 渐进式加载分类、课程、教学班
-- [cyan]add[/]: 将当前选中的课程或教学班加入抢课任务
-- [cyan]scan[/]: 扫描当前选中分类下所有课程余量
-- [cyan]reload[/]: 重新加载左侧分类树
-- [cyan]start[/]: 开始抢课
-- [cyan]stop[/]: 停止抢课""")
-
-        elif action == "reload":
-            self.action_fetch_big_list()
-
-        elif action == "add":
-            self.add_selected_task()
-
-        elif action == "scan":
-            if not self.current_small_list_keys:
-                self.log_write(
-                    Text("请先展开并选中一个分类，再执行 scan", style="bold red")
-                )
-                return
-            self.log_write(
-                Text("开始扫描课程容量 (结果将实时显示)...", style="bold yellow")
-            )
-            self.perform_scan_available()
-
-        elif action == "start":
-            if self.is_running:
-                self.log_write(Text("已经在运行中！", style="yellow"))
-            else:
-                self.run_grab_loop()
-
-        elif action == "stop":
-            self.is_running = False
-            self.log_write(Text("正在停止...", style="yellow"))
-
-        else:
-            self.log_write(Text(f"未知命令: {cmd}", style="red"))
-
-    @work(thread=True)
-    def perform_scan_available(self):
-        target_big = self.current_context.get("target_big")
-        if not target_big:
-            self.log_write(Text("上下文丢失，请重新选择分类", style="red"))
-            return
-
-        kklxdm = target_big[1]
-        xkkz_id = target_big[2]
-        zyh_id = target_big[4]
-        rwlx = "1" if target_big[0] == "主修课程" else "2"
-
-        total_courses = len(self.current_small_list_keys)
-
-        for idx, kch_id in enumerate(self.current_small_list_keys):
-            course_info_list = self.current_small_list[kch_id]
-            course_name = course_info_list[0]["kcmc"]
-
-            self.debug_write(f"正在扫描: {course_name} ({idx + 1}/{total_courses})")
-            class_list_req = fetch_class_detail_and_plan(
-                kklxdm, kch_id, zyh_id, xkkz_id, rwlx, self.log_write, self.debug_write
-            )
-            if not class_list_req:
-                continue
-
-            merged = merge_class_data(class_list_req, course_info_list)
-            table = make_simple_table(f"{course_name} ({idx + 1}/{total_courses})")
-            table.add_column("序号", style="dim", width=6)
-            table.add_column("教师", style="blue")
-            table.add_column("容量状态", justify="right")
-
-            has_valid_class = False
-            for i, item in enumerate(merged, start=1):
-                try:
-                    clz, clz_detail = item
-                    enrolled = int(clz_detail["yxzrs"])
-                    capacity = int(clz["jxbrl"])
-                    teacher = clz["jsxx"]
-                    status_style = "bold green" if enrolled < capacity else "dim white"
-                    status_text = f"{enrolled}/{capacity}"
-                    table.add_row(
-                        f"{idx + 1}-{i}", teacher, f"[{status_style}]{status_text}[/]"
-                    )
-                    has_valid_class = True
-                except Exception:
-                    continue
-
-            if has_valid_class:
-                self.log_write(table)
-
-            time.sleep(0.3)
-
-        self.log_write(Text("扫描全部完成！", style="bold green reverse"))
 
 
 if __name__ == "__main__":
