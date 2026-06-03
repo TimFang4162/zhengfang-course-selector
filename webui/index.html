@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JWXT Web UI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="login-overlay" class="overlay">
+      <div class="login-card surface">
+        <div class="card-header login-header">
+          <div>
+            <div class="eyebrow">Local Console</div>
+            <h1>JWXT Web UI</h1>
+          </div>
+          <div class="header-badge">Enterprise</div>
+        </div>
+        <div class="form-row">
+          <label for="base-url">教务地址</label>
+          <select id="base-url"></select>
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" id="use-saved" /> 使用已保存凭据</label>
+          <span id="saved-hint" class="dim"></span>
+        </div>
+        <div class="form-row">
+          <label for="student-number">学号</label>
+          <input id="student-number" type="text" autocomplete="username" />
+        </div>
+        <div class="form-row">
+          <label for="password">密码</label>
+          <input id="password" type="password" autocomplete="current-password" />
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" id="save-creds" /> 保存本次凭据</label>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="login-button">登录</button>
+          <span id="login-status" class="dim"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <div class="main-layout">
+        <main class="left-pane">
+          <div class="workspace-header">
+            <div class="tabs compact-surface">
+              <button type="button" class="tab active" data-tab="tree">课程树</button>
+              <button type="button" class="tab" data-tab="timetable">当前课表</button>
+            </div>
+            <div class="workspace-controls">
+              <select id="workspace-base-url" aria-label="教务地址"></select>
+              <select id="account-action" aria-label="账号操作">
+                <option value="">账号操作</option>
+                <option value="show-login">切换账号</option>
+                <option value="refresh-categories">刷新列表</option>
+                <option value="refresh-timetable">刷新课表</option>
+              </select>
+            </div>
+          </div>
+
+          <section id="tab-tree" class="tab-panel active section-panel">
+            <div class="toolbar toolbar-tight">
+              <button type="button" id="filter-conflict">冲突筛选:关</button>
+              <button type="button" id="filter-credit">学分筛选:关</button>
+              <span id="filter-status" class="dim"></span>
+            </div>
+            <div id="course-tree" class="tree-view"></div>
+          </section>
+
+          <section id="tab-timetable" class="tab-panel section-panel">
+            <div class="week-toolbar toolbar-tight">
+              <button type="button" id="week-prev">上一周</button>
+              <span id="week-label">第 1/19 周</span>
+              <button type="button" id="week-next">下一周</button>
+              <span id="week-credit">学分0.0/32</span>
+              <button type="button" id="week-refresh">刷新</button>
+              <span id="week-info" class="dim"></span>
+            </div>
+            <div class="timetable-wrap">
+              <table id="timetable-table"></table>
+            </div>
+            <div id="detail-splitter" class="splitter splitter-horizontal" aria-hidden="true"></div>
+            <div id="timetable-detail" class="detail-panel"></div>
+          </section>
+        </main>
+
+        <div id="main-splitter" class="splitter splitter-vertical" aria-hidden="true"></div>
+
+        <aside class="right-pane">
+          <div class="log-shell">
+            <div class="log-header">
+              <span class="log-title">LOG</span>
+              <button type="button" id="clear-logs">清空</button>
+            </div>
+            <div id="log-list" class="log-list"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div id="class-modal" class="modal hidden">
+      <div class="modal-card surface">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Class Detail</div>
+            <strong id="modal-title">教学班详情</strong>
+          </div>
+          <button type="button" id="modal-close">关闭</button>
+        </div>
+        <div id="modal-content" class="modal-content"></div>
+        <div class="modal-actions">
+          <button type="button" id="modal-action">操作</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+  </html>
