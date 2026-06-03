@@ -1,6 +1,7 @@
 import requests
 from fake_useragent import UserAgent
 import re
+import textwrap
 from Crypto.Util.number import bytes_to_long
 import rsa, base64, time, json
 import urllib3
@@ -38,8 +39,9 @@ PASSWORD = ""  # 在此填入密码
 CREDENTIALS_FILE = Path(__file__).with_name(".jwxt_credentials.json")
 ADDRESS_CHOICES = [
     ("1", "http://10.1.70.171", "内网地址 10.1.70.171"),
-    ("2", "https://jwxt.zjnu.edu.cn", "校外统一地址 jwxt.zjnu.edu.cn"),
-    ("3", "https://webvpn.zjnu.edu.cn", "WebVPN 外层地址"),
+    ("2", "http://10.1.70.170", "内网地址 10.1.70.170"),
+    ("3", "https://jwxt.zjnu.edu.cn", "校外统一地址 jwxt.zjnu.edu.cn"),
+    ("4", "https://webvpn.zjnu.edu.cn", "WebVPN 外层地址"),
 ]
 
 # --- 全局变量 ---
@@ -67,11 +69,14 @@ xslbdm = ""
 mzm = ""
 xz = ""
 ccdm = ""
+max_credit_limit = 0.0
+current_credit_display = 0.0
 
 num_map = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7}
 kb = {}
 clz_qk_list = {}
 is_authenticated = False
+request_logger = None
 
 
 # --- 业务逻辑函数 ---
@@ -171,7 +176,9 @@ def reset_runtime_state():
         xslbdm, \
         mzm, \
         xz, \
-        ccdm
+        ccdm, \
+        max_credit_limit, \
+        current_credit_display
     bh_id = ""
     xsbj = ""
     njdm_id = ""
@@ -185,6 +192,8 @@ def reset_runtime_state():
     mzm = ""
     xz = ""
     ccdm = ""
+    max_credit_limit = 0.0
+    current_credit_display = 0.0
 
 
 def load_saved_credentials():
@@ -226,6 +235,67 @@ def make_simple_table(title: str, *, show_header: bool = True):
     )
 
 
+def set_request_logger(logger):
+    global request_logger
+    request_logger = logger
+
+
+def _format_request_path(url: str) -> str:
+    try:
+        from urllib.parse import urlsplit
+
+        split = urlsplit(url)
+        return f"{split.path}{('?' + split.query) if split.query else ''}"
+    except Exception:
+        return url
+
+
+def _log_request_start(method: str, url: str):
+    if request_logger is None:
+        return
+    request_logger(Text(f"{method.upper()} {_format_request_path(url)}", style="dim"))
+
+
+def http_get(url: str, **kwargs):
+    _log_request_start("GET", url)
+    return sess.get(url, **kwargs)
+
+
+def http_post(url: str, **kwargs):
+    _log_request_start("POST", url)
+    return sess.post(url, **kwargs)
+
+
+def format_log_with_prefix(prefix: str, message: str, width: int) -> str:
+    content_width = max(20, width - len(prefix))
+    lines = []
+    for raw_line in str(message).splitlines() or [""]:
+        wrapped = textwrap.wrap(
+            raw_line,
+            width=content_width,
+            replace_whitespace=False,
+            drop_whitespace=False,
+        )
+        if not wrapped:
+            lines.append(prefix)
+            continue
+        lines.append(f"{prefix}{wrapped[0]}")
+        indent = " " * len(prefix)
+        for part in wrapped[1:]:
+            lines.append(f"{indent}{part}")
+    return "\n".join(lines)
+
+
+def style_category_label(label: str) -> str:
+    return f"[yellow]{label}[/]"
+
+
+def style_course_label(label: str, selected: bool) -> str:
+    color = "green" if selected else "white"
+    suffix = " (已选)" if selected else ""
+    return f"[{color}]{label}{suffix}[/]"
+
+
 def format_week_ranges(weeks: list[int]) -> str:
     if not weeks:
         return ""
@@ -249,11 +319,266 @@ def format_week_ranges(weeks: list[int]) -> str:
     return ", ".join(parts)
 
 
+def parse_teacher_display(jsxx: str) -> tuple[str, str]:
+    if not jsxx:
+        return "", ""
+    names = []
+    titles = []
+    for teacher in jsxx.split(";"):
+        teacher = teacher.strip()
+        if not teacher:
+            continue
+        parts = [part.strip() for part in teacher.split("/")]
+        if len(parts) >= 2 and parts[1]:
+            names.append(parts[1])
+        elif parts and parts[0]:
+            names.append(parts[0])
+        if len(parts) >= 3 and parts[2]:
+            titles.append(parts[2])
+    return "、".join(names), "、".join(titles)
+
+
+def format_teacher_summary(jsxx: str) -> str:
+    if not jsxx:
+        return "未标注教师"
+    parts_out = []
+    for teacher in jsxx.split(";"):
+        teacher = teacher.strip()
+        if not teacher:
+            continue
+        parts = [part.strip() for part in teacher.split("/")]
+        name = parts[1] if len(parts) >= 2 and parts[1] else (parts[0] if parts else "")
+        title = parts[2] if len(parts) >= 3 and parts[2] else ""
+        if name and title:
+            parts_out.append(f"{name}/{title}")
+        elif name:
+            parts_out.append(name)
+        elif title:
+            parts_out.append(title)
+    return "、".join(parts_out) or "未标注教师"
+
+
+def format_teacher_summary_dim_title(jsxx: str) -> str:
+    if not jsxx:
+        return "未标注教师"
+    parts_out = []
+    for teacher in jsxx.split(";"):
+        teacher = teacher.strip()
+        if not teacher:
+            continue
+        parts = [part.strip() for part in teacher.split("/")]
+        name = parts[1] if len(parts) >= 2 and parts[1] else (parts[0] if parts else "")
+        title = parts[2] if len(parts) >= 3 and parts[2] else ""
+        if name and title:
+            parts_out.append(f"{name}/[dim]{title}[/dim]")
+        elif name:
+            parts_out.append(name)
+        elif title:
+            parts_out.append(f"[dim]{title}[/dim]")
+    return "、".join(parts_out) or "未标注教师"
+
+
+def format_course_name_cell(course_name: str, kch_id: str, class_no: str) -> str:
+    ids = "/".join(part for part in [kch_id, class_no] if part)
+    if not ids:
+        return course_name
+    return f"{course_name}\n[dim]{ids}[/dim]"
+
+
+def format_teacher_cell(teacher_name: str, teacher_title: str) -> str:
+    if teacher_name and teacher_title:
+        return f"{teacher_name}\n[dim]{teacher_title}[/dim]"
+    if teacher_name:
+        return teacher_name
+    if teacher_title:
+        return f"[dim]{teacher_title}[/dim]"
+    return ""
+
+
+def extract_class_no(jxbmc: str) -> str:
+    if not jxbmc:
+        return ""
+    match = re.search(r"-(\d{5})\s*$", jxbmc)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def format_credit_text(credit_value) -> str:
+    if credit_value in (None, ""):
+        return ""
+    try:
+        return f"{float(str(credit_value).strip()):.1f}"
+    except Exception:
+        return str(credit_value).strip()
+
+
+def first_non_empty(*values) -> str:
+    for value in values:
+        if value not in (None, ""):
+            text = str(value).strip()
+            if text:
+                return text
+    return ""
+
+
+def build_course_tree_label(
+    course_name: str, kch_id: str, credit_text: str, class_count: int
+) -> str:
+    credit_suffix = f" {credit_text}学分" if credit_text else ""
+    return f"{course_name} [dim][{kch_id}][/dim]{credit_suffix} {class_count}教学班"
+
+
+def build_class_tree_label(
+    index: int, course_name: str, clz: dict, detail: dict
+) -> str:
+    class_no = extract_class_no(
+        first_non_empty(clz.get("jxbmc"), detail.get("jxbmc"), course_name)
+    ) or first_non_empty(
+        clz.get("jxbh"), detail.get("jxbh"), clz.get("jxb_id"), detail.get("jxb_id")
+    )
+    teacher = format_teacher_summary_dim_title(
+        first_non_empty(clz.get("jsxx"), detail.get("jsxx"))
+    )
+    sksj = first_non_empty(clz.get("sksj"), detail.get("sksj"))
+    location = first_non_empty(clz.get("jxdd"), detail.get("jxdd"))
+    time_loc = f"{sksj} @ {location}" if sksj and location else (sksj or location)
+    course_property = (
+        first_non_empty(
+            clz.get("kcxzmc"),
+            detail.get("kcxzmc"),
+            clz.get("kclbmc"),
+            detail.get("kclbmc"),
+            clz.get("kcxz"),
+            detail.get("kcxz"),
+        )
+        or "未标注性质"
+    )
+    selected = first_non_empty(detail.get("yxzrs"), clz.get("yxzrs")) or "?"
+    total = (
+        first_non_empty(
+            clz.get("jxbrl"), detail.get("jxbrl"), clz.get("jxbrs"), detail.get("jxbrs")
+        )
+        or "?"
+    )
+    count_text = f"{selected}/{total}"
+    try:
+        if int(selected) < int(total):
+            count_text = f"[spring_green3]{count_text}[/]"
+    except Exception:
+        pass
+    return f"{index}. {class_no} | {teacher} | {time_loc} | {course_property} | {count_text}"
+
+
+def make_detail_table(title: str):
+    table = make_simple_table(title)
+    table.add_column("字段", style="cyan", width=12)
+    table.add_column("内容", overflow="fold")
+    return table
+
+
+def add_detail_row(table: Table, label: str, *values):
+    value = first_non_empty(*values) or "-"
+    table.add_row(label, value)
+
+
+def build_class_detail_table(course_name: str, clz: dict, detail: dict) -> Table:
+    jxbmc = first_non_empty(clz.get("jxbmc"), detail.get("jxbmc"), course_name)
+    class_no = extract_class_no(jxbmc) or first_non_empty(
+        clz.get("jxbh"), detail.get("jxbh"), clz.get("jxb_id"), detail.get("jxb_id")
+    )
+    selected = first_non_empty(detail.get("yxzrs"), clz.get("yxzrs")) or "?"
+    total = (
+        first_non_empty(
+            clz.get("jxbrl"), detail.get("jxbrl"), clz.get("jxbrs"), detail.get("jxbrs")
+        )
+        or "?"
+    )
+    table = make_detail_table(course_name)
+    add_detail_row(table, "教学班", class_no)
+    add_detail_row(
+        table,
+        "上课教师",
+        format_teacher_summary_dim_title(
+            first_non_empty(clz.get("jsxx"), detail.get("jsxx"))
+        ),
+    )
+    add_detail_row(table, "上课时间", clz.get("sksj"), detail.get("sksj"))
+    add_detail_row(table, "教学地点", clz.get("jxdd"), detail.get("jxdd"))
+    add_detail_row(
+        table,
+        "开课学院",
+        clz.get("kkxymc"),
+        detail.get("kkxymc"),
+        clz.get("kkxy"),
+        detail.get("kkxy"),
+        clz.get("yxmc"),
+        detail.get("yxmc"),
+    )
+    add_detail_row(
+        table,
+        "选课备注",
+        clz.get("xkbz"),
+        detail.get("xkbz"),
+        clz.get("bz"),
+        detail.get("bz"),
+    )
+    add_detail_row(
+        table,
+        "课程类别",
+        clz.get("kklxmc"),
+        detail.get("kklxmc"),
+        clz.get("kclbmc"),
+        detail.get("kclbmc"),
+    )
+    add_detail_row(
+        table,
+        "课程性质",
+        clz.get("kcxzmc"),
+        detail.get("kcxzmc"),
+        clz.get("kcxz"),
+        detail.get("kcxz"),
+    )
+    add_detail_row(
+        table,
+        "教学模式",
+        clz.get("jxms"),
+        detail.get("jxms"),
+        clz.get("jxfs"),
+        detail.get("jxfs"),
+    )
+    add_detail_row(table, "已选/容量", f"{selected}/{total}")
+    return table
+
+
+def build_node_detail_renderable(node_data) -> object:
+    node_type = node_data.get("type")
+    if node_type == "class":
+        clz, detail = node_data.get("class_pair", ({}, {}))
+        return build_class_detail_table(
+            node_data.get("course_name", "教学班详情"), clz, detail
+        )
+    if node_type == "course":
+        return Panel("[dim]暂未定义课程节点操作，仅可关闭。[/]", title="课程")
+    if node_type == "category":
+        return Panel("[dim]暂未定义分类节点操作，仅可关闭。[/]", title="分类")
+    return Panel("[dim]暂无可用信息。[/]", title="详情")
+
+
+def node_is_selected_class(node_data, selected_class_ids, selected_do_jxb_ids) -> bool:
+    if node_data.get("type") != "class":
+        return False
+    clz, detail = node_data.get("class_pair", ({}, {}))
+    jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
+    do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
+    return jxb_id in selected_class_ids or do_jxb_id in selected_do_jxb_ids
+
+
 def test_base_url(target_base_url: str):
     public_key = target_base_url.rstrip("/") + "/jwglxt/xtgl/login_getPublicKey.html"
     start = time.perf_counter()
     try:
-        res = sess.get(public_key, headers=header, timeout=5)
+        res = http_get(public_key, headers=header, timeout=5)
         duration = time.perf_counter() - start
         if res.status_code != 200:
             return False, f"HTTP {res.status_code} ({duration:.2f}s)"
@@ -270,17 +595,19 @@ def select_base_url():
     global base_url
     while True:
         table = make_simple_table("选择教务系统地址")
+        table.expand = False
         table.add_column("编号", style="cyan", width=6)
         table.add_column("地址", style="green")
         table.add_column("说明", style="white")
         for idx, url, description in ADDRESS_CHOICES:
             table.add_row(idx, url, description)
-        table.add_row("4", "自定义输入", "手动输入完整地址")
+        table.add_row("5", "自定义输入", "手动输入完整地址")
         table.add_row("t", "测试地址", "测试内置地址连通性")
         console.print(table)
         choice = Prompt.ask("请输入编号", default="1").strip().lower()
         if choice == "t":
             test_table = make_simple_table("地址测试结果")
+            test_table.expand = False
             test_table.add_column("地址", style="green")
             test_table.add_column("结果", style="bold")
             test_table.add_column("详情", style="white")
@@ -289,7 +616,7 @@ def select_base_url():
                 test_table.add_row(url, "可用" if ok else "失败", detail)
             console.print(test_table)
             continue
-        if choice == "4":
+        if choice == "5":
             custom_url = (
                 Prompt.ask("请输入完整 base_url", default=base_url).strip().rstrip("/")
             )
@@ -360,16 +687,16 @@ def do_login(log_func, debug_func):
     login_url = base_url + "/jwglxt/xtgl/login_slogin.html"
     try:
         debug_func("正在获取公钥...")
-        res = sess.get(public_key, headers=header, timeout=5)
+        res = http_get(public_key, headers=header, timeout=5)
         if res.status_code != 200:
-            res = sess.get(public_key, headers=header, timeout=5)
+            res = http_get(public_key, headers=header, timeout=5)
         key = res.json()
         mm = base64.b64encode(
             rsa_encryption(key["modulus"], key["exponent"], PASSWORD)
         ).decode()
         data = {"language": "zh_CN", "yhm": STUDENT_NUMBER, "mm": mm}
         debug_func("正在提交登录表单...")
-        req = sess.post(
+        req = http_post(
             url=login_url, headers=header, data=data, allow_redirects=False, timeout=5
         )
         if req.status_code == 302:
@@ -400,10 +727,12 @@ def fetch_big_list(log_func, debug_func):
         xslbdm, \
         mzm, \
         xz, \
-        ccdm
+        ccdm, \
+        max_credit_limit, \
+        current_credit_display
     try:
         debug_func("GET zzxkyzb_cxZzxkYzbIndex.html")
-        text = sess.get(
+        text = http_get(
             base_url + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512",
             timeout=8,
         ).text
@@ -425,6 +754,18 @@ def fetch_big_list(log_func, debug_func):
                 mzm = re.findall(r'id="mzm" value="(.*)"', text)[0]
                 xz = re.findall(r'id="xz" value="(.*)"', text)[0]
                 ccdm = re.findall(r'id="ccdm" value="(.*)"', text)[0]
+                max_credit_match = re.findall(r'id="xkzgxf" value="(.*?)"', text)
+                current_credit_match = re.findall(r'id="zxfs" value="(.*?)"', text)
+                if max_credit_match:
+                    try:
+                        max_credit_limit = float(max_credit_match[0] or 0)
+                    except Exception:
+                        max_credit_limit = 0.0
+                if current_credit_match:
+                    try:
+                        current_credit_display = float(current_credit_match[0] or 0)
+                    except Exception:
+                        current_credit_display = 0.0
                 debug_func("页面参数解析成功")
             except:
                 log_func(Text("解析页面参数失败，请检查是否登录", style="bold red"))
@@ -499,7 +840,7 @@ def fetch_small_list(target, log_func, debug_func, page=1):
     }
     try:
         debug_func(f"Fetch small list: {target[0]} [range {start}-{end}]")
-        req = sess.post(url=url, data=data, timeout=10).json()
+        req = http_post(url=url, data=data, timeout=10).json()
         ret_data = {}
         if "tmpList" in req:
             for clz in req["tmpList"]:
@@ -571,7 +912,7 @@ def fetch_class_detail_and_plan(
     }
     try:
         debug_func(f"查询班级详情: KCH={kch_id}")
-        req = sess.post(url=q_url, data=qk_data, timeout=8)
+        req = http_post(url=q_url, data=qk_data, timeout=8)
         return req.json()
     except requests.Timeout:
         debug_func(f"[bold red]!!! TIMEOUT (KCH={kch_id}) - 可能被Ban或网络卡顿 !!![/]")
@@ -606,9 +947,26 @@ def execute_choose(
     }
     try:
         debug_func(f"发送选课请求: JXB={jxb_id}")
-        return sess.post(url=qk_url, data=qk_data, timeout=5)
+        return http_post(url=qk_url, data=qk_data, timeout=5)
     except Exception as e:
         debug_func(f"选课请求异常: {e}[/]")
+        return None
+
+
+def execute_withdraw(jxb_id, kch_id, debug_func):
+    tk_url = base_url + "/jwglxt/xsxk/zzxkyzb_tuikBcZzxkYzb.html?gnmkdm=N253512"
+    tk_data = {
+        "kch_id": kch_id,
+        "jxb_ids": jxb_id,
+        "xkxnm": xkxnm,
+        "xkxqm": xkxqm,
+        "txbsfrl": "0",
+    }
+    try:
+        debug_func(f"发送退课请求: JXB={jxb_id}")
+        return http_post(url=tk_url, data=tk_data, timeout=5)
+    except Exception as e:
+        debug_func(f"退课请求异常: {e}[/]")
         return None
 
 
@@ -650,7 +1008,7 @@ def fetch_choosed_list(log_func=None, debug_func=None):
     try:
         if debug_func:
             debug_func("GET ChoosedDisplay")
-        res = sess.post(url=url, data=data, timeout=10)
+        res = http_post(url=url, data=data, timeout=10)
         return res.json()
     except Exception as e:
         if log_func:
@@ -712,19 +1070,74 @@ def parse_sksj_to_slots(sksj_str):
 
 class ContextMenuScreen(ModalScreen):
     BINDINGS = [("escape", "close_screen", "Close")]
+    CSS = """
+    ContextMenuScreen {
+        align: center middle;
+        background: $background 20%;
+    }
+    .context-menu-panel {
+        background: $surface;
+        border: thick $primary;
+        padding: 1 2;
+        width: 72;
+        max-width: 80%;
+        height: auto;
+    }
+    """
 
-    def __init__(self, node_data, **kwargs):
+    def __init__(self, node_data, is_selected=False, **kwargs):
         super().__init__(**kwargs)
         self.node_data = node_data
+        self.is_selected = is_selected
+        self.enter_armed = False
+        self.button_ids = []
+
+    def on_mount(self) -> None:
+        self.button_ids = [button.id for button in self.query(Button) if button.id]
+        self.set_focus(self.query_one("#ctx-close", Button))
+        self.set_timer(0.1, self._arm_enter)
+
+    def _arm_enter(self) -> None:
+        self.enter_armed = True
+
+    def on_key(self, event) -> None:
+        if event.key == "enter" and not self.enter_armed:
+            event.stop()
+            return
+        if event.key in {"up", "down"}:
+            self._move_button_focus(-1 if event.key == "up" else 1)
+            event.stop()
+
+    def _move_button_focus(self, step: int) -> None:
+        if not self.button_ids:
+            return
+        focused_id = getattr(self.focused, "id", None)
+        if focused_id not in self.button_ids:
+            target_id = self.button_ids[-1] if step < 0 else self.button_ids[0]
+        else:
+            idx = self.button_ids.index(focused_id)
+            target_id = self.button_ids[(idx + step) % len(self.button_ids)]
+        self.set_focus(self.query_one(f"#{target_id}", Button))
 
     def compose(self) -> ComposeResult:
         with Container(classes="context-menu-panel"):
             yield Static("[bold]操作菜单[/]", id="ctx-title")
             yield Static(f"选中: {self.node_data.get('type', '?')}", id="ctx-info")
-            yield Static("[dim]暂无可用操作 (开发中)[/]", id="ctx-empty")
+            yield Static(build_node_detail_renderable(self.node_data), id="ctx-empty")
+            if self.node_data.get("type") == "class":
+                yield Button(
+                    "退课" if self.is_selected else "选课",
+                    variant="success",
+                    id="ctx-action",
+                )
             yield Button("关闭", variant="primary", id="ctx-close")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if not self.enter_armed:
+            return
+        if event.button.id == "ctx-action":
+            self.dismiss("action")
+            return
         if event.button.id == "ctx-close":
             self.dismiss()
 
@@ -754,12 +1167,12 @@ class CourseApp(App):
         height: 1fr;
     }
     #left-pane {
-        width: 50%;
+        width: 65%;
         height: 100%;
         border-right: solid $panel;
     }
     #right-pane {
-        width: 50%;
+        width: 35%;
         height: 100%;
         layout: vertical;
     }
@@ -811,6 +1224,14 @@ class CourseApp(App):
         width: auto;
         content-align: center middle;
     }
+    #week-credit {
+        width: auto;
+        content-align: center middle;
+        color: $text-muted;
+    }
+    #week-refresh {
+        color: $text-muted;
+    }
     #week-info {
         display: none;
     }
@@ -820,9 +1241,6 @@ class CourseApp(App):
         scrollbar-gutter: stable;
     }
     #logger {
-        height: 1fr;
-    }
-    #debug_logger {
         height: 1fr;
     }
     #timetable-detail {
@@ -863,6 +1281,12 @@ class CourseApp(App):
     timetable_entries = []
     timetable_day_width = 10
     selected_timetable_cell = None
+    selected_course_ids = set()
+    selected_class_ids = set()
+    selected_do_jxb_ids = set()
+    current_credit = 0.0
+    max_credit = 32.0
+    refresh_status = ""
 
     def compose(self) -> ComposeResult:
         yield Static("ZJNU 抢课终端", classes="header-box")
@@ -885,13 +1309,16 @@ class CourseApp(App):
                                 yield Static(
                                     "下一周", id="week-next", classes="week-nav"
                                 )
+                                yield Static("学分0.0/32", id="week-credit")
+                                yield Static(
+                                    "刷新", id="week-refresh", classes="week-nav"
+                                )
                                 yield Static("", id="week-info")
                             yield DataTable(id="timetable")
                             with VerticalScroll(id="timetable-detail"):
                                 yield Static("", id="timetable-detail-content")
             with Container(id="right-pane"):
                 yield RichLog(id="logger", highlight=True, wrap=True)
-                yield RichLog(id="debug_logger", highlight=True, wrap=True)
         yield Input(
             placeholder="add | scan | start | stop | reload | help",
             id="cmd_input",
@@ -902,6 +1329,8 @@ class CourseApp(App):
         tree = self.get_tree()
         tree.show_root = False
         tree.root.expand()
+        self.set_focus(tree)
+        set_request_logger(self.debug_write)
         self.init_timetable()
         self.call_after_refresh(self.refresh_timetable_layout)
         self.debug_write("Client Initialized[/]")
@@ -930,15 +1359,43 @@ class CourseApp(App):
                     for course_node in cat_node.children:
                         course_node.remove_class("hidden")
 
+    def on_key(self, event) -> None:
+        if event.key != "enter":
+            return
+        if self.focused is not self.get_tree():
+            return
+        self.action_open_context_menu()
+        event.stop()
+
     def get_tree(self):
         return self.query_one("#course_tree", Tree)
 
     def log_write(self, renderable):
-        self.query_one("#logger", RichLog).write(renderable)
+        self.debug_write(renderable)
 
     def debug_write(self, msg):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.query_one("#debug_logger", RichLog).write(f"[{timestamp}] {msg}")
+        prefix = f"[{timestamp}] "
+        logger = self.query_one("#logger", RichLog)
+        width = max(40, logger.size.width or 40)
+        if isinstance(msg, Text):
+            renderable = Text(
+                format_log_with_prefix(prefix, msg.plain, width),
+                spans=list(msg.spans),
+                style=msg.style,
+                no_wrap=False,
+                overflow="fold",
+            )
+        elif not isinstance(msg, str):
+            logger.write(msg)
+            return
+        else:
+            renderable = Text(
+                format_log_with_prefix(prefix, str(msg), width),
+                no_wrap=False,
+                overflow="fold",
+            )
+        logger.write(renderable)
 
     def set_tree_placeholder(self, message: str):
         tree = self.get_tree()
@@ -1044,6 +1501,8 @@ class CourseApp(App):
                     has_other.setdefault((d, j), []).append((w, entry["name"]))
         week_label = self.query_one("#week-label", Static)
         week_label.update(f"第 {week}/{MAX_WEEK} 周")
+        credit_label = self.query_one("#week-credit", Static)
+        credit_label.update(f"学分{self.current_credit:.1f}/{self.max_credit:g}")
         for j in range(1, MAX_JIECI + 1):
             row_key = f"j{j}"
             for d in range(1, 8):
@@ -1071,25 +1530,32 @@ class CourseApp(App):
     def show_all_choosed(self):
         if not self.timetable_entries:
             table = make_simple_table("全部课程(0)")
-            table.add_column("课程", overflow="fold")
+            table.add_column("名称", overflow="fold")
+            table.add_column("学分", overflow="fold")
             table.add_column("教师", overflow="fold")
             table.add_column("时间", overflow="fold")
             table.add_column("地点", overflow="fold")
-            table.add_row("暂无已选课程", "", "", "")
+            table.add_row("暂无已选课程", "", "", "", "")
             self.show_timetable_detail(table)
             return
         table = make_simple_table(f"全部课程({len(self.timetable_entries)})")
-        table.add_column("课程", ratio=2, overflow="fold")
+        table.add_column("名称", ratio=2, overflow="fold")
+        table.add_column("学分", ratio=1, overflow="fold")
         table.add_column("教师", ratio=1, overflow="fold")
         table.add_column("时间", ratio=2, overflow="fold")
         table.add_column("地点", ratio=2, overflow="fold")
         for entry in self.timetable_entries:
-            name = entry["name"]
             info = entry.get("data", {})
-            teacher = info.get("teacher", "")
+            name = format_course_name_cell(
+                entry["name"], info.get("kch_id", ""), info.get("class_no", "")
+            )
+            credit = info.get("credit", "")
+            teacher = format_teacher_cell(
+                info.get("teacher_name", ""), info.get("teacher_title", "")
+            )
             location = info.get("location", "")
             sksj = entry.get("sksj_raw", "")
-            table.add_row(name, teacher, sksj, location)
+            table.add_row(name, credit, teacher, sksj, location)
         self.show_timetable_detail(table)
 
     def clear_timetable_selection(self):
@@ -1123,21 +1589,27 @@ class CourseApp(App):
         for w, entry in sorted(entries, key=lambda x: x[0]):
             info = entry.get("data", {})
             key = (
-                entry["name"],
-                info.get("teacher", ""),
+                format_course_name_cell(
+                    entry["name"], info.get("kch_id", ""), info.get("class_no", "")
+                ),
+                info.get("credit", ""),
+                format_teacher_cell(
+                    info.get("teacher_name", ""), info.get("teacher_title", "")
+                ),
                 entry.get("sksj_raw", ""),
                 info.get("location", ""),
             )
             grouped.setdefault(key, []).append(w)
         table = make_simple_table(f"周{day_name}第{jieci}节({len(grouped)})")
-        table.add_column("课程", ratio=2, overflow="fold")
+        table.add_column("名称", ratio=2, overflow="fold")
+        table.add_column("学分", ratio=1, overflow="fold")
         table.add_column("教师", ratio=1, overflow="fold")
         table.add_column("周次", ratio=1, overflow="fold")
         table.add_column("时间", ratio=2, overflow="fold")
         table.add_column("地点", ratio=2, overflow="fold")
-        for (name, teacher, sksj, location), weeks in grouped.items():
+        for (name, credit, teacher, sksj, location), weeks in grouped.items():
             week_text = format_week_ranges(weeks)
-            table.add_row(name, teacher, week_text, sksj, location)
+            table.add_row(name, credit, teacher, week_text, sksj, location)
         self.show_timetable_detail(table)
 
     def on_data_table_cell_highlighted(self, event: DataTable.CellHighlighted) -> None:
@@ -1160,6 +1632,9 @@ class CourseApp(App):
         if widget_id == "week-prev":
             self.display_week = max(1, self.display_week - 1)
             self.render_timetable()
+            return
+        if widget_id == "week-refresh":
+            self.fetch_timetable()
             return
         if widget_id == "week-next":
             self.display_week = min(MAX_WEEK, self.display_week + 1)
@@ -1232,7 +1707,7 @@ class CourseApp(App):
             return
         for target in self.big_list_cache:
             node = tree.root.add(
-                target[0],
+                style_category_label(target[0]),
                 data={
                     "type": "category",
                     "target": target,
@@ -1289,15 +1764,26 @@ class CourseApp(App):
         small_list = category_state["courses"]
         if not small_list:
             node.add_leaf("无课程", data={"type": "placeholder"})
-            node.set_label(f"{target[0]} (0)")
+            node.set_label(style_category_label(f"{target[0]} (0)"))
             return
         loaded_count = category_state["loaded_count"]
         more_suffix = "+" if category_state["has_more"] else ""
-        node.set_label(f"{target[0]} ({loaded_count}{more_suffix})")
+        node.set_label(
+            style_category_label(f"{target[0]} ({loaded_count}{more_suffix})")
+        )
         for kch_id, course_info_list in small_list.items():
             course_name = course_info_list[0].get("kcmc", kch_id)
+            credit_text = format_credit_text(
+                course_info_list[0].get("xf") or course_info_list[0].get("jxbxf")
+            )
+            course_label = style_course_label(
+                build_course_tree_label(
+                    course_name, kch_id, credit_text, len(course_info_list)
+                ),
+                kch_id in self.selected_course_ids,
+            )
             course_node = node.add(
-                f"{course_name} [{kch_id}]",
+                course_label,
                 data={
                     "type": "course",
                     "target_big": target,
@@ -1329,27 +1815,89 @@ class CourseApp(App):
         self.course_class_cache[(make_category_key(target_big), kch_id)] = final_data
         if not final_data:
             node.add_leaf("无教学班", data={"type": "placeholder"})
-            node.set_label(f"{course_name} [{kch_id}] (0)")
+            node.set_label(
+                style_course_label(
+                    build_course_tree_label(course_name, kch_id, "", 0), False
+                )
+            )
             return
-        node.set_label(f"{course_name} [{kch_id}] ({len(final_data)})")
+        course_info_list = node.data.get("course_info_list") or []
+        course_credit = format_credit_text(
+            (course_info_list[0].get("xf") if course_info_list else "")
+            or (course_info_list[0].get("jxbxf") if course_info_list else "")
+        )
+        course_header = style_course_label(
+            build_course_tree_label(
+                course_name, kch_id, course_credit, len(final_data)
+            ),
+            kch_id in self.selected_course_ids,
+        )
+        node.set_label(course_header)
         for index, item in enumerate(final_data, start=1):
             clz, detail = item
-            selected = detail.get("yxzrs", "?")
-            total = clz.get("jxbrl", "?")
-            teacher = clz.get("jsxx", "未标注教师")
-            time_loc = f"{clz.get('sksj', '')} @ {clz.get('jxdd', '')}".strip()
-            label = f"{index}. {teacher} | {selected}/{total} | {time_loc}"
+            label = build_class_tree_label(index, course_name, clz, detail)
+            jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
+            do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
+            if (
+                jxb_id in self.selected_class_ids
+                or do_jxb_id in self.selected_do_jxb_ids
+            ):
+                label = f"[green]{label}[/]"
             node.add_leaf(
                 label,
                 data={
                     "type": "class",
                     "target_big": target_big,
                     "course_name": course_name,
+                    "class_index": index,
                     "class_pair": item,
                     "extra_params": extra_params,
                     "final_data": [item],
                 },
             )
+
+    def refresh_tree_selection_marks(self):
+        tree = self.get_tree()
+        for category_node in tree.root.children:
+            for course_node in category_node.children:
+                data = course_node.data or {}
+                if data.get("type") != "course":
+                    continue
+                kch_id = data.get("kch_id", "")
+                course_name = data.get("course_name", kch_id)
+                course_info_list = data.get("course_info_list") or []
+                credit_text = format_credit_text(
+                    (course_info_list[0].get("xf") if course_info_list else "")
+                    or (course_info_list[0].get("jxbxf") if course_info_list else "")
+                )
+                class_count = (
+                    len(data.get("final_data", []))
+                    if data.get("loaded")
+                    else len(course_info_list)
+                )
+                label = style_course_label(
+                    build_course_tree_label(
+                        course_name, kch_id, credit_text, class_count
+                    ),
+                    kch_id in self.selected_course_ids,
+                )
+                course_node.set_label(label)
+                for class_node in course_node.children:
+                    class_data = class_node.data or {}
+                    if class_data.get("type") != "class":
+                        continue
+                    clz, detail = class_data.get("class_pair", ({}, {}))
+                    class_label = build_class_tree_label(
+                        class_data.get("class_index", 1), course_name, clz, detail
+                    )
+                    jxb_id = str(clz.get("jxb_id", detail.get("jxb_id", "")))
+                    do_jxb_id = str(clz.get("do_jxb_id", detail.get("do_jxb_id", "")))
+                    if (
+                        jxb_id in self.selected_class_ids
+                        or do_jxb_id in self.selected_do_jxb_ids
+                    ):
+                        class_label = f"[green]{class_label}[/]"
+                    class_node.set_label(class_label)
 
     def set_selected_context(self, data):
         self.current_context["selected_node_data"] = data
@@ -1381,21 +1929,55 @@ class CourseApp(App):
     @work(thread=True)
     def fetch_timetable(self):
         self.debug_write("正在获取已选课程...")
+        self.call_from_thread(self._set_refresh_status, "中")
         choosed = fetch_choosed_list(self.log_write, self.debug_write)
         if not choosed:
             self.debug_write("无已选课程")
             self.call_from_thread(self._refresh_timetable, [])
+            self.call_from_thread(self._set_refresh_status, "失败")
             return
         self.debug_write(f"已选课程: {len(choosed)} 条")
         self.call_from_thread(self._refresh_timetable, choosed)
+        self.call_from_thread(self._set_refresh_status, "完成")
+
+    def _set_refresh_status(self, status_text):
+        self.refresh_status = status_text
+        self.render_timetable()
 
     def _refresh_timetable(self, choosed):
         self.timetable_entries = []
+        self.selected_course_ids = set()
+        self.selected_class_ids = set()
+        self.selected_do_jxb_ids = set()
+        self.max_credit = max_credit_limit or self.max_credit
+        self.current_credit = current_credit_display or 0.0
+        summed_credit = 0.0
         for item in choosed:
-            name = item.get("jxbmc", "")
+            jxbmc = item.get("jxbmc", "")
+            name = item.get("kcmc") or jxbmc
             sksj = item.get("sksj", "").replace("<br/>", ", ")
-            teacher = item.get("jsxx", "")
+            teacher_name, teacher_title = parse_teacher_display(item.get("jsxx", ""))
             location = item.get("jxdd", "").replace("<br/>", ", ")
+            kch_id = str(item.get("t_kch_id") or item.get("kch_id") or "")
+            jxb_id = str(item.get("jxb_id") or "")
+            class_no = extract_class_no(jxbmc) or str(
+                item.get("jxbh") or item.get("right_jxb_id") or jxb_id
+            )
+            do_jxb_id = str(item.get("do_jxb_id") or item.get("right_do_jxb_id") or "")
+            if kch_id:
+                self.selected_course_ids.add(kch_id)
+            if jxb_id:
+                self.selected_class_ids.add(jxb_id)
+            if do_jxb_id:
+                self.selected_do_jxb_ids.add(do_jxb_id)
+            credit_value = item.get("xf") or item.get("jxbxf") or 0
+            credit_text = (
+                str(credit_value).strip() if credit_value not in (None, "") else ""
+            )
+            try:
+                summed_credit += float(credit_text or 0)
+            except Exception:
+                pass
             slots = parse_sksj_to_slots(sksj)
             if slots:
                 self.timetable_entries.append(
@@ -1403,11 +1985,21 @@ class CourseApp(App):
                         "name": name,
                         "sksj_raw": sksj,
                         "slots": slots,
-                        "data": {"teacher": teacher, "location": location},
+                        "data": {
+                            "teacher_name": teacher_name,
+                            "teacher_title": teacher_title,
+                            "location": location,
+                            "kch_id": kch_id,
+                            "class_no": class_no,
+                            "credit": credit_text,
+                        },
                     }
                 )
+        if self.current_credit <= 0 and summed_credit > 0:
+            self.current_credit = summed_credit
         self.render_timetable()
         self.show_all_choosed()
+        self.refresh_tree_selection_marks()
         if self.filter_no_conflict:
             self.apply_tree_filter()
 
@@ -1517,7 +2109,69 @@ class CourseApp(App):
     def action_open_context_menu(self):
         data = self.current_context.get("selected_node_data")
         if data and data.get("type") in {"category", "course", "class"}:
-            self.push_screen(ContextMenuScreen(data))
+            is_selected = node_is_selected_class(
+                data, self.selected_class_ids, self.selected_do_jxb_ids
+            )
+            self.push_screen(
+                ContextMenuScreen(data, is_selected=is_selected),
+                callback=lambda result: self._handle_context_menu_result(data, result),
+            )
+
+    def _handle_context_menu_result(self, data, result):
+        if result != "action":
+            return
+        if data.get("type") != "class":
+            return
+        self.context_menu_class_action(data)
+
+    @work(thread=True)
+    def context_menu_class_action(self, data):
+        clz, detail = data.get("class_pair", ({}, {}))
+        extra_params = data.get("extra_params") or []
+        if len(extra_params) < 5:
+            self.call_from_thread(
+                self.log_write, Text("缺少提交参数，无法执行操作", style="red")
+            )
+            return
+        rwlx, xkkz_id, grade, zyh_id, kklxdm = extra_params
+        kch_id = str(detail.get("kch_id") or clz.get("kch_id") or "")
+        kcmc = detail.get("kcmc") or clz.get("kcmc") or data.get("course_name", "")
+        do_jxb_id = str(clz.get("do_jxb_id") or detail.get("do_jxb_id") or "")
+        if not kch_id or not do_jxb_id:
+            self.call_from_thread(
+                self.log_write, Text("缺少课程或教学班标识，无法执行操作", style="red")
+            )
+            return
+        is_selected = node_is_selected_class(
+            data, self.selected_class_ids, self.selected_do_jxb_ids
+        )
+        if is_selected:
+            self.call_from_thread(self.log_write, f"正在退课: {kcmc}")
+            res = execute_withdraw(do_jxb_id, kch_id, self.debug_write)
+        else:
+            self.call_from_thread(self.log_write, f"正在选课: {kcmc}")
+            res = execute_choose(
+                do_jxb_id,
+                kch_id,
+                kcmc,
+                rwlx,
+                xkkz_id,
+                grade,
+                zyh_id,
+                kklxdm,
+                self.debug_write,
+            )
+        if res is None:
+            self.call_from_thread(
+                self.log_write, Text("请求失败，请查看调试日志", style="red")
+            )
+            return
+        try:
+            payload = res.json()
+        except Exception:
+            payload = {"raw": res.text}
+        self.call_from_thread(self.log_write, Text(str(payload), style="cyan"))
+        self.fetch_timetable()
 
     @work(thread=True)
     def run_grab_loop(self):
