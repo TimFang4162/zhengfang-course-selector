@@ -1,0 +1,254 @@
+:root {
+  color-scheme: dark;
+  --editor: #1e1e1e;
+  --side-bar: #252526;
+  --panel: #1e1e1e;
+  --panel-header: #2d2d2d;
+  --input: #3c3c3c;
+  --input-border: #3c3c3c;
+  --hover: #2a2d2e;
+  --active: #37373d;
+  --selection: #04395e;
+  --selection-strong: #094771;
+  --focus: #007fd4;
+  --border: #3c3c3c;
+  --border-subtle: #2b2b2b;
+  --text: #cccccc;
+  --muted: #969696;
+  --muted-2: #6a6a6a;
+  --accent: #0e639c;
+  --accent-hover: #1177bb;
+  --yellow: #d7ba7d;
+  --blue: #4fc1ff;
+  --green: #89d185;
+  --gray: #777777;
+  --danger: #f14c4c;
+  --left-pane-width: 65vw;
+  --detail-height: 150px;
+  --activity-height: 220px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--editor);
+  color: var(--text);
+  font-family: "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+select,
+input {
+  min-height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: 2px;
+  background: var(--input);
+  color: var(--text);
+  padding: 3px 8px;
+}
+
+button {
+  cursor: pointer;
+  user-select: none;
+  background: var(--active);
+  transition: background-color 80ms linear, border-color 80ms linear;
+}
+
+button:hover {
+  background: #45494e;
+  border-color: #5a5a5a;
+}
+
+button:active {
+  background: #50565c;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+#login-button,
+#modal-action {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+#login-button:hover,
+#modal-action:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: -1px;
+  border-color: var(--focus);
+}
+
+select {
+  appearance: none;
+  padding-right: 24px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 11px, calc(100% - 8px) 11px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.dim {
+  color: var(--muted);
+}
+
+.surface {
+  background: var(--side-bar);
+  border: 1px solid var(--border);
+}
+
+.compact-surface {
+  padding: 0;
+}
+
+.overlay,
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.46);
+}
+
+.login-card,
+.modal-card {
+  width: min(560px, calc(100vw - 32px));
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.login-card h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.eyebrow,
+.header-badge,
+.log-title {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-badge {
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+}
+
+.form-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.address-controls,
+.inline-fields,
+.input-with-unit,
+.saved-login-panel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.address-controls select,
+.inline-fields select,
+.inline-fields input,
+.input-with-unit input {
+  min-width: 0;
+  flex: 1;
+}
+
+.saved-login-panel {
+  justify-content: space-between;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--editor);
+}
+
+.login-separator {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-separator span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-separator span::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-actions,
+.modal-actions,
+.modal-header,
+.toolbar,
+.week-toolbar,
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,0 +1,131 @@
+.log-shell {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.activity-shell {
+  display: flex;
+  flex: 0 0 var(--activity-height);
+  min-height: 120px;
+  max-height: calc(100vh - 120px);
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.log-header {
+  display: flex;
+  min-height: 35px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 7px 3px 10px;
+  background: var(--panel-header);
+  border-bottom: 1px solid var(--border);
+}
+
+.log-title {
+  color: #ffffff;
+}
+
+.log-list {
+  flex: 1;
+  padding: 4px 0 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.activity-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.activity-table th,
+.activity-table td {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.activity-table th {
+  position: sticky;
+  top: 0;
+  background: var(--side-bar);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.activity-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-more {
+  float: right;
+  min-width: 22px;
+  min-height: 20px;
+  padding: 0 5px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: 6px;
+  margin: 0;
+  padding: 1px 10px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.log-time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.log-message {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.log-line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.log-line.is-request .log-message {
+  color: var(--blue);
+}
+
+.log-line.is-clickable {
+  cursor: pointer;
+}
+
+.log-line.is-pending .log-message {
+  color: var(--yellow);
+}
+
+.log-detail-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text);
+}

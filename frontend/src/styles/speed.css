@@ -1,0 +1,35 @@
+.speed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.speed-content {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+.speed-table th,
+.speed-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.speed-table tr.is-ok td:nth-child(2) {
+  color: var(--green);
+}
+
+.speed-table tr.is-error td:nth-child(2) {
+  color: #f87171;
+}
+
+.link-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: var(--blue);
+  background: transparent;
+  text-align: left;
+}

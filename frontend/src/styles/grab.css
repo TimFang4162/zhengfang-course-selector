@@ -1,0 +1,178 @@
+.grab-card {
+  width: min(820px, calc(100vw - 32px));
+}
+
+.grab-editor {
+  display: grid;
+  gap: 6px;
+}
+
+#grab-expression {
+  min-height: 118px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+#grab-expression.monaco-enabled {
+  display: none;
+}
+
+.grab-monaco {
+  height: 140px;
+  border: 1px solid var(--border);
+  background: var(--editor);
+}
+
+.grab-hints {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.grab-status {
+  min-height: 20px;
+  font-size: 12px;
+}
+
+.grab-status.is-ok {
+  color: var(--green);
+}
+
+.grab-status.is-error {
+  color: var(--danger);
+}
+
+.grab-preview {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  background: var(--editor);
+}
+
+.grab-preview-header {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.grab-preview-list {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.grab-preview-section {
+  padding: 6px 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.grab-preview-tree-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.grab-preview-tree-row.level-1 {
+  padding-left: 24px;
+}
+
+.grab-preview-tree-row.level-2 {
+  padding-left: 44px;
+}
+
+.grab-preview-tree-row.is-missing {
+  color: var(--yellow);
+}
+
+.grab-preview-tree-row:hover {
+  background: var(--hover);
+}
+
+.grab-load-missing {
+  margin: 6px 8px;
+  min-height: 24px;
+  font-size: 12px;
+}
+
+.grab-preview-tree-row span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.grab-preview-empty {
+  padding: 8px;
+}
+
+.form-card {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--editor);
+}
+
+.form-section-title {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-group {
+  display: grid;
+  gap: 5px;
+}
+
+.field-group.span-2 {
+  grid-column: 1 / -1;
+}
+
+.field-group > label:first-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-with-unit span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.grab-settings input,
+.grab-settings select {
+  min-height: 24px;
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

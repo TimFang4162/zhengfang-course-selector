@@ -1,0 +1,318 @@
+.tree-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-right: 14px;
+}
+
+.menu-root {
+  position: relative;
+}
+
+.menu-button {
+  min-height: 24px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+}
+
+.menu-button:hover {
+  background: var(--hover);
+}
+
+.menu-popover,
+.floating-menu {
+  position: absolute;
+  z-index: 30;
+  min-width: 190px;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  background: var(--side-bar);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.menu-popover {
+  top: 26px;
+  left: 0;
+}
+
+.menu-popover button,
+.floating-menu button {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+}
+
+.menu-popover button:hover,
+.floating-menu button:hover {
+  background: var(--selection-strong);
+}
+
+.tree-search {
+  display: flex;
+  min-width: 260px;
+  max-width: min(680px, 100%);
+  flex: 1 1 420px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+
+#course-search {
+  min-width: 150px;
+  flex: 1 1 240px;
+  min-height: 24px;
+  padding: 2px 7px;
+  font-size: 12px;
+}
+
+#search-scope {
+  min-width: 118px;
+  max-width: 180px;
+  min-height: 24px;
+  font-size: 12px;
+}
+
+#local-search,
+#remote-search {
+  white-space: nowrap;
+}
+
+.tree-view,
+.log-list,
+.detail-panel,
+.academic-view,
+.timetable-wrap {
+  min-height: 0;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.tree-view {
+  flex: 1;
+  padding: 4px 0 8px;
+  background: var(--side-bar);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  color: var(--text);
+}
+
+.tree-row:hover {
+  background: var(--hover);
+}
+
+.tree-row.selected {
+  background: var(--selection);
+  border-color: transparent;
+}
+
+.tree-row.selected:hover {
+  background: var(--selection-strong);
+}
+
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tree-row-grid {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 22px;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.tree-check {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #5a5a5a;
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.tree-check.is-checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.tree-more-dot {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  color: var(--muted-2);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.tree-row:hover .tree-more-dot,
+.tree-row.selected .tree-more-dot {
+  opacity: 1;
+}
+
+.tree-more-dot:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.tree-table {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+  column-gap: 8px;
+  white-space: nowrap;
+}
+
+.tree-course-table {
+  grid-template-columns: minmax(160px, 1.8fr) minmax(96px, 0.8fr) 64px 74px;
+}
+
+.tree-class-table {
+  grid-template-columns: minmax(72px, 0.55fr) minmax(104px, 0.75fr) minmax(138px, 1.2fr) minmax(88px, 0.75fr) 64px 64px;
+}
+
+.tree-table > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-table-main {
+  color: inherit;
+}
+
+.tree-table-code,
+.tree-table-credit,
+.tree-table-count,
+.tree-table-teacher,
+.tree-table-time,
+.tree-table-location,
+.tree-table-prop {
+  color: var(--muted);
+}
+
+.tree-row.level-2 .tree-table-count {
+  color: var(--green);
+}
+
+.tree-row.level-1,
+.tree-row.level-2 {
+  border-bottom-color: rgba(255, 255, 255, 0.025);
+}
+
+.level-0 .tree-label {
+  color: var(--yellow);
+}
+
+.level-1 .tree-label {
+  color: var(--blue);
+}
+
+.tree-row.selected .tree-label,
+.tree-row.level-2.selected .tree-label {
+  color: var(--green);
+}
+
+.tree-row.muted .tree-label {
+  color: var(--gray);
+}
+
+.tree-row.muted .tree-table > span {
+  color: var(--gray);
+}
+
+.tree-arrow {
+  display: inline-flex;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-2);
+  font-size: 11px;
+}
+
+.tree-arrow.is-expandable:hover {
+  color: var(--text);
+}
+
+.tree-children {
+  position: relative;
+  margin-left: 17px;
+  padding-left: 10px;
+}
+
+.tree-children::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 3px;
+  left: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.tree-placeholder {
+  padding: 5px 8px 5px 24px;
+  color: var(--muted-2);
+  font-size: 12px;
+}
+
+.tree-more {
+  display: block;
+  width: calc(100% - 16px);
+  min-height: 24px;
+  margin: 2px 8px;
+  padding: 2px 8px 2px 24px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--blue);
+  text-align: left;
+  font-size: 13px;
+}
+
+.tree-more:hover {
+  background: var(--hover);
+  border-color: transparent;
+}
+
+@media (max-width: 960px) {
+  .tree-search {
+    flex-basis: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .tree-actions {
+    flex-basis: 100%;
+  }
+}

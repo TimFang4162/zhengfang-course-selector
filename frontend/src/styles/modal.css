@@ -1,0 +1,36 @@
+.modal-card {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.modal-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-header strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.modal-content {
+  padding: 10px;
+  background: var(--editor);
+  border: 1px solid var(--border);
+}
+
+.modal-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.class-meta {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.class-meta > div:first-child {
+  color: var(--muted);
+}
