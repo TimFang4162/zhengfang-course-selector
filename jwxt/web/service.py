@@ -144,7 +144,13 @@ class JWXTWebService(GrabTaskMixin):
         self._log_renderable({"type": "debug", "level": "debug", "message": message})
 
     def _log_info(self, message: str):
-        self._log_renderable({"type": "business", "level": "info", "message": message})
+        self._log_business(message)
+
+    def _log_business(self, message: str, level: str = "info"):
+        self._log_renderable({"type": "business", "level": level, "message": message})
+
+    def _log_warn(self, message: str):
+        self._log_business(message, level="warn")
 
     def _log_system(self, message: str, level: str = "info"):
         self._log_renderable({"type": "system", "level": level, "message": message})
@@ -216,6 +222,10 @@ class JWXTWebService(GrabTaskMixin):
             ok = self.mod.do_login(self._log_renderable, self._log_debug)
             setattr(self.mod, "is_authenticated", ok)
             if not ok:
+                self._log_business(
+                    f"登录失败 {self.mod.mask_student_number(student_number)}",
+                    level="error",
+                )
                 return {"ok": False, "message": "登录失败"}
             if save_credentials:
                 self.mod.save_credentials(student_number, password)
@@ -223,6 +233,9 @@ class JWXTWebService(GrabTaskMixin):
             categories = self.fetch_categories(refresh=True)
             timetable = self.fetch_timetable(refresh=True)
             tree = self.tree_state()
+            self._log_info(
+                f"登录成功 {self.mod.mask_student_number(student_number)}，已加载 {len(categories.get('items', []))} 个课程大类"
+            )
             return {
                 "ok": True,
                 "message": "登录成功",
@@ -233,6 +246,7 @@ class JWXTWebService(GrabTaskMixin):
 
     def test_addresses(self, payload: dict):
         addresses = payload.get("addresses") or []
+        self._log_info(f"开始教务地址测速: {len(addresses)} 个地址")
         disable_ssl_verify = bool(
             payload.get("disableSslVerify", self.disable_ssl_verify)
         )
@@ -266,6 +280,11 @@ class JWXTWebService(GrabTaskMixin):
                 result["ms"] = int((time.perf_counter() - started) * 1000)
             results.append(result)
         results.sort(key=lambda item: (not item["ok"], item["ms"] or 999999))
+        ok_count = sum(1 for item in results if item.get("ok"))
+        level = "info" if ok_count else "warn"
+        self._log_business(
+            f"教务地址测速完成: {ok_count}/{len(results)} 可达", level=level
+        )
         return {"items": results}
 
     def update_settings(self, payload: dict):
@@ -273,12 +292,18 @@ class JWXTWebService(GrabTaskMixin):
             if "disableSslVerify" in payload:
                 self.disable_ssl_verify = bool(payload.get("disableSslVerify"))
                 self.mod.sess.verify = not self.disable_ssl_verify
+                self._log_info(
+                    f"SSL 验证设置: {'禁用' if self.disable_ssl_verify else '启用'}"
+                )
             return {"ok": True, "disableSslVerify": self.disable_ssl_verify}
 
     def fetch_categories(self, refresh: bool = False):
         with self.lock:
             self._require_auth()
             if refresh or not self.big_list_cache:
+                self._log_info(
+                    "刷新课程大类列表" if refresh else "课程大类缓存未命中，开始加载"
+                )
                 self.big_list_cache = self.mod.fetch_big_list(
                     self._log_renderable, self._log_debug
                 )
@@ -287,6 +312,7 @@ class JWXTWebService(GrabTaskMixin):
                 self.class_cache = {}
                 self.timetable_cache = None
                 self.academic_status_cache = None
+                self._log_info(f"课程大类列表已加载: {len(self.big_list_cache)} 个")
             return {
                 "items": [
                     {
@@ -311,6 +337,7 @@ class JWXTWebService(GrabTaskMixin):
         with self.lock:
             self._require_auth()
             target = self._get_target(category_id)
+            self._log_info(f"加载课程分页: {target[0]} 第 {page} 页")
             result = self.mod.fetch_small_list(
                 target, self._log_renderable, self._log_debug, page
             )
@@ -344,6 +371,9 @@ class JWXTWebService(GrabTaskMixin):
                 page_state["loadedPages"].append(page)
             page_state["hasMore"] = result.get("has_more", False)
             page_state["nextPage"] = result.get("next_page", page + 1)
+            self._log_info(
+                f"课程分页加载完成: {target[0]} 第 {result.get('page', page)} 页，{len(items)} 门课程"
+            )
             return {
                 "categoryId": category_id,
                 "page": result.get("page", page),
@@ -406,6 +436,9 @@ class JWXTWebService(GrabTaskMixin):
             self._require_auth()
             if refresh:
                 self.class_cache.pop((category_id, kch_id), None)
+                self._log_info(f"刷新教学班详情: {kch_id}")
+            else:
+                self._log_info(f"加载教学班详情: {kch_id}")
             self._ensure_course_info(category_id, kch_id)
             target = self._get_target(category_id)
             course_info_list = self.course_info_cache.get(category_id, {}).get(kch_id)
@@ -432,6 +465,9 @@ class JWXTWebService(GrabTaskMixin):
             )
             self.class_cache[(category_id, kch_id)] = final_data
             course_name = course_info_list[0].get("kcmc", kch_id)
+            self._log_info(
+                f"教学班详情加载完成: {course_name}，{len(final_data)} 个教学班"
+            )
             return {
                 "categoryId": category_id,
                 "kchId": kch_id,
@@ -446,6 +482,7 @@ class JWXTWebService(GrabTaskMixin):
         course_bucket = self.course_info_cache.setdefault(category_id, {})
         if course_bucket.get(kch_id):
             return
+        self._log_debug(f"课程基础信息缓存未命中: category={category_id} kch={kch_id}")
         target = self._get_target(category_id)
         rwlx = "1" if target[0] == "主修课程" else "2"
         class_list_req = self.mod.fetch_class_detail_and_plan(
@@ -458,6 +495,7 @@ class JWXTWebService(GrabTaskMixin):
             self._log_debug,
         )
         if not class_list_req:
+            self._log_warn(f"课程基础信息为空: category={category_id} kch={kch_id}")
             return
         course_bucket[kch_id] = class_list_req
 
@@ -467,10 +505,16 @@ class JWXTWebService(GrabTaskMixin):
             if self.course_info_cache.get(
                 category_id
             ) and not self.course_page_state.get(category_id, {}).get("hasMore", False):
+                self._log_debug(f"课程大类已完整加载: category={category_id}")
                 return self.tree_state()
+            self._log_info(f"开始加载大类全部课程: category={category_id}")
             while True:
                 result = self.fetch_courses(category_id, page)
                 if not result.get("hasMore"):
+                    count = len(self.course_info_cache.get(category_id, {}))
+                    self._log_info(
+                        f"大类全部课程加载完成: category={category_id}，{count} 门课程"
+                    )
                     return self.tree_state()
                 page = result.get("nextPage", page + 1)
 
@@ -478,7 +522,9 @@ class JWXTWebService(GrabTaskMixin):
         with self.lock:
             self._require_auth()
             if not refresh and self.timetable_cache is not None:
+                self._log_debug("课表缓存命中")
                 return self.timetable_cache
+            self._log_info("刷新已选课程" if refresh else "课表缓存未命中，开始加载")
             choosed = self.mod.fetch_choosed_list(self._log_renderable, self._log_debug)
             selected_course_ids = set()
             selected_class_ids = set()
@@ -540,6 +586,9 @@ class JWXTWebService(GrabTaskMixin):
                 "maxCredit": max_credit,
                 "currentCredit": current_credit,
             }
+            self._log_info(
+                f"已选课程加载完成: {len(entries)} 门，学分 {current_credit:.1f}/{max_credit:.1f}"
+            )
             return self.timetable_cache
 
     def fetch_academic_status(self, refresh: bool = False):
@@ -556,6 +605,8 @@ class JWXTWebService(GrabTaskMixin):
                 )
                 data["updatedAt"] = time.time()
                 self.academic_status_cache = data
+                nodes = data.get("nodes") or []
+                self._log_info(f"学业情况加载完成: {len(nodes)} 个根节点")
             else:
                 self._log_debug("学业情况缓存命中")
             cached = self.academic_status_cache or {"params": {}, "nodes": []}
@@ -577,6 +628,7 @@ class JWXTWebService(GrabTaskMixin):
             course_name = str(payload.get("courseName", ""))
             target = self._get_target(category_id)
             rwlx = "1" if target[0] == "主修课程" else "2"
+            self._log_info(f"提交选课: {course_name or kch_id} / {do_jxb_id or '-'}")
             res = self.mod.execute_choose(
                 do_jxb_id,
                 kch_id,
@@ -588,18 +640,24 @@ class JWXTWebService(GrabTaskMixin):
                 target[1],
                 self._log_debug,
             )
-            return self._response_with_timetable(res)
+            return self._response_with_timetable(
+                res, action="选课", subject=course_name or kch_id
+            )
 
     def withdraw_class(self, payload: dict):
         with self.lock:
             self._require_auth()
             kch_id = str(payload.get("kchId", ""))
             do_jxb_id = str(payload.get("doJxbId", ""))
+            self._log_info(f"提交退课: {kch_id or '-'} / {do_jxb_id or '-'}")
             res = self.mod.execute_withdraw(do_jxb_id, kch_id, self._log_debug)
-            return self._response_with_timetable(res)
+            return self._response_with_timetable(res, action="退课", subject=kch_id)
 
-    def _response_with_timetable(self, res):
+    def _response_with_timetable(self, res, action: str = "操作", subject: str = ""):
         if res is None:
+            self._log_business(
+                f"{action}失败: {subject or '-'} / 请求失败", level="error"
+            )
             return {
                 "ok": False,
                 "message": "请求失败",
@@ -611,6 +669,12 @@ class JWXTWebService(GrabTaskMixin):
         except Exception:
             payload = {"raw": res.text}
         ok, message = self._parse_operation_result(payload, res)
+        if ok:
+            self._log_info(f"{action}成功: {subject or '-'}")
+        else:
+            self._log_business(
+                f"{action}失败: {subject or '-'} / {message}", level="warn"
+            )
         return {
             "ok": ok,
             "message": message,

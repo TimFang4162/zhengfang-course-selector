@@ -376,10 +376,16 @@ class GrabTaskMixin:
     def load_missing(self, payload: dict):
         with self.lock:
             missing = payload.get("missing") or {}
-            for item in missing.get("courseLoads", []):
+            course_loads = missing.get("courseLoads", [])
+            class_loads = missing.get("classLoads", [])
+            self._log_info(
+                f"加载抢课预览缺失数据: {len(course_loads)} 个大类，{len(class_loads)} 门课程教学班"
+            )
+            for item in course_loads:
                 self.load_all_courses(int(item["categoryId"]))
-            for item in missing.get("classLoads", []):
+            for item in class_loads:
                 self.fetch_classes(int(item["categoryId"]), str(item["kchId"]))
+            self._log_info("抢课预览缺失数据加载完成")
             return {"ok": True, "tree": self.tree_state()}
 
     def create_grab_task(self, payload: dict):
@@ -391,6 +397,7 @@ class GrabTaskMixin:
                 {"context": context, "expression": expression, "matchLimit": 100000}
             )
             if not preview.get("ready"):
+                self._log_warn("创建抢课任务失败: 仍有缺失数据")
                 raise ValueError("抢课任务仍有缺失数据，请先加载缺失数据")
             candidates = {}
             for item in preview.get("matches", []):
@@ -451,7 +458,7 @@ class GrabTaskMixin:
             }
             self.grab_tasks[task_id] = task
             self._log_info(
-                f"创建抢课任务 {task_id}: {task['candidateCourseCount']} 门候选课程"
+                f"创建抢课任务 {task_id}: {task['candidateCourseCount']} 门候选课程，{task['candidateClassCount']} 个教学班"
             )
             self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
@@ -491,6 +498,7 @@ class GrabTaskMixin:
             task["status"] = "stopped"
             task["progress"] = "已手动停止"
             self._add_task_event(task, "手动停止")
+            self._log_info(f"手动停止抢课任务: {task['id']}")
             self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
 
@@ -502,6 +510,7 @@ class GrabTaskMixin:
             task["lastTickAt"] = 0
             task["startedAt"] = time.time()
             self._add_task_event(task, "手动启动")
+            self._log_info(f"手动启动抢课任务: {task['id']}")
             self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
 
@@ -601,6 +610,9 @@ class GrabTaskMixin:
                     task["status"] = "failed"
                     task["progress"] = f"错误停止: {exc}"
                     self._add_task_event(task, task["progress"])
+                    self._log_business(
+                        f"抢课任务失败: {task['id']} / {exc}", level="error"
+                    )
                     return
                 task["progress"] = f"请求失败，跳过: {course_target['courseName']}"
                 self._add_task_event(task, task["progress"])
@@ -665,6 +677,9 @@ class GrabTaskMixin:
                         f"成功后停止: {course_target['courseName']} / {class_item.get('classNo')}"
                     )
                     self._add_task_event(task, task["progress"])
+                    self._log_info(
+                        f"抢课任务成功: {task['id']} / {course_target['courseName']} / {class_item.get('classNo')}"
+                    )
                     self._publish_grab_state()
                     return
         task["lastTickDebug"] = {
