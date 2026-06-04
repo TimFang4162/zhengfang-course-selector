@@ -7,22 +7,7 @@ import { createTreeRenderer } from "./render.js";
 
 export function createTreeFeature({ state, getApp, helpers }) {
   function syncSearchScopeOptions() {
-    const select = document.getElementById("search-scope");
-    if (!select) return;
-    const previous = select.value || state.search.scope;
-    select.innerHTML = "";
-    const all = document.createElement("option");
-    all.value = "all";
-    all.textContent = "全部大类";
-    select.appendChild(all);
-    for (const category of state.categories) {
-      const option = document.createElement("option");
-      option.value = category.id;
-      option.textContent = category.name;
-      select.appendChild(option);
-    }
-    select.value = [...select.options].some((option) => option.value === previous) ? previous : "all";
-    state.search.scope = select.value;
+    if (!state.categories.some((category) => category.id === state.search.scope)) state.search.scope = "all";
   }
 
   function shouldRenderCourse(categoryId, course) {
@@ -33,16 +18,11 @@ export function createTreeFeature({ state, getApp, helpers }) {
   const renderTree = createTreeRenderer({ state, getApp, shouldRenderCourse });
 
   function applyLocalSearch() {
-    state.search.query = document.getElementById("course-search").value;
-    state.search.scope = document.getElementById("search-scope").value;
     renderTree();
   }
 
   function setFilterStatus() {
-    const conflict = document.querySelector('#display-menu [data-action="toggle-conflict"]');
-    const credit = document.querySelector('#display-menu [data-action="toggle-credit"]');
-    if (conflict) conflict.textContent = `灰色显示冲突教学班:${state.filters.conflict ? "开" : "关"}`;
-    if (credit) credit.textContent = `隐藏超学分课程:${state.filters.credit ? "开" : "关"}`;
+    return state.filters;
   }
 
   function runDisplayAction(action) {
@@ -61,19 +41,12 @@ export function createTreeFeature({ state, getApp, helpers }) {
   function toggleSidebar() {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     document.body.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
-    document.getElementById("toggle-sidebar").textContent = state.sidebarCollapsed ? "⇥" : "⇤";
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, state.sidebarCollapsed ? "1" : "0");
   }
 
   function switchTab(tab) {
     const app = getApp();
     state.activeTab = tab;
-    document.querySelectorAll(".tab").forEach((button) => {
-      button.classList.toggle("active", button.dataset.tab === tab);
-    });
-    document.querySelectorAll(".tab-panel").forEach((panel) => {
-      panel.classList.toggle("active", panel.id === `tab-${tab}`);
-    });
     if (tab === "academic" && !state.academicStatus && !state.academicLoading) {
       app.academic.refreshAcademicStatus(false).catch(app.showError);
     }

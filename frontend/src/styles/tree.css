@@ -23,8 +23,6 @@
 
 .menu-popover,
 .floating-menu {
-  position: absolute;
-  z-index: 30;
   min-width: 190px;
   padding: 4px 0;
   border: 1px solid var(--border);
@@ -33,8 +31,15 @@
 }
 
 .menu-popover {
+  position: absolute;
+  z-index: 30;
   top: 26px;
   left: 0;
+}
+
+.floating-menu {
+  position: fixed;
+  z-index: 40;
 }
 
 .menu-popover button,

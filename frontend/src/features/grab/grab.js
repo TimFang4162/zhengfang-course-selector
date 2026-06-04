@@ -1,17 +1,17 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { apiGet, apiPost } from "../../api/client.js";
-import { escapeHtml } from "../../shared/utils.js";
+import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { defaultGrabExpression, grabSymbolDocs, grabSymbols, validateGrabExpression } from "./expression.js";
-import { grabContextPayload, renderGrabPreviewTree } from "./preview.js";
+import { grabContextPayload } from "./preview.js";
 
 export function createGrabFeature({ state, getApp }) {
   function getGrabExpressionValue() {
     if (state.grabEditor) return state.grabEditor.getValue();
-    return document.getElementById("grab-expression").value;
+    return state.grabExpression;
   }
 
   function setGrabExpressionValue(value) {
-    document.getElementById("grab-expression").value = value;
+    state.grabExpression = value;
     if (state.grabEditor) state.grabEditor.setValue(value);
   }
 
@@ -69,62 +69,47 @@ export function createGrabFeature({ state, getApp }) {
       fontSize: 13,
       tabSize: 2,
     });
-    state.grabEditor.onDidChangeModelContent(() => refreshGrabPreview().catch(getApp().showError));
+    state.grabEditor.onDidChangeModelContent(() => {
+      state.grabExpression = state.grabEditor.getValue();
+      refreshGrabPreview().catch(getApp().showError);
+    });
     textarea.classList.add("monaco-enabled");
   }
 
   function closeGrabModal() {
     state.grabDraft = null;
-    document.getElementById("grab-modal").classList.add("hidden");
   }
 
   function openTreeMoreMenu(anchor, context) {
-    const menu = document.createElement("div");
-    menu.className = "floating-menu";
-    menu.innerHTML = '<button type="button" data-action="grab">添加抢课任务</button>';
-    const rect = anchor.getBoundingClientRect();
-    menu.style.left = `${Math.max(8, rect.right - 160)}px`;
-    menu.style.top = `${rect.bottom + 4}px`;
-    document.body.appendChild(menu);
-    const close = () => menu.remove();
-    menu.addEventListener("click", (event) => {
-      if (event.target.dataset.action === "grab") openGrabModal(context);
-      close();
-    });
-    window.setTimeout(() => document.addEventListener("click", close, { once: true }), 0);
+    openFloatingMenu(anchor, [{ label: "添加抢课任务", action: () => openGrabModal(context) }], 160);
   }
 
   function openGrabModal(context) {
     state.grabDraft = context;
-    document.getElementById("grab-title").textContent = `添加抢课任务 / ${context.type}`;
     setGrabExpressionValue(defaultGrabExpression(context));
-    document.getElementById("grab-hints").textContent = `可用字段: ${grabSymbols.join(", ")}`;
-    document.getElementById("grab-modal").classList.remove("hidden");
+    state.grabPreviewData = null;
+    state.grabStatusText = "";
+    state.grabStatusClass = "grab-status";
     if (state.grabEditor) state.grabEditor.layout();
     refreshGrabPreview().catch(getApp().showError);
   }
 
   async function refreshGrabPreview() {
     const expression = getGrabExpressionValue().trim();
-    const status = document.getElementById("grab-status");
-    const preview = document.getElementById("grab-preview-list");
     const validation = validateGrabExpression(expression || "true");
     if (!validation.ok) {
-      status.textContent = `语法错误: ${validation.error}`;
-      status.className = "grab-status is-error";
-      preview.innerHTML = "";
+      state.grabStatusText = `语法错误: ${validation.error}`;
+      state.grabStatusClass = "grab-status is-error";
+      state.grabPreviewData = null;
       return;
     }
     const data = await apiPost("/api/grab/preview", { context: grabContextPayload(state.grabDraft), expression: expression || "True" });
     const candidateCourseText = data.ready ? String(data.candidateCourseCount || 0) : "?";
     const candidateClassText = data.ready ? String(data.candidateClassCount || 0) : "?";
     const requestText = data.ready ? String(data.estimatedRequestsPerTick || 0) : "?";
-    status.textContent = `语法正确，匹配 ${data.matches.length} 项，候选课程 ${candidateCourseText} 门，候选教学班 ${candidateClassText} 个，预计每轮扫描 ${requestText} 个请求`;
-    status.className = "grab-status is-ok";
-    const loadButton = data.ready ? "" : '<button type="button" id="grab-load-missing" class="grab-load-missing">加载缺失数据</button>';
-    preview.innerHTML = `${loadButton}${renderGrabPreviewTree(data)}`;
-    const button = document.getElementById("grab-load-missing");
-    if (button) button.addEventListener("click", () => loadGrabMissing(data.missing).catch(getApp().showError));
+    state.grabStatusText = `语法正确，匹配 ${data.matches.length} 项，候选课程 ${candidateCourseText} 门，候选教学班 ${candidateClassText} 个，预计每轮扫描 ${requestText} 个请求`;
+    state.grabStatusClass = "grab-status is-ok";
+    state.grabPreviewData = data;
   }
 
   async function loadGrabMissing(missing) {
@@ -140,17 +125,15 @@ export function createGrabFeature({ state, getApp }) {
   async function confirmGrabExpression() {
     const app = getApp();
     await refreshGrabPreview();
-    const startMode = document.getElementById("grab-start-mode").value;
-    const startAtValue = document.getElementById("grab-start-at").value;
     const result = await apiPost("/api/grab/tasks", {
       context: grabContextPayload(state.grabDraft),
       expression: getGrabExpressionValue().trim() || "True",
-      startMode,
-      startAt: startMode === "scheduled" && startAtValue ? new Date(startAtValue).toISOString() : null,
-      tickInterval: Number(document.getElementById("grab-tick-interval").value || 3),
-      timeoutSeconds: Number(document.getElementById("grab-timeout").value || 600),
-      stopOnFirstSuccess: document.getElementById("grab-stop-success").checked,
-      errorPolicy: document.getElementById("grab-error-policy").value,
+      startMode: state.grabStartMode,
+      startAt: state.grabStartMode === "scheduled" && state.grabStartAt ? new Date(state.grabStartAt).toISOString() : null,
+      tickInterval: Number(state.grabTickInterval || 3),
+      timeoutSeconds: Number(state.grabTimeout || 600),
+      stopOnFirstSuccess: state.grabStopSuccess,
+      errorPolicy: state.grabErrorPolicy,
     });
     const task = result.task;
     app.activity.upsertActivity(task.id, {
@@ -185,45 +168,20 @@ export function createGrabFeature({ state, getApp }) {
   function openActivityTaskMenu(taskId, anchor) {
     const app = getApp();
     const task = state.grabTasks[taskId];
-    if (!task) return;
-    const menu = document.createElement("div");
-    menu.className = "floating-menu";
-    menu.innerHTML = `
-      <button type="button" data-action="detail">详情</button>
-      <button type="button" data-action="start">启动</button>
-      <button type="button" data-action="stop">停止</button>
-    `;
-    const rect = anchor.getBoundingClientRect();
-    menu.style.left = `${Math.max(8, rect.right - 132)}px`;
-    menu.style.top = `${rect.bottom + 4}px`;
-    document.body.appendChild(menu);
-    const close = () => menu.remove();
-    menu.addEventListener("click", (event) => {
-      const action = event.target.dataset.action;
-      if (action === "detail") showGrabTaskDetail(task);
-      if (action === "start") apiPost("/api/grab/tasks/start", { id: taskId }).then(pollGrabTasks).catch(app.showError);
-      if (action === "stop") apiPost("/api/grab/tasks/stop", { id: taskId }).then(pollGrabTasks).catch(app.showError);
-      close();
-    });
-    window.setTimeout(() => document.addEventListener("click", close, { once: true }), 0);
+    const items = [
+      { label: "启动", action: () => apiPost("/api/grab/tasks/start", { id: taskId }).then(pollGrabTasks).catch(app.showError) },
+      { label: "停止", action: () => apiPost("/api/grab/tasks/stop", { id: taskId }).then(pollGrabTasks).catch(app.showError) },
+    ];
+    if (task) items.unshift({ label: "详情", action: () => showGrabTaskDetail(task) });
+    openFloatingMenu(anchor, items);
   }
 
   function showGrabTaskDetail(task) {
-    document.getElementById("task-title").textContent = `${task.name} / ${task.id}`;
-    document.getElementById("task-content").innerHTML = `
-      <div class="class-meta"><div>状态</div><div>${escapeHtml(task.status)}</div></div>
-      <div class="class-meta"><div>进度</div><div>${escapeHtml(task.progress)}</div></div>
-      <div class="class-meta"><div>表达式</div><div><code>${escapeHtml(task.expression || "")}</code></div></div>
-      <div class="class-meta"><div>启动</div><div>${escapeHtml(task.startMode || "")} ${task.startAt ? new Date(task.startAt * 1000).toLocaleString() : ""}</div></div>
-      <div class="class-meta"><div>Tick/Timeout</div><div>${escapeHtml(task.tickInterval)}s / ${escapeHtml(task.timeoutSeconds)}s</div></div>
-      <div class="class-meta"><div>错误处理</div><div>${escapeHtml(task.errorPolicy || "")}</div></div>
-      <div class="class-meta"><div>停止条件</div><div>${task.stopOnFirstSuccess ? "成功选到课程后停止" : "不自动停止"}</div></div>
-      <div class="class-meta"><div>候选</div><div>${escapeHtml(task.candidateCourseCount)} 门课程 / ${escapeHtml(task.candidateClassCount)} 个教学班</div></div>
-      <div class="class-meta"><div>最近错误</div><div>${escapeHtml(task.lastError || "-")}</div></div>
-      <div class="class-meta"><div>最近结果</div><div>${escapeHtml(task.lastResult || "-")}</div></div>
-      <div class="class-meta"><div>事件</div><div>${(task.events || []).map((item) => `${escapeHtml(item.time)} ${escapeHtml(item.message)}`).join("<br>") || "-"}</div></div>
-    `;
-    document.getElementById("task-modal").classList.remove("hidden");
+    state.grabTaskDetail = task;
+  }
+
+  function closeGrabTaskDetail() {
+    state.grabTaskDetail = null;
   }
 
   return {
@@ -232,9 +190,11 @@ export function createGrabFeature({ state, getApp }) {
     openGrabModal,
     closeGrabModal,
     refreshGrabPreview,
+    loadGrabMissing,
     confirmGrabExpression,
     pollGrabTasks,
     openActivityTaskMenu,
     showGrabTaskDetail,
+    closeGrabTaskDetail,
   };
 }

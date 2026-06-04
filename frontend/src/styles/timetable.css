@@ -13,12 +13,12 @@
 #timetable-table th,
 #timetable-table td {
   border: 1px solid var(--border-subtle);
-  padding: 4px 5px;
   vertical-align: top;
   font-size: 13px;
 }
 
 #timetable-table th {
+  padding: 4px 5px;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -30,9 +30,23 @@
 #timetable-table td {
   min-width: 82px;
   height: 52px;
-  cursor: pointer;
   white-space: pre-wrap;
   line-height: 1.35;
+}
+
+.timetable-cell-button {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 4px 5px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
 }
 
 #timetable-table td:hover {

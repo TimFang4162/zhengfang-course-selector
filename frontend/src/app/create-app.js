@@ -1,4 +1,3 @@
-import { bindEvents } from "./events.js";
 import { courseExceedsCredit, state } from "./state.js";
 import { applyStoredLayout, bindSplitters, constrainLayoutVars } from "../shared/layout.js";
 import { showError } from "../shared/error.js";
@@ -28,12 +27,11 @@ export function createApp() {
 
   app.start = async () => {
     applyStoredLayout();
-    bindEvents(app);
     bindSplitters();
     app.grab.initGrabMonaco();
     app.tree.setFilterStatus();
     app.activity.renderActivities();
-    await app.auth.loadBootstrap();
+    if (!state.bootstrap) await app.auth.loadBootstrap();
     app.auth.updateAuthStatus();
     constrainLayoutVars();
     app.logs.connectLogStream();

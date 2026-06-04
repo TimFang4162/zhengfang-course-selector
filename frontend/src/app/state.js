@@ -1,5 +1,22 @@
-export const state = {
+import { createMutable } from "solid-js/store";
+
+export const state = createMutable({
   bootstrap: null,
+  auth: {
+    loginVisible: true,
+    loginStatus: "",
+    baseUrl: "",
+    customBaseUrl: "",
+    disableSslVerify: true,
+    useSaved: false,
+    studentNumber: "",
+    password: "",
+    saveCredentials: false,
+  },
+  speedModalVisible: false,
+  speedRows: [],
+  floatingMenu: null,
+  openMenu: null,
   categories: [],
   categoryCourses: {},
   courseClasses: {},
@@ -9,6 +26,7 @@ export const state = {
   loadingCourses: new Set(),
   filters: { conflict: false, credit: false },
   search: { query: "", scope: "all" },
+  treeVersion: 0,
   sidebarCollapsed: false,
   activities: [],
   grabTasks: {},
@@ -22,6 +40,7 @@ export const state = {
   },
   academicStatus: null,
   academicLoading: false,
+  academicVersion: 0,
   academicFilters: {
     suggestedTerm: "all",
     statusType: "all",
@@ -29,18 +48,37 @@ export const state = {
     nodeStatus: "all",
   },
   displayWeek: 1,
+  timetableVersion: 0,
   activeTab: "tree",
   logSince: 0,
   selectedCell: null,
   modalClass: null,
   grabDraft: null,
+  grabExpression: "",
+  grabStatusText: "",
+  grabStatusClass: "grab-status",
+  grabPreviewData: null,
+  grabStartMode: "now",
+  grabStartAt: "",
+  grabTickInterval: 3,
+  grabTimeout: 600,
+  grabStopSuccess: true,
+  grabErrorPolicy: "retry_once",
+  grabTaskDetail: null,
   grabEditor: null,
   rawContentEditor: null,
   rawContentMode: "html",
+  rawModalVisible: false,
+  rawModalTitle: "教务原始网页",
+  rawPreviewVisible: true,
+  rawTab: "preview",
+  rawPreviewSrcdoc: "",
   logSource: null,
+  logItems: [],
+  logDetailKey: null,
   logEntries: new Map(),
   logDomByKey: new Map(),
-};
+});
 
 export function selectedCourseIds() {
   return new Set(state.timetable.selectedCourseIds || []);
