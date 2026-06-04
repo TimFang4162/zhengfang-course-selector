@@ -63,6 +63,8 @@ http://127.0.0.1:5173
 
 `bun run dev` 会启用 Bun HMR，并将 `/api/*` 代理到 `http://127.0.0.1:8765`。
 
+状态职责、上游请求边界和 SSE/普通请求分工见 `docs/state-and-events.md`。
+
 构建前端静态资源：
 
 ```bash
