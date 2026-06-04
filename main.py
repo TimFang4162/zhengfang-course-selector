@@ -1,4 +1,4 @@
-from webui_server import main as run_webui
+from jwxt.web.server import main as run_webui
 
 
 def main():

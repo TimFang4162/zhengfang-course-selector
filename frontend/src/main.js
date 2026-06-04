@@ -1,3 +1,7 @@
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import "monaco-editor/min/vs/editor/editor.main.css";
+import { mountSolidRoot } from "./solid-entry.js";
+
 const state = {
   bootstrap: null,
   categories: [],
@@ -36,7 +40,6 @@ const LEFT_WIDTH_KEY = "jwxt.leftPaneWidth";
 const DETAIL_HEIGHT_KEY = "jwxt.detailHeight";
 const SIDEBAR_COLLAPSED_KEY = "jwxt.sidebarCollapsed";
 const ACTIVITY_HEIGHT_KEY = "jwxt.activityHeight";
-const monacoCdnBase = "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs";
 
 async function apiGet(path) {
   const response = await fetch(path);
@@ -78,65 +81,61 @@ function setGrabExpressionValue(value) {
 }
 
 function initGrabMonaco() {
-  if (!window.require) return;
-  window.require.config({ paths: { vs: monacoCdnBase } });
-  window.require(["vs/editor/editor.main"], () => {
-    const monacoRoot = document.getElementById("grab-monaco");
-    const textarea = document.getElementById("grab-expression");
-    if (!monacoRoot || state.grabEditor) return;
-    monaco.languages.register({ id: "grabexpr" });
-    monaco.languages.setMonarchTokensProvider("grabexpr", {
-      tokenizer: {
-        root: [
-          [/\b(and|or|not|in)\b/, "keyword"],
-          [/\b(course|class|teachers|conflicts|has_capacity)\b/, "variable"],
-          [/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/, "string"],
-          [/\b\d+(\.\d+)?\b/, "number"],
-          [/[=!<>]=?|[()]/, "operator"],
-        ],
-      },
-    });
-    monaco.languages.registerCompletionItemProvider("grabexpr", {
-      provideCompletionItems: () => ({
-        suggestions: grabSymbols.map((label) => ({
-          label,
-          kind: monaco.languages.CompletionItemKind.Field,
-          insertText: label,
-          detail: grabSymbolDocs[label] || "抢课表达式字段",
-        })).concat(["and", "or", "not", "in"].map((label) => ({
-          label,
-          kind: monaco.languages.CompletionItemKind.Keyword,
-          insertText: label,
-        }))),
-      }),
-    });
-    monaco.languages.registerHoverProvider("grabexpr", {
-      provideHover: (model, position) => {
-        const word = model.getWordAtPosition(position);
-        if (!word) return null;
-        const line = model.getLineContent(position.lineNumber);
-        const prefix = line.slice(0, word.startColumn - 1).match(/[A-Za-z_][\w.]*$/)?.[0] || "";
-        const key = prefix ? `${prefix}.${word.word}` : word.word;
-        const doc = grabSymbolDocs[key] || grabSymbolDocs[word.word];
-        if (!doc) return null;
-        return { contents: [{ value: `\`${key}\`` }, { value: doc }] };
-      },
-    });
-    state.grabEditor = monaco.editor.create(monacoRoot, {
-      value: textarea.value,
-      language: "grabexpr",
-      theme: "vs-dark",
-      minimap: { enabled: false },
-      lineNumbers: "off",
-      scrollBeyondLastLine: false,
-      wordWrap: "on",
-      automaticLayout: true,
-      fontSize: 13,
-      tabSize: 2,
-    });
-    state.grabEditor.onDidChangeModelContent(() => refreshGrabPreview().catch(showError));
-    textarea.classList.add("monaco-enabled");
+  const monacoRoot = document.getElementById("grab-monaco");
+  const textarea = document.getElementById("grab-expression");
+  if (!monacoRoot || state.grabEditor) return;
+  monaco.languages.register({ id: "grabexpr" });
+  monaco.languages.setMonarchTokensProvider("grabexpr", {
+    tokenizer: {
+      root: [
+        [/\b(and|or|not|in)\b/, "keyword"],
+        [/\b(course|class|teachers|conflicts|has_capacity)\b/, "variable"],
+        [/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/, "string"],
+        [/\b\d+(\.\d+)?\b/, "number"],
+        [/[=!<>]=?|[()]/, "operator"],
+      ],
+    },
   });
+  monaco.languages.registerCompletionItemProvider("grabexpr", {
+    provideCompletionItems: () => ({
+      suggestions: grabSymbols.map((label) => ({
+        label,
+        kind: monaco.languages.CompletionItemKind.Field,
+        insertText: label,
+        detail: grabSymbolDocs[label] || "抢课表达式字段",
+      })).concat(["and", "or", "not", "in"].map((label) => ({
+        label,
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        insertText: label,
+      }))),
+    }),
+  });
+  monaco.languages.registerHoverProvider("grabexpr", {
+    provideHover: (model, position) => {
+      const word = model.getWordAtPosition(position);
+      if (!word) return null;
+      const line = model.getLineContent(position.lineNumber);
+      const prefix = line.slice(0, word.startColumn - 1).match(/[A-Za-z_][\w.]*$/)?.[0] || "";
+      const key = prefix ? `${prefix}.${word.word}` : word.word;
+      const doc = grabSymbolDocs[key] || grabSymbolDocs[word.word];
+      if (!doc) return null;
+      return { contents: [{ value: `\`${key}\`` }, { value: doc }] };
+    },
+  });
+  state.grabEditor = monaco.editor.create(monacoRoot, {
+    value: textarea.value,
+    language: "grabexpr",
+    theme: "vs-dark",
+    minimap: { enabled: false },
+    lineNumbers: "off",
+    scrollBeyondLastLine: false,
+    wordWrap: "on",
+    automaticLayout: true,
+    fontSize: 13,
+    tabSize: 2,
+  });
+  state.grabEditor.onDidChangeModelContent(() => refreshGrabPreview().catch(showError));
+  textarea.classList.add("monaco-enabled");
 }
 
 function applyStoredLayout() {
@@ -1740,6 +1739,7 @@ function bindEvents() {
 }
 
 async function main() {
+  mountSolidRoot();
   applyStoredLayout();
   bindEvents();
   bindSplitters();

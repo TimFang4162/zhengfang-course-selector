@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "bun run frontend/dev.ts",
+    "build": "bun run frontend/build.ts",
+    "check": "bun run frontend/build.ts --check"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.55.1",
+    "solid-js": "^1.9.13"
+  }
+}

@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+node_modules/
+
+# Local state and OS files
+.DS_Store
+.jwxt_credentials.json
+.ruff_cache/
+
+# Capture files
+*.har
