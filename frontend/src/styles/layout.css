@@ -35,15 +35,15 @@
   height: 100%;
   gap: 0;
   padding: 0;
-  background: var(--side-bar);
-  border-right: 1px solid var(--border);
+  background: var(--vscode-side-bg);
+  border-right: 1px solid var(--vscode-border);
 }
 
 .right-pane {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--panel);
+  background: var(--vscode-panel-bg);
 }
 
 .section-panel {
@@ -55,8 +55,13 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   min-height: 35px;
-  background: var(--panel-header);
-  border-bottom: 1px solid var(--border);
+  background: var(--vscode-panel-header-bg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.workspace-header select,
+.workspace-header button {
+  background: var(--vscode-editor-bg);
 }
 
 .workspace-controls {
@@ -90,21 +95,21 @@
   min-height: 35px;
   padding: 0 12px;
   border: 0;
-  border-right: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--vscode-border-subtle);
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--vscode-fg-muted);
   font-size: 13px;
 }
 
 .tab:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--vscode-list-hover-bg);
+  color: var(--vscode-fg);
 }
 
 .tabs .tab.active {
-  background: var(--side-bar);
-  color: #ffffff;
+  background: var(--vscode-side-bg);
+  color: var(--vscode-fg-strong);
 }
 
 .tabs .tab.active::before {
@@ -114,7 +119,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--focus);
+  background: var(--vscode-focus-border);
 }
 
 .tab-panel {
@@ -135,8 +140,8 @@
   min-height: 34px;
   flex-wrap: wrap;
   padding: 3px 6px;
-  background: var(--side-bar);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--vscode-side-bg);
+  border-bottom: 1px solid var(--vscode-border-subtle);
 }
 
 .toolbar-tight button,
@@ -152,7 +157,7 @@
   z-index: 2;
   user-select: none;
   touch-action: none;
-  background: var(--editor);
+  background: var(--vscode-editor-bg);
 }
 
 .splitter::before {
@@ -175,7 +180,7 @@
 .splitter-vertical::before {
   left: 2px;
   width: 1px;
-  background: var(--border);
+  background: var(--vscode-border);
 }
 
 .splitter-horizontal {
@@ -186,12 +191,12 @@
 .splitter-horizontal::before {
   top: 2px;
   height: 1px;
-  background: var(--border);
+  background: var(--vscode-border);
 }
 
 .splitter:hover::before,
 .splitter.is-dragging::before {
-  background: var(--focus);
+  background: var(--vscode-focus-border);
 }
 
 @media (max-width: 960px) {
@@ -205,7 +210,7 @@
 
   .right-pane {
     min-height: 320px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--vscode-border);
   }
 
   .workspace-header {

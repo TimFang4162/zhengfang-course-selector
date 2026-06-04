@@ -8,14 +8,14 @@
 }
 
 .modal-header strong {
-  color: #ffffff;
+  color: var(--vscode-fg-strong);
   font-weight: 600;
 }
 
 .modal-content {
   padding: 10px;
-  background: var(--editor);
-  border: 1px solid var(--border);
+  background: var(--vscode-editor-bg);
+  border: 1px solid var(--vscode-border);
 }
 
 .modal-actions {
@@ -32,5 +32,5 @@
 }
 
 .class-meta > div:first-child {
-  color: var(--muted);
+  color: var(--vscode-fg-muted);
 }

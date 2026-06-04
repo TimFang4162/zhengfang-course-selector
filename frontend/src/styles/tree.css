@@ -18,16 +18,16 @@
 }
 
 .menu-button:hover {
-  background: var(--hover);
+  background: var(--vscode-list-hover-bg);
 }
 
 .menu-popover,
 .floating-menu {
   min-width: 190px;
   padding: 4px 0;
-  border: 1px solid var(--border);
-  background: var(--side-bar);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--vscode-border);
+  background: var(--vscode-side-bg);
+  box-shadow: var(--vscode-shadow-menu);
 }
 
 .menu-popover {
@@ -44,20 +44,32 @@
 
 .menu-popover button,
 .floating-menu button {
+  position: relative;
   display: block;
   width: 100%;
   min-height: 24px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--vscode-fg);
   text-align: left;
   font-size: 12px;
 }
 
 .menu-popover button:hover,
 .floating-menu button:hover {
-  background: var(--selection-strong);
+  background: var(--vscode-list-selection-hover-bg);
+}
+
+.menu-popover button:hover::before,
+.floating-menu button:hover::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 2px;
+  background: var(--vscode-focus-border);
 }
 
 .tree-search {
@@ -98,13 +110,13 @@
 .timetable-wrap {
   min-height: 0;
   overflow: auto;
-  background: var(--panel);
+  background: var(--vscode-panel-bg);
 }
 
 .tree-view {
   flex: 1;
   padding: 4px 0 8px;
-  background: var(--side-bar);
+  background: var(--vscode-side-bg);
 }
 
 .tree-row {
@@ -114,20 +126,20 @@
   gap: 4px;
   padding: 1px 8px;
   border: 1px solid transparent;
-  color: var(--text);
+  color: var(--vscode-fg);
 }
 
 .tree-row:hover {
-  background: var(--hover);
+  background: var(--vscode-list-hover-bg);
 }
 
 .tree-row.selected {
-  background: var(--selection);
+  background: var(--vscode-list-selection-bg);
   border-color: transparent;
 }
 
 .tree-row.selected:hover {
-  background: var(--selection-strong);
+  background: var(--vscode-list-selection-hover-bg);
 }
 
 .tree-label {
@@ -154,15 +166,15 @@
   height: 14px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #5a5a5a;
-  color: #ffffff;
+  border: 1px solid var(--vscode-fg-subtle);
+  color: var(--vscode-fg-strong);
   font-size: 10px;
   line-height: 1;
 }
 
 .tree-check.is-checked {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--vscode-accent);
+  background: var(--vscode-accent);
 }
 
 .tree-more-dot {
@@ -172,7 +184,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 2px;
-  color: var(--muted-2);
+  color: var(--vscode-fg-subtle);
   font-size: 16px;
   line-height: 1;
   opacity: 0;
@@ -184,8 +196,8 @@
 }
 
 .tree-more-dot:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+  background: var(--vscode-hover-alpha-strong);
+  color: var(--vscode-fg);
 }
 
 .tree-table {
@@ -222,37 +234,37 @@
 .tree-table-time,
 .tree-table-location,
 .tree-table-prop {
-  color: var(--muted);
+  color: var(--vscode-fg-muted);
 }
 
 .tree-row.level-2 .tree-table-count {
-  color: var(--green);
+  color: var(--vscode-success);
 }
 
 .tree-row.level-1,
 .tree-row.level-2 {
-  border-bottom-color: rgba(255, 255, 255, 0.025);
+  border-bottom-color: var(--vscode-row-border);
 }
 
 .level-0 .tree-label {
-  color: var(--yellow);
+  color: var(--vscode-warning);
 }
 
 .level-1 .tree-label {
-  color: var(--blue);
+  color: var(--vscode-info);
 }
 
 .tree-row.selected .tree-label,
 .tree-row.level-2.selected .tree-label {
-  color: var(--green);
+  color: var(--vscode-success);
 }
 
 .tree-row.muted .tree-label {
-  color: var(--gray);
+  color: var(--vscode-gray);
 }
 
 .tree-row.muted .tree-table > span {
-  color: var(--gray);
+  color: var(--vscode-gray);
 }
 
 .tree-arrow {
@@ -262,12 +274,12 @@
   height: 20px;
   align-items: center;
   justify-content: center;
-  color: var(--muted-2);
+  color: var(--vscode-fg-subtle);
   font-size: 11px;
 }
 
 .tree-arrow.is-expandable:hover {
-  color: var(--text);
+  color: var(--vscode-fg);
 }
 
 .tree-children {
@@ -283,12 +295,12 @@
   bottom: 3px;
   left: 0;
   width: 1px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--vscode-hover-alpha);
 }
 
 .tree-placeholder {
   padding: 5px 8px 5px 24px;
-  color: var(--muted-2);
+  color: var(--vscode-fg-subtle);
   font-size: 12px;
 }
 
@@ -300,13 +312,13 @@
   padding: 2px 8px 2px 24px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--blue);
+  color: var(--vscode-info);
   text-align: left;
   font-size: 13px;
 }
 
 .tree-more:hover {
-  background: var(--hover);
+  background: var(--vscode-list-hover-bg);
   border-color: transparent;
 }
 

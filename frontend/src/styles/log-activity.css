@@ -4,7 +4,7 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--panel);
+  background: var(--vscode-panel-bg);
 }
 
 .activity-shell {
@@ -14,7 +14,7 @@
   max-height: calc(100vh - 120px);
   flex-direction: column;
   overflow: hidden;
-  background: var(--panel);
+  background: var(--vscode-panel-bg);
 }
 
 .log-header {
@@ -24,18 +24,31 @@
   justify-content: space-between;
   gap: 8px;
   padding: 3px 7px 3px 10px;
-  background: var(--panel-header);
-  border-bottom: 1px solid var(--border);
+  background: var(--vscode-panel-header-bg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.log-header button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--vscode-fg-muted);
+}
+
+.log-header button:hover {
+  background: var(--vscode-list-hover-bg);
+  color: var(--vscode-fg);
 }
 
 .log-title {
-  color: #ffffff;
+  color: var(--vscode-fg-strong);
 }
 
 .log-list {
   flex: 1;
-  padding: 4px 0 8px;
+  padding: 3px 0 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .activity-panel {
@@ -53,7 +66,7 @@
 
 .activity-table th,
 .activity-table td {
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--vscode-border-subtle);
   padding: 5px 8px;
   text-align: left;
   vertical-align: top;
@@ -62,8 +75,8 @@
 .activity-table th {
   position: sticky;
   top: 0;
-  background: var(--side-bar);
-  color: var(--muted);
+  background: var(--vscode-side-bg);
+  color: var(--vscode-fg-muted);
   font-weight: 500;
 }
 
@@ -84,48 +97,87 @@
 
 .log-line {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  column-gap: 6px;
+  grid-template-columns: 78px minmax(0, 1fr);
+  column-gap: 8px;
+  width: 100%;
   margin: 0;
-  padding: 1px 10px;
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 2px 10px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--vscode-fg);
+  font: inherit;
+  text-align: left;
+  align-items: start;
+  min-width: 0;
 }
 
 .log-time {
-  color: var(--muted);
+  color: var(--vscode-fg-subtle);
   white-space: nowrap;
 }
 
 .log-message {
   min-width: 0;
+  color: var(--vscode-fg-muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: break-all;
 }
 
 .log-line:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--vscode-list-hover-bg);
+}
+
+.activity-table tr:hover td {
+  background: var(--vscode-hover-alpha);
 }
 
 .log-line.is-request .log-message {
-  color: var(--blue);
+  color: var(--vscode-info);
 }
 
 .log-line.is-clickable {
   cursor: pointer;
 }
 
+.log-line.is-clickable:hover {
+  border-left-color: var(--vscode-focus-border);
+}
+
 .log-line.is-pending .log-message {
-  color: var(--yellow);
+  color: var(--vscode-warning);
+}
+
+.log-line.is-pending {
+  border-left-color: var(--vscode-warning);
+}
+
+.log-line.is-request:not(.is-pending) {
+  border-left-color: color-mix(in srgb, var(--vscode-info) 50%, transparent);
 }
 
 .log-detail-pre {
+  max-height: 220px;
   margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--vscode-border-subtle);
+  background: var(--vscode-editor-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  word-break: break-word;
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--text);
+  word-break: break-all;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--vscode-fg);
+}
+
+#log-detail-content .class-meta {
+  min-width: 0;
+}
+
+#log-detail-content .class-meta > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }

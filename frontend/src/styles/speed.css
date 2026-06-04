@@ -12,24 +12,24 @@
 .speed-table th,
 .speed-table td {
   padding: 7px 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--vscode-border);
   text-align: left;
   vertical-align: top;
 }
 
 .speed-table tr.is-ok td:nth-child(2) {
-  color: var(--green);
+  color: var(--vscode-success);
 }
 
 .speed-table tr.is-error td:nth-child(2) {
-  color: #f87171;
+  color: var(--vscode-error-soft);
 }
 
 .link-button {
   min-height: 0;
   padding: 0;
   border: 0;
-  color: var(--blue);
+  color: var(--vscode-info);
   background: transparent;
   text-align: left;
 }

@@ -19,8 +19,8 @@
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 1px;
   margin: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--border-subtle);
+  border-bottom: 1px solid var(--vscode-border-subtle);
+  background: var(--vscode-border-subtle);
 }
 
 .academic-overview > div {
@@ -28,12 +28,12 @@
   gap: 2px;
   min-width: 0;
   padding: 8px 10px;
-  background: var(--panel);
+  background: var(--vscode-panel-bg);
 }
 
 .academic-overview strong {
   overflow: hidden;
-  color: #ffffff;
+  color: var(--vscode-fg-strong);
   font-size: 14px;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -50,9 +50,9 @@
   align-items: center;
   gap: 8px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--side-bar);
-  color: var(--muted);
+  border-bottom: 1px solid var(--vscode-border-subtle);
+  background: var(--vscode-side-bg);
+  color: var(--vscode-fg-muted);
   font-size: 12px;
 }
 
@@ -72,7 +72,7 @@
   bottom: 0;
   left: calc(16px + var(--academic-level, 0) * 16px);
   width: 1px;
-  background: var(--border-subtle);
+  background: var(--vscode-border-subtle);
 }
 
 .academic-node summary {
@@ -100,7 +100,7 @@
 }
 
 .academic-node summary:hover {
-  background: rgba(42, 45, 46, 0.86);
+  background: var(--vscode-list-hover-bg);
 }
 
 .academic-node[open] > summary .tree-arrow {
@@ -110,13 +110,13 @@
 .academic-node-title {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vscode-fg);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .academic-node[open] > summary .academic-node-title {
-  color: #ffffff;
+  color: var(--vscode-fg-strong);
 }
 
 .academic-node-credit,
@@ -124,7 +124,7 @@
 .academic-node-count {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vscode-fg-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -142,9 +142,9 @@
   justify-content: center;
   overflow: hidden;
   padding: 0 6px;
-  border: 1px solid rgba(150, 150, 150, 0.26);
+  border: 1px solid var(--vscode-badge-border);
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--vscode-fg-muted);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -152,57 +152,57 @@
 
 .academic-badge.is-passed,
 .academic-badge.is-full {
-  border-color: rgba(137, 209, 133, 0.36);
-  color: var(--green);
+  border-color: var(--vscode-success-border);
+  color: var(--vscode-success);
 }
 
 .academic-badge.is-studying {
-  border-color: rgba(79, 193, 255, 0.36);
-  color: var(--blue);
+  border-color: var(--vscode-info-border);
+  color: var(--vscode-info);
 }
 
 .academic-badge.is-not_started,
 .academic-badge.is-not_full {
-  border-color: rgba(215, 186, 125, 0.36);
-  color: var(--yellow);
+  border-color: var(--vscode-warning-border);
+  color: var(--vscode-warning);
 }
 
 .academic-badge.is-failed,
 .academic-badge.is-node_failed {
-  border-color: rgba(241, 76, 76, 0.36);
-  color: #f48771;
+  border-color: var(--vscode-error-border);
+  color: var(--vscode-error-soft);
 }
 
 .academic-badge.is-overflow,
 .academic-badge.is-substituted,
 .academic-badge.is-substitute {
-  border-color: rgba(197, 134, 192, 0.42);
-  color: #c586c0;
+  border-color: var(--vscode-purple-border);
+  color: var(--vscode-purple);
 }
 
 .academic-progress {
   height: 2px;
   margin-left: calc(26px + var(--academic-level, 0) * 16px);
-  background: var(--border-subtle);
+  background: var(--vscode-border-subtle);
 }
 
 .academic-progress span {
   display: block;
   height: 100%;
-  background: #d7ba7d;
+  background: var(--vscode-warning);
 }
 
 .academic-progress.is-full span,
 .academic-progress.is-passed span {
-  background: var(--green);
+  background: var(--vscode-success);
 }
 
 .academic-progress.is-overflow span {
-  background: #c586c0;
+  background: var(--vscode-purple);
 }
 
 .academic-progress.is-node_failed span {
-  background: var(--danger);
+  background: var(--vscode-error);
 }
 
 .academic-course-table {
@@ -210,8 +210,8 @@
   max-width: calc(100% - 28px - var(--academic-level, 0) * 16px);
   margin: 0 0 6px calc(28px + var(--academic-level, 0) * 16px);
   border-collapse: collapse;
-  border-left: 1px solid var(--border-subtle);
-  background: var(--panel);
+  border-left: 1px solid var(--vscode-border-subtle);
+  background: var(--vscode-panel-bg);
   font-size: 12px;
   table-layout: fixed;
 }
@@ -219,7 +219,7 @@
 .academic-course-table th,
 .academic-course-table td {
   padding: 5px 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--vscode-border-subtle);
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
@@ -243,34 +243,34 @@
 .academic-course-table td:nth-child(8) { width: 120px; }
 
 .academic-course-table th {
-  background: var(--panel-header);
-  color: var(--muted);
+  background: var(--vscode-panel-header-bg);
+  color: var(--vscode-fg-muted);
   font-weight: 400;
 }
 
 .academic-course-table td:first-child {
-  color: #ffffff;
+  color: var(--vscode-fg-strong);
 }
 
 .academic-course-table tr:hover td {
-  background: rgba(42, 45, 46, 0.74);
+  background: var(--vscode-list-hover-bg);
 }
 
 .academic-course-table tr.is-passed td:first-child,
 .academic-course-table tr.is-substituted td:first-child {
-  border-left: 2px solid var(--green);
+  border-left: 2px solid var(--vscode-success);
 }
 
 .academic-course-table tr.is-failed td:first-child {
-  border-left: 2px solid var(--danger);
+  border-left: 2px solid var(--vscode-error);
 }
 
 .academic-course-table tr.is-studying td:first-child {
-  border-left: 2px solid var(--blue);
+  border-left: 2px solid var(--vscode-info);
 }
 
 .academic-course-table tr.is-not_started td:first-child {
-  border-left: 2px solid var(--yellow);
+  border-left: 2px solid var(--vscode-warning);
 }
 
 .academic-empty {
@@ -302,14 +302,14 @@
 .raw-tab {
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--border);
-  background: var(--input);
-  color: var(--muted);
+  border: 1px solid var(--vscode-border);
+  background: var(--vscode-input-bg);
+  color: var(--vscode-fg-muted);
 }
 
 .raw-tab.active {
-  color: #ffffff;
-  background: var(--active);
+  color: var(--vscode-fg-strong);
+  background: var(--vscode-list-active-bg);
 }
 
 .academic-raw-body {
@@ -325,12 +325,12 @@
   width: 100%;
   min-height: 60vh;
   border: 0;
-  background: #ffffff;
+  background: var(--vscode-fg-strong);
 }
 
 .academic-raw-editor {
   height: 60vh;
-  border: 1px solid var(--border);
+  border: 1px solid var(--vscode-border);
 }
 
 @media (max-width: 900px) {
