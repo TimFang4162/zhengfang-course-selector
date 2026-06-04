@@ -29,6 +29,10 @@ function currentWeekCount(app) {
   return count;
 }
 
+function selectedCourseCount() {
+  return state.timetable.selectedCourseIds?.length || state.timetable.entries?.length || 0;
+}
+
 function DetailCourseName(props) {
   return (
     <>
@@ -132,15 +136,25 @@ function TimetableCell(props) {
 export function TimetableView() {
   const app = useAppContext();
 
+  function toggleMenu(event) {
+    event.stopPropagation();
+    state.openMenu = state.openMenu === "timetable-feature-menu" ? null : "timetable-feature-menu";
+  }
+
   return (
     <>
       <div class="week-toolbar toolbar-tight">
         <button type="button" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</button>
         <span id="week-label">第 {state.displayWeek}/{maxWeek} 周</span>
         <button type="button" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周</button>
+        <span id="week-selected">已选{selectedCourseCount()}门课程</span>
         <span id="week-credit">学分{(state.timetable.currentCredit || 0).toFixed(1)}/{state.timetable.maxCredit || 32}</span>
-        <button type="button" id="week-refresh" onClick={() => app.tree.refreshTimetable().catch(app.showError)}>刷新</button>
-        <span id="week-info" class="dim">({currentWeekCount(app)} 节课)</span>
+        <div class="menu-root">
+          <button type="button" class="menu-button" id="week-feature-button" onClick={toggleMenu}>功能</button>
+          <div classList={{ "menu-popover": true, hidden: state.openMenu !== "timetable-feature-menu" }} id="timetable-feature-menu">
+            <button type="button" id="week-refresh" onClick={() => { state.openMenu = null; app.tree.refreshTimetable().catch(app.showError); }}>刷新已选课程</button>
+          </div>
+        </div>
       </div>
       <div class="timetable-wrap">
         <table id="timetable-table">

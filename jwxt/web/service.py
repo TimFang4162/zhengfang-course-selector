@@ -396,9 +396,11 @@ class JWXTWebService(GrabTaskMixin):
                 )
             return {"items": items, "updatedAt": time.time()}
 
-    def fetch_classes(self, category_id: int, kch_id: str):
+    def fetch_classes(self, category_id: int, kch_id: str, refresh: bool = False):
         with self.lock:
             self._require_auth()
+            if refresh:
+                self.class_cache.pop((category_id, kch_id), None)
             self._ensure_course_info(category_id, kch_id)
             target = self._get_target(category_id)
             course_info_list = self.course_info_cache.get(category_id, {}).get(kch_id)

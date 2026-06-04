@@ -126,6 +126,7 @@ function WorkspaceTabs() {
             <div class="menu-root">
               <button type="button" class="menu-button" id="feature-menu-button" onClick={(event) => { event.stopPropagation(); toggleMenu("feature-menu"); }}>功能</button>
               <div classList={{ "menu-popover": true, hidden: state.openMenu !== "feature-menu" }} id="feature-menu">
+                <button type="button" data-action="refresh-categories" onClick={() => { app.tree.runFeatureAction("refresh-categories"); closeMenus(); }}>刷新列表</button>
                 <button type="button" data-action="export-courses" onClick={() => { app.tree.runFeatureAction("export-courses"); closeMenus(); }}>导出所有课程</button>
               </div>
             </div>
@@ -211,14 +212,14 @@ function WorkspaceTabs() {
             </div>
           </div>
           <div class="menu-root">
-                <button type="button" class="menu-button" id="academic-more-button" onClick={(event) => { event.stopPropagation(); toggleMenu("academic-more-menu"); }}>更多</button>
+                <button type="button" class="menu-button" id="academic-more-button" onClick={(event) => { event.stopPropagation(); toggleMenu("academic-more-menu"); }}>功能</button>
                 <div classList={{ "menu-popover": true, hidden: state.openMenu !== "academic-more-menu" }} id="academic-more-menu">
+                  <button type="button" id="academic-refresh" onClick={() => { closeMenus(); app.academic.refreshAcademicStatus(true).catch(app.showError); }}>刷新学业情况</button>
                   <button type="button" id="academic-show-raw" onClick={() => { closeMenus(); app.academic.showAcademicRawPage(); }}>查看教务原始网页</button>
                   <button type="button" id="academic-show-detail-json" onClick={() => { closeMenus(); app.academic.showAcademicDetailJson(); }}>查看学业明细原始 JSON</button>
                   <button type="button" id="academic-export-json" onClick={() => { closeMenus(); app.academic.exportAcademicDataJson(); }}>导出当前学业数据 JSON</button>
                 </div>
               </div>
-              <button type="button" id="academic-refresh" onClick={() => app.academic.refreshAcademicStatus(true).catch(app.showError)}>刷新</button>
         </div>
             <AcademicStatusView />
       </section>
@@ -271,10 +272,10 @@ function RightPane() {
             <tbody id="activity-list">
               <For each={state.activities} fallback={<tr><td colspan="3" class="dim">暂无活动</td></tr>}>
                 {(item) => (
-                  <tr>
+                  <tr classList={{ "activity-row": true, "is-clickable": Boolean(state.grabTasks[item.id]) }} onClick={() => { const task = state.grabTasks[item.id]; if (task) app.grab.showGrabTaskDetail(task); }}>
                     <td>{item.name}</td>
                     <td>{item.status}</td>
-                    <td>{item.progress} <button type="button" class="activity-more" onClick={(event) => { event.stopPropagation(); app.grab.openActivityTaskMenu(item.id, event.currentTarget); }}>⋯</button></td>
+                    <td>{item.progress} <Show when={state.grabTasks[item.id]}><button type="button" class="activity-more" onClick={(event) => { event.stopPropagation(); app.grab.openActivityTaskMenu(item.id, event.currentTarget); }}>⋯</button></Show></td>
                   </tr>
                 )}
               </For>
@@ -289,6 +290,29 @@ function RightPane() {
 function AppShell() {
   const app = useAppContext();
 
+  function accountLabel() {
+    const studentNumber = state.auth.studentNumber || state.bootstrap?.savedCredentials?.studentNumber || "";
+    if (!studentNumber) return "未登录账号";
+    if (studentNumber.length <= 4) return studentNumber;
+    return `${studentNumber.slice(0, 2)}***${studentNumber.slice(-2)}`;
+  }
+
+  function runAddressAction(event) {
+    const value = event.currentTarget.value;
+    if (value === "__test__") {
+      event.currentTarget.value = state.auth.baseUrl;
+      app.auth.testLoginAddresses().catch(app.showError);
+      return;
+    }
+    if (value === "__custom__") {
+      state.auth.baseUrl = "__custom__";
+      state.auth.loginVisible = true;
+      return;
+    }
+    state.auth.baseUrl = value;
+    if (state.bootstrap) state.bootstrap.baseUrl = value;
+  }
+
   function runAccountAction(event) {
     const action = event.currentTarget.value;
     event.currentTarget.value = "";
@@ -297,15 +321,6 @@ function AppShell() {
       state.auth.loginVisible = true;
       return;
     }
-    if (action === "refresh-categories") {
-      app.tree.refreshCategories(true).catch(app.showError);
-      return;
-    }
-    if (action === "refresh-timetable") {
-      app.tree.refreshTimetable().catch(app.showError);
-      return;
-    }
-    if (action === "refresh-academic") app.academic.refreshAcademicStatus(true).catch(app.showError);
   }
 
   return (
@@ -319,17 +334,16 @@ function AppShell() {
               <button type="button" classList={{ tab: true, active: state.activeTab === "academic" }} data-tab="academic" onClick={() => app.tree.switchTab("academic")}>学业情况</button>
             </div>
             <div class="workspace-controls">
-              <select id="workspace-base-url" aria-label="教务地址" value={state.auth.baseUrl} onChange={(event) => { state.auth.baseUrl = event.currentTarget.value; if (state.bootstrap) state.bootstrap.baseUrl = event.currentTarget.value; }}>
+              <select id="workspace-base-url" aria-label="教务地址" value={state.auth.baseUrl} onChange={runAddressAction}>
                 <For each={state.bootstrap?.addressChoices || []}>
-                  {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</option>}
+                  {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url}</option>}
                 </For>
+                <option value="__test__">测速</option>
+                <option value="__custom__" selected={state.auth.baseUrl === "__custom__"}>{state.auth.customBaseUrl || "自定义地址"}</option>
               </select>
               <select id="account-action" aria-label="账号操作" onChange={runAccountAction}>
-                <option value="">账号操作</option>
+                <option value="">{accountLabel()}</option>
                 <option value="show-login">切换账号</option>
-                <option value="refresh-categories">刷新列表</option>
-                <option value="refresh-timetable">刷新课表</option>
-                <option value="refresh-academic">刷新学业情况</option>
               </select>
               <button type="button" id="toggle-sidebar" title="折叠侧栏" onClick={app.tree.toggleSidebar}>{state.sidebarCollapsed ? "⇥" : "⇤"}</button>
             </div>
@@ -361,7 +375,8 @@ function ModalLayer() {
   const modalTitle = () => {
     if (state.modalClass?.entry) return `${state.modalClass.entry.name} / ${state.modalClass.entry.classNo || "-"}`;
     if (state.modalClass?.course && state.modalClass?.item) return `${state.modalClass.course.courseName} / ${state.modalClass.item.classNo}`;
-    return "教学班详情";
+    if (state.modalClass?.course) return state.modalClass.course.courseName;
+    return "课程详情";
   };
   const modalActionLabel = () => {
     if (state.modalClass?.entry) return "退课";
@@ -415,6 +430,17 @@ function ModalLayer() {
                 </>
               )}
             </Show>
+            <Show when={state.modalClass?.course && !state.modalClass?.item ? state.modalClass.course : null} keyed>
+              {(course) => (
+                <>
+                  <div class="class-meta"><div>课程</div><div>{course.courseName}</div></div>
+                  <div class="class-meta"><div>课程号</div><div>{course.kchId || "-"}</div></div>
+                  <div class="class-meta"><div>学分</div><div>{course.creditText || "-"}</div></div>
+                  <div class="class-meta"><div>教学班</div><div>{course.classCount ?? "-"}</div></div>
+                  <div class="class-meta"><div>已选</div><div>{state.timetable.selectedCourseIds?.includes(course.kchId) ? "是" : "否"}</div></div>
+                </>
+              )}
+            </Show>
             <Show when={classDebugPayload()} keyed>
               {(payload) => (
                 <>
@@ -441,7 +467,9 @@ function ModalLayer() {
             </Show>
           </div>
           <div class="modal-actions">
-            <button type="button" id="modal-action" onClick={() => app.timetable.executeModalAction().catch(app.showError)}>{modalActionLabel()}</button>
+            <Show when={state.modalClass?.entry || state.modalClass?.item}>
+              <button type="button" id="modal-action" onClick={() => app.timetable.executeModalAction().catch(app.showError)}>{modalActionLabel()}</button>
+            </Show>
           </div>
         </div>
       </div>

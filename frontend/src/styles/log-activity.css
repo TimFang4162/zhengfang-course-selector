@@ -95,6 +95,10 @@
   background: transparent;
 }
 
+.activity-row.is-clickable {
+  cursor: pointer;
+}
+
 .log-line {
   display: grid;
   grid-template-columns: 78px minmax(0, 1fr);

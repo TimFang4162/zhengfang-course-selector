@@ -36,6 +36,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
 
   function runFeatureAction(action) {
     if (action === "export-courses") exportAllCourses().catch(getApp().showError);
+    if (action === "refresh-categories") refreshCategories(true).catch(getApp().showError);
   }
 
   function toggleSidebar() {
@@ -193,10 +194,11 @@ export function createTreeFeature({ state, getApp, helpers }) {
     }
   }
 
-  async function loadCourseClasses(categoryId, kchId) {
+  async function loadCourseClasses(categoryId, kchId, force = false) {
     state.loadingCourses.add(`${categoryId}:${kchId}`);
     renderTree();
-    const data = await apiGet(`/api/classes?category_id=${categoryId}&kch_id=${encodeURIComponent(kchId)}`);
+    const refresh = force ? "&refresh=1" : "";
+    const data = await apiGet(`/api/classes?category_id=${categoryId}&kch_id=${encodeURIComponent(kchId)}${refresh}`);
     state.courseClasses[`${categoryId}:${kchId}`] = data.classes;
     state.loadingCourses.delete(`${categoryId}:${kchId}`);
     renderTree();
@@ -227,6 +229,10 @@ export function createTreeFeature({ state, getApp, helpers }) {
     else renderTree();
   }
 
+  function refreshCourseClasses(categoryId, kchId) {
+    return loadCourseClasses(categoryId, kchId, true);
+  }
+
   return {
     syncSearchScopeOptions,
     applyLocalSearch,
@@ -240,6 +246,8 @@ export function createTreeFeature({ state, getApp, helpers }) {
     syncTreeState,
     refreshTimetable,
     loadCategoryCourses,
+    loadCourseClasses,
+    refreshCourseClasses,
     renderTree,
     toggleCategory,
     toggleCourse,

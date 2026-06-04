@@ -91,6 +91,8 @@ export function createAuthFeature({ state, getApp }) {
       app.tree.applyTreeState(result.tree);
       state.timetable = result.timetable;
       state.bootstrap.baseUrl = baseUrl;
+      state.bootstrap.savedCredentials.studentNumber = payload.studentNumber;
+      state.bootstrap.savedCredentials.masked = payload.studentNumber;
       state.bootstrap.disableSslVerify = state.auth.disableSslVerify;
       state.auth.loginVisible = false;
       document.getElementById("login-overlay")?.classList.add("hidden");

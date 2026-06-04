@@ -52,8 +52,26 @@ export function createTimetableFeature({ state, getApp }) {
     app.tree.renderTree();
   }
 
+  async function chooseOrWithdrawClass(categoryId, course, item) {
+    const app = getApp();
+    const selected = isSelectedClass(item);
+    const payload = selected
+      ? { kchId: item.kchId, doJxbId: item.doJxbId }
+      : { categoryId, kchId: item.kchId, doJxbId: item.doJxbId, courseName: course.courseName };
+    const result = await apiPost(selected ? "/api/withdraw" : "/api/choose", payload);
+    if (!result.ok) throw new Error(result.message || (selected ? "退课失败" : "选课失败"));
+    state.timetable = result.timetable;
+    renderTimetable();
+    renderTimetableDetailAll();
+    app.tree.renderTree();
+  }
+
   function openClassModal(categoryId, course, item) {
     state.modalClass = { categoryId, course, item };
+  }
+
+  function openCourseModal(categoryId, course) {
+    state.modalClass = { categoryId, course };
   }
 
   function closeClassModal() {
@@ -69,16 +87,9 @@ export function createTimetableFeature({ state, getApp }) {
       return;
     }
     const { categoryId, course, item } = state.modalClass;
+    if (!item) return;
     try {
-      const payload = isSelectedClass(item)
-        ? { kchId: item.kchId, doJxbId: item.doJxbId }
-        : { categoryId, kchId: item.kchId, doJxbId: item.doJxbId, courseName: course.courseName };
-      const result = await apiPost(isSelectedClass(item) ? "/api/withdraw" : "/api/choose", payload);
-      if (!result.ok) throw new Error(result.message || (isSelectedClass(item) ? "退课失败" : "选课失败"));
-      state.timetable = result.timetable;
-      renderTimetable();
-      renderTimetableDetailAll();
-      app.tree.renderTree();
+      await chooseOrWithdrawClass(categoryId, course, item);
       closeClassModal();
     } catch (error) {
       app.showError(error);
@@ -93,7 +104,9 @@ export function createTimetableFeature({ state, getApp }) {
     showCourseDetail,
     openSelectedCourseMenu,
     withdrawSelectedEntry,
+    chooseOrWithdrawClass,
     openClassModal,
+    openCourseModal,
     closeClassModal,
     executeModalAction,
   };

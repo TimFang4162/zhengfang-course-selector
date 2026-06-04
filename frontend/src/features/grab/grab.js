@@ -91,7 +91,47 @@ export function createGrabFeature({ state, getApp }) {
   }
 
   function openTreeMoreMenu(anchor, context) {
-    openFloatingMenu(anchor, [{ label: "添加抢课任务", action: () => openGrabModal(context) }], 160);
+    const app = getApp();
+    const items = [];
+    if (context.type === "course") {
+      items.push(
+        { label: "显示详情", action: () => app.timetable.openCourseModal(context.category.id, context.course) },
+        { label: "刷新教学班", action: () => app.tree.refreshCourseClasses(context.category.id, context.course.kchId).catch(app.showError) },
+      );
+    }
+    if (context.type === "class") {
+      items.push(
+        { label: "显示详情", action: () => app.timetable.openClassModal(context.category.id, context.course, context.classItem) },
+        { label: isClassSelected(context.classItem) ? "退选" : "选课", action: () => app.timetable.chooseOrWithdrawClass(context.category.id, context.course, context.classItem).catch(app.showError) },
+      );
+    }
+    items.push({ label: "添加抢课任务", action: () => openGrabModal(context) });
+    openFloatingMenu(anchor, items, 160);
+  }
+
+  function isClassSelected(item) {
+    return (state.timetable.selectedClassIds || []).includes(item.jxbId) || (state.timetable.selectedDoJxbIds || []).includes(item.doJxbId);
+  }
+
+  function grabStatusLabel(status) {
+    const labels = {
+      waiting: "待启动",
+      running: "运行中",
+      stopped: "已停止",
+      timeout: "已超时",
+      failed: "失败",
+      success: "成功",
+    };
+    return labels[status] || status || "未知";
+  }
+
+  function grabProgressText(task) {
+    const debug = task.lastTickDebug || {};
+    const base = `第 ${task.tickCount || 0} 轮，成功 ${task.successCount || 0} 次，候选 ${task.candidateCourseCount || 0} 门/${task.candidateClassCount || 0} 班`;
+    if (task.status === "waiting") return `待启动，候选 ${task.candidateCourseCount || 0} 门/${task.candidateClassCount || 0} 班`;
+    if (!task.tickCount) return `${base}，等待首次扫描`;
+    if (task.status === "running") return `${base}，上轮检查 ${debug.checkedClassCount ?? 0} 班，提交 ${debug.attemptedCount ?? 0} 次`;
+    return `${base}，${task.progress || grabStatusLabel(task.status)}`;
   }
 
   function openGrabModal(context) {
@@ -148,8 +188,8 @@ export function createGrabFeature({ state, getApp }) {
     const task = result.task;
     app.activity.upsertActivity(task.id, {
       name: task.name,
-      status: task.status,
-      progress: `${task.progress} / ${task.candidateCourseCount}门课程 ${task.candidateClassCount}个教学班`,
+      status: grabStatusLabel(task.status),
+      progress: grabProgressText(task),
     });
     closeGrabModal();
   }
@@ -161,8 +201,8 @@ export function createGrabFeature({ state, getApp }) {
       state.grabTasks[task.id] = task;
       app.activity.upsertActivity(task.id, {
         name: task.name,
-        status: task.status,
-        progress: `${task.progress} / tick ${task.tickCount} / 成功 ${task.successCount}`,
+        status: grabStatusLabel(task.status),
+        progress: grabProgressText(task),
       });
     }
     if (data?.tree) {
@@ -257,5 +297,7 @@ export function createGrabFeature({ state, getApp }) {
     openActivityTaskMenu,
     showGrabTaskDetail,
     closeGrabTaskDetail,
+    grabStatusLabel,
+    grabProgressText,
   };
 }

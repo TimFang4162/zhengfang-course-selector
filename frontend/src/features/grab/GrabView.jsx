@@ -185,8 +185,8 @@ export function GrabTaskModal() {
           <Show when={task()} keyed>
             {(item) => (
               <>
-                <div class="class-meta"><div>状态</div><div>{item.status}</div></div>
-                <div class="class-meta"><div>进度</div><div>{item.progress}</div></div>
+                <div class="class-meta"><div>状态</div><div>{app.grab.grabStatusLabel(item.status)}</div></div>
+                <div class="class-meta"><div>进度</div><div>{app.grab.grabProgressText(item)}</div></div>
                 <div class="class-meta"><div>表达式</div><div><code>{item.expression || ""}</code></div></div>
                 <div class="class-meta"><div>启动</div><div>{item.startMode || ""} {item.startAt ? new Date(item.startAt * 1000).toLocaleString() : ""}</div></div>
                 <div class="class-meta"><div>Tick/Timeout</div><div>{item.tickInterval}s / {item.timeoutSeconds}s</div></div>

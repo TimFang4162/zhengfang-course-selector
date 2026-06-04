@@ -67,7 +67,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/classes":
                 category_id = int(query.get("category_id", ["0"])[0])
                 kch_id = str(query.get("kch_id", [""])[0])
-                self._write_json(SERVICE.fetch_classes(category_id, kch_id))
+                refresh = query.get("refresh", ["0"])[0] == "1"
+                self._write_json(
+                    SERVICE.fetch_classes(category_id, kch_id, refresh=refresh)
+                )
                 return
             if parsed.path == "/api/timetable":
                 refresh = query.get("refresh", ["0"])[0] == "1"
