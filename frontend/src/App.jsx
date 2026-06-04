@@ -8,6 +8,7 @@ import { AcademicStatusView, activeAcademicFilterCount } from "./features/academ
 import { academicFilterNatures, academicFilterTerms } from "./features/academic/filters.js";
 import { GrabModal, GrabTaskModal } from "./features/grab/GrabView.jsx";
 import { FloatingMenu } from "./components/FloatingMenu.jsx";
+import { formatDebugJson } from "./shared/utils.js";
 
 function LoginOverlay() {
   const app = useAppContext();
@@ -347,6 +348,16 @@ function AppShell() {
 
 function ModalLayer() {
   const app = useAppContext();
+  const classDebugPayload = () => {
+    if (!state.modalClass) return null;
+    if (state.modalClass.entry) return { source: "timetable", entry: state.modalClass.entry };
+    return {
+      source: "class-list",
+      categoryId: state.modalClass.categoryId,
+      course: state.modalClass.course,
+      classItem: state.modalClass.item,
+    };
+  };
   const modalTitle = () => {
     if (state.modalClass?.entry) return `${state.modalClass.entry.name} / ${state.modalClass.entry.classNo || "-"}`;
     if (state.modalClass?.course && state.modalClass?.item) return `${state.modalClass.course.courseName} / ${state.modalClass.item.classNo}`;
@@ -393,6 +404,7 @@ function ModalLayer() {
               {(item) => (
                 <>
                   <div class="class-meta"><div>教学班</div><div>{item.classNo}</div></div>
+                  <div class="class-meta"><div>课程号</div><div>{item.kchId || state.modalClass?.course?.kchId || "-"}</div></div>
                   <div class="class-meta"><div>上课教师</div><div>{item.teacherName || ""} <span class="dim">{item.teacherTitle || ""}</span></div></div>
                   <div class="class-meta"><div>上课时间</div><div>{item.sksj || ""}</div></div>
                   <div class="class-meta"><div>教学地点</div><div>{item.location || ""}</div></div>
@@ -400,6 +412,30 @@ function ModalLayer() {
                   <div class="class-meta"><div>选课备注</div><div>{item.remark || "-"}</div></div>
                   <div class="class-meta"><div>课程性质</div><div>{item.courseProperty || "-"}</div></div>
                   <div class="class-meta"><div>已选/容量</div><div>{item.selectedCount}/{item.capacity}</div></div>
+                </>
+              )}
+            </Show>
+            <Show when={classDebugPayload()} keyed>
+              {(payload) => (
+                <>
+                  <details class="debug-details">
+                    <summary>抢课 / 选课关键字段</summary>
+                    <div class="debug-grid">
+                      <div>来源</div><div>{payload.source}</div>
+                      <div>categoryId</div><div>{payload.categoryId ?? "-"}</div>
+                      <div>course.kchId</div><div>{payload.course?.kchId || payload.entry?.kchId || "-"}</div>
+                      <div>classNo</div><div>{payload.classItem?.classNo || payload.entry?.classNo || "-"}</div>
+                      <div>容量</div><div>{payload.classItem ? `${payload.classItem.selectedCount}/${payload.classItem.capacity}` : "-"}</div>
+                    </div>
+                  </details>
+                  <details class="debug-details">
+                    <summary>时间 slots</summary>
+                    <pre class="debug-pre">{formatDebugJson(payload.classItem?.slots || payload.entry?.slots || [])}</pre>
+                  </details>
+                  <details class="debug-details">
+                    <summary>原始详情 JSON</summary>
+                    <pre class="debug-pre">{formatDebugJson(payload)}</pre>
+                  </details>
                 </>
               )}
             </Show>

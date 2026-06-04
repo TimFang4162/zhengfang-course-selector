@@ -32,14 +32,14 @@ export const grabSymbolDocs = {
   "class.capacityLeft": "number：剩余容量。",
   "class.capacity": "number：容量。",
   "class.selected": "number：已选人数。",
-  conflicts: "boolean：是否与当前课表冲突。",
-  has_capacity: "boolean：是否有余量。",
+  conflicts: "boolean：是否与当前课表冲突。动态条件，不会缩小候选扫描范围。",
+  has_capacity: "boolean：是否有余量。动态条件，不会缩小候选扫描范围。",
 };
 
 export function defaultGrabExpression(context) {
   if (context.type === "category") return `course.categoryId == ${JSON.stringify(String(context.category.id))} and has_capacity and not conflicts`;
-  if (context.type === "course") return `course.id == ${JSON.stringify(context.course.kchId)} and has_capacity and not conflicts`;
-  return `course.id == ${JSON.stringify(context.course.kchId)} and class.no == ${JSON.stringify(context.classItem.classNo)} and has_capacity`;
+  if (context.type === "course") return `course.categoryId == ${JSON.stringify(String(context.category.id))} and course.id == ${JSON.stringify(context.course.kchId)} and has_capacity and not conflicts`;
+  return `course.categoryId == ${JSON.stringify(String(context.category.id))} and course.id == ${JSON.stringify(context.course.kchId)} and class.no == ${JSON.stringify(context.classItem.classNo)} and has_capacity`;
 }
 
 export function translateGrabExpression(expression) {

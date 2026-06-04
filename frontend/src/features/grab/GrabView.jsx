@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
+import { formatDebugJson } from "../../shared/utils.js";
 import { grabSymbols } from "./expression.js";
 
 function groupMatches(matches) {
@@ -112,7 +113,7 @@ export function GrabModal() {
         <div class="grab-editor">
           <label for="grab-expression">表达式</label>
           <div id="grab-monaco" class="grab-monaco"></div>
-          <textarea id="grab-expression" classList={{ "monaco-enabled": Boolean(state.grabEditor) }} spellcheck="false" value={state.grabExpression} onInput={(event) => { state.grabExpression = event.currentTarget.value; app.grab.refreshGrabPreview().catch(app.showError); }}></textarea>
+          <textarea id="grab-expression" classList={{ "monaco-enabled": Boolean(state.grabEditor) }} spellcheck="false" value={state.grabExpression} onInput={(event) => { state.grabExpression = event.currentTarget.value; app.grab.scheduleGrabPreview(); }}></textarea>
           <div class="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
           <div class={state.grabStatusClass} id="grab-status">{state.grabStatusText}</div>
         </div>
@@ -168,6 +169,7 @@ export function GrabModal() {
 export function GrabTaskModal() {
   const app = useAppContext();
   const task = () => state.grabTaskDetail;
+  const formatTime = (value) => value ? new Date(value * 1000).toLocaleString() : "-";
 
   return (
     <div id="task-modal" classList={{ modal: true, hidden: !task() }}>
@@ -193,6 +195,33 @@ export function GrabTaskModal() {
                 <div class="class-meta"><div>候选</div><div>{item.candidateCourseCount} 门课程 / {item.candidateClassCount} 个教学班</div></div>
                 <div class="class-meta"><div>最近错误</div><div>{item.lastError || "-"}</div></div>
                 <div class="class-meta"><div>最近结果</div><div>{item.lastResult || "-"}</div></div>
+                <details class="debug-details">
+                  <summary>最近 Tick 调试</summary>
+                  <div class="debug-grid">
+                    <div>检查教学班</div><div>{item.lastTickDebug?.checkedClassCount ?? 0}</div>
+                    <div>ID 命中</div><div>{item.lastTickDebug?.matchedIdentityCount ?? 0}</div>
+                    <div>尝试提交</div><div>{item.lastTickDebug?.attemptedCount ?? 0}</div>
+                    <div>ID 跳过</div><div>{item.lastTickDebug?.skippedIdCount ?? 0}</div>
+                    <div>表达式跳过</div><div>{item.lastTickDebug?.skippedExpressionCount ?? 0}</div>
+                    <div>容量跳过</div><div>{item.lastTickDebug?.skippedCapacityCount ?? 0}</div>
+                    <div>最近 tick</div><div>{formatTime(item.lastTickAt)}</div>
+                  </div>
+                </details>
+                <details class="debug-details">
+                  <summary>候选课程 / 教学班号</summary>
+                  <For each={item.candidateCourses || []} fallback={<div class="dim debug-empty">无候选</div>}>
+                    {(course) => (
+                      <div class="debug-course">
+                        <div><strong>{course.courseName || course.kchId}</strong> <span class="dim">category={course.categoryId} kch={course.kchId}</span></div>
+                        <pre class="debug-pre">{formatDebugJson(course.classIds || [])}</pre>
+                      </div>
+                    )}
+                  </For>
+                </details>
+                <details class="debug-details">
+                  <summary>任务原始数据</summary>
+                  <pre class="debug-pre">{formatDebugJson(item)}</pre>
+                </details>
                 <div class="class-meta"><div>事件</div><div><For each={item.events || []} fallback="-">{(event) => <div>{event.time} {event.message}</div>}</For></div></div>
               </>
             )}

@@ -70,7 +70,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._write_json(SERVICE.fetch_classes(category_id, kch_id))
                 return
             if parsed.path == "/api/timetable":
-                self._write_json(SERVICE.fetch_timetable())
+                refresh = query.get("refresh", ["0"])[0] == "1"
+                self._write_json(SERVICE.fetch_timetable(refresh=refresh))
                 return
             if parsed.path == "/api/academic-status":
                 refresh = query.get("refresh", ["0"])[0] == "1"
@@ -85,6 +86,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/logs/stream":
                 self._stream_logs()
+                return
+            if parsed.path == "/api/events":
+                self._stream_events()
                 return
             if parsed.path == "/api/grab/tasks":
                 self._write_json(SERVICE.list_grab_tasks())
@@ -183,6 +187,27 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         finally:
             SERVICE.unsubscribe_logs(subscriber)
+
+    def _stream_events(self):
+        subscriber, snapshot = SERVICE.subscribe_events()
+        try:
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            self._write_sse("snapshot", snapshot)
+            self._write_sse("ready", {"ok": True})
+            while True:
+                try:
+                    entry = subscriber.get(timeout=15)
+                    self._write_sse(entry["type"], entry["payload"])
+                except queue.Empty:
+                    self._write_sse("ping", {"ts": int(time.time())})
+        except BrokenPipeError, ConnectionResetError:
+            return
+        finally:
+            SERVICE.unsubscribe_events(subscriber)
 
     def _write_sse(self, event: str, data):
         body = (

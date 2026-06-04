@@ -39,3 +39,11 @@ export function downloadJson(filename, data) {
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+export function formatDebugJson(data) {
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch (error) {
+    return String(data ?? "");
+  }
+}

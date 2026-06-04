@@ -35,7 +35,7 @@ export function createApp() {
     app.auth.updateAuthStatus();
     constrainLayoutVars();
     app.logs.connectLogStream();
-    app.grab.pollGrabTasks();
+    app.grab.connectEventStream();
   };
 
   return app;

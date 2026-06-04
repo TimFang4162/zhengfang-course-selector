@@ -18,12 +18,14 @@ class JWXTWebService(GrabTaskMixin):
         self.course_info_cache = {}
         self.course_page_state = {}
         self.class_cache = {}
+        self.timetable_cache = None
         self.academic_status_cache = None
         self.grab_tasks = {}
         self.next_grab_task_id = 1
         self.scheduler_started = False
         self.disable_ssl_verify = not bool(self.mod.sess.verify)
         self.log_subscribers = []
+        self.event_subscribers = []
         self.mod.set_request_logger(self._log_renderable)
         self._start_scheduler()
 
@@ -101,6 +103,37 @@ class JWXTWebService(GrabTaskMixin):
                 item for item in self.log_subscribers if item is not subscriber
             ]
 
+    def _publish_event(self, event_type: str, payload: dict):
+        with self.lock:
+            alive = []
+            for subscriber in self.event_subscribers:
+                try:
+                    subscriber.put_nowait({"type": event_type, "payload": payload})
+                    alive.append(subscriber)
+                except Exception:
+                    pass
+            self.event_subscribers = alive
+
+    def subscribe_events(self):
+        q = queue.Queue(maxsize=500)
+        with self.lock:
+            self.event_subscribers.append(q)
+            snapshot = self.event_snapshot()
+        return q, snapshot
+
+    def unsubscribe_events(self, subscriber):
+        with self.lock:
+            self.event_subscribers = [
+                item for item in self.event_subscribers if item is not subscriber
+            ]
+
+    def event_snapshot(self):
+        snapshot = {"grabTasks": self.list_grab_tasks()}
+        if self.mod.is_authenticated:
+            snapshot["tree"] = self.tree_state()
+            snapshot["timetable"] = self.fetch_timetable(refresh=False)
+        return snapshot
+
     def _log_renderable(self, renderable):
         with self.lock:
             self._append_log(self._plain(renderable))
@@ -118,7 +151,8 @@ class JWXTWebService(GrabTaskMixin):
             categories = (
                 self.fetch_categories(refresh=False) if authenticated else {"items": []}
             )
-            timetable = self.fetch_timetable() if authenticated else None
+            timetable = self.fetch_timetable(refresh=False) if authenticated else None
+            tree = self.tree_state() if authenticated else {"items": []}
             return {
                 "addressChoices": [
                     {"id": choice_id, "url": url, "description": desc}
@@ -136,6 +170,7 @@ class JWXTWebService(GrabTaskMixin):
                 "baseUrl": self.mod.base_url,
                 "disableSslVerify": self.disable_ssl_verify,
                 "categories": categories,
+                "tree": tree,
                 "timetable": timetable,
             }
 
@@ -181,11 +216,13 @@ class JWXTWebService(GrabTaskMixin):
                 self.mod.save_credentials(student_number, password)
                 self._log_info("凭据已保存")
             categories = self.fetch_categories(refresh=True)
-            timetable = self.fetch_timetable()
+            timetable = self.fetch_timetable(refresh=True)
+            tree = self.tree_state()
             return {
                 "ok": True,
                 "message": "登录成功",
                 "categories": categories,
+                "tree": tree,
                 "timetable": timetable,
             }
 
@@ -243,6 +280,7 @@ class JWXTWebService(GrabTaskMixin):
                 self.course_info_cache = {}
                 self.course_page_state = {}
                 self.class_cache = {}
+                self.timetable_cache = None
                 self.academic_status_cache = None
             return {
                 "items": [
@@ -361,6 +399,7 @@ class JWXTWebService(GrabTaskMixin):
     def fetch_classes(self, category_id: int, kch_id: str):
         with self.lock:
             self._require_auth()
+            self._ensure_course_info(category_id, kch_id)
             target = self._get_target(category_id)
             course_info_list = self.course_info_cache.get(category_id, {}).get(kch_id)
             if not course_info_list:
@@ -396,6 +435,25 @@ class JWXTWebService(GrabTaskMixin):
                 ],
             }
 
+    def _ensure_course_info(self, category_id: int, kch_id: str):
+        course_bucket = self.course_info_cache.setdefault(category_id, {})
+        if course_bucket.get(kch_id):
+            return
+        target = self._get_target(category_id)
+        rwlx = "1" if target[0] == "主修课程" else "2"
+        class_list_req = self.mod.fetch_class_detail_and_plan(
+            target[1],
+            kch_id,
+            target[4],
+            target[2],
+            rwlx,
+            self._log_renderable,
+            self._log_debug,
+        )
+        if not class_list_req:
+            return
+        course_bucket[kch_id] = class_list_req
+
     def load_all_courses(self, category_id: int):
         with self.lock:
             page = self.course_page_state.get(category_id, {}).get("nextPage", 1)
@@ -409,9 +467,11 @@ class JWXTWebService(GrabTaskMixin):
                     return self.tree_state()
                 page = result.get("nextPage", page + 1)
 
-    def fetch_timetable(self):
+    def fetch_timetable(self, refresh: bool = False):
         with self.lock:
             self._require_auth()
+            if not refresh and self.timetable_cache is not None:
+                return self.timetable_cache
             choosed = self.mod.fetch_choosed_list(self._log_renderable, self._log_debug)
             selected_course_ids = set()
             selected_class_ids = set()
@@ -465,7 +525,7 @@ class JWXTWebService(GrabTaskMixin):
                 )
             max_credit = self.mod.max_credit_limit or 32.0
             current_credit = self.mod.current_credit_display or summed_credit
-            return {
+            self.timetable_cache = {
                 "entries": entries,
                 "selectedCourseIds": sorted(selected_course_ids),
                 "selectedClassIds": sorted(selected_class_ids),
@@ -473,6 +533,7 @@ class JWXTWebService(GrabTaskMixin):
                 "maxCredit": max_credit,
                 "currentCredit": current_credit,
             }
+            return self.timetable_cache
 
     def fetch_academic_status(self, refresh: bool = False):
         with self.lock:
@@ -536,7 +597,7 @@ class JWXTWebService(GrabTaskMixin):
                 "ok": False,
                 "message": "请求失败",
                 "payload": {"error": "请求失败"},
-                "timetable": self.fetch_timetable(),
+                "timetable": self.fetch_timetable(refresh=True),
             }
         try:
             payload = res.json()
@@ -547,7 +608,7 @@ class JWXTWebService(GrabTaskMixin):
             "ok": ok,
             "message": message,
             "payload": payload,
-            "timetable": self.fetch_timetable(),
+            "timetable": self.fetch_timetable(refresh=True),
         }
 
     def _parse_operation_result(self, payload, res):

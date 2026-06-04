@@ -59,12 +59,11 @@ export function createAuthFeature({ state, getApp }) {
     state.auth.studentNumber = state.bootstrap.savedCredentials?.studentNumber || "";
     app.tree.syncSearchScopeOptions();
     if (state.bootstrap.authenticated) {
-      state.categories = state.bootstrap.categories?.items || [];
+      app.tree.applyTreeState(state.bootstrap.tree);
       state.timetable = state.bootstrap.timetable || state.timetable;
       state.auth.loginVisible = false;
       app.tree.syncSearchScopeOptions();
       app.tree.setFilterStatus();
-      await app.tree.syncTreeState();
       app.tree.renderTree();
       app.timetable.renderTimetable();
       app.timetable.renderTimetableDetailAll();
@@ -89,7 +88,7 @@ export function createAuthFeature({ state, getApp }) {
       };
       const result = await apiPost("/api/login", payload);
       if (!result.ok) throw new Error(result.message || "登录失败");
-      state.categories = result.categories.items;
+      app.tree.applyTreeState(result.tree);
       state.timetable = result.timetable;
       state.bootstrap.baseUrl = baseUrl;
       state.bootstrap.disableSslVerify = state.auth.disableSslVerify;
@@ -98,7 +97,6 @@ export function createAuthFeature({ state, getApp }) {
       updateAuthStatus();
       app.tree.syncSearchScopeOptions();
       app.tree.setFilterStatus();
-      await app.tree.syncTreeState();
       app.tree.renderTree();
       app.timetable.renderTimetable();
       app.timetable.renderTimetableDetailAll();

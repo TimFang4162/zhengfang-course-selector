@@ -1,8 +1,23 @@
+import ast
 import re
 import time
 
 
 class GrabTaskMixin:
+    _DYNAMIC_GRAB_NAMES = {"conflicts", "has_capacity"}
+    _DYNAMIC_GRAB_CLASS_FIELDS = {"selected", "capacityLeft"}
+
+    def _class_identity_set(self, class_item: dict | None):
+        if not class_item:
+            return set()
+        class_no = class_item.get("classNo")
+        return {str(class_no)} if class_no not in (None, "") else set()
+
+    def _class_choose_id(self, class_item: dict | None):
+        if not class_item:
+            return ""
+        return str(class_item.get("doJxbId") or class_item.get("jxbId") or "")
+
     def _build_conflict_context(self, timetable: dict):
         occupied_slots = set()
         selected_class_ids = set()
@@ -43,17 +58,124 @@ class GrabTaskMixin:
             )
         )
 
-    def _extract_course_ids(self, expression: str):
-        return re.findall(r"course\.id\s*==\s*[\"']([^\"']+)[\"']", expression)
+    def _extract_scan_scope(self, expression: str):
+        try:
+            tree = ast.parse(expression.replace("class.", "class_."), mode="eval")
+        except SyntaxError:
+            return set(), set()
+        scope = self._scan_scope_from_node(tree.body)
+        return scope.get("categoryIds") or set(), scope.get("courseIds") or set()
 
-    def _extract_category_ids(self, expression: str):
-        return re.findall(
-            r"course\.categoryId\s*==\s*[\"']?([^\"'\s)]+)[\"']?", expression
-        )
+    def _scan_scope_from_node(self, node):
+        if isinstance(node, ast.BoolOp):
+            child_scopes = [self._scan_scope_from_node(value) for value in node.values]
+            if isinstance(node.op, ast.And):
+                return self._merge_and_scan_scopes(child_scopes)
+            if isinstance(node.op, ast.Or):
+                return self._merge_or_scan_scopes(child_scopes)
+            return {}
+        if (
+            isinstance(node, ast.Compare)
+            and len(node.ops) == 1
+            and len(node.comparators) == 1
+        ):
+            return self._scan_scope_from_compare(
+                node.left, node.ops[0], node.comparators[0]
+            )
+        return {}
+
+    def _merge_and_scan_scopes(self, scopes):
+        merged = {}
+        for scope in scopes:
+            for key, values in scope.items():
+                merged[key] = merged[key] & values if key in merged else set(values)
+        return merged
+
+    def _merge_or_scan_scopes(self, scopes):
+        merged = {}
+        for key in ("categoryIds", "courseIds"):
+            if scopes and all(key in scope for scope in scopes):
+                values = set()
+                for scope in scopes:
+                    values.update(scope[key])
+                merged[key] = values
+        return merged
+
+    def _scan_scope_from_compare(self, left, op, right):
+        left_field = self._scan_scope_field(left)
+        right_field = self._scan_scope_field(right)
+        if isinstance(op, ast.Eq):
+            if left_field:
+                value = self._scan_scope_literal(right)
+                return {left_field: {value}} if value is not None else {}
+            if right_field:
+                value = self._scan_scope_literal(left)
+                return {right_field: {value}} if value is not None else {}
+        if isinstance(op, ast.In) and left_field:
+            values = self._scan_scope_literal_collection(right)
+            return {left_field: values} if values else {}
+        return {}
+
+    def _scan_scope_field(self, node):
+        if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+            return None
+        if node.value.id != "course":
+            return None
+        if node.attr == "id":
+            return "courseIds"
+        if node.attr == "categoryId":
+            return "categoryIds"
+        return None
+
+    def _scan_scope_literal(self, node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, (str, int)):
+            return str(node.value)
+        return None
+
+    def _scan_scope_literal_collection(self, node):
+        if not isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return set()
+        values = set()
+        for item in node.elts:
+            value = self._scan_scope_literal(item)
+            if value is None:
+                return set()
+            values.add(value)
+        return values
 
     def _eval_grab_expression(
         self,
         expression: str,
+        category: dict,
+        course: dict,
+        class_item: dict | None,
+        conflict_context: dict,
+    ):
+        env = self._grab_expression_env(category, course, class_item, conflict_context)
+        try:
+            return bool(
+                eval(expression.replace("class.", "class_."), {"__builtins__": {}}, env)
+            )
+        except Exception:
+            return False
+
+    def _eval_grab_scan_expression(
+        self,
+        expression: str,
+        category: dict,
+        course: dict,
+        class_item: dict | None,
+        conflict_context: dict,
+    ):
+        env = self._grab_expression_env(category, course, class_item, conflict_context)
+        try:
+            tree = ast.parse(expression.replace("class.", "class_."), mode="eval")
+            return self._grab_scan_node_can_match(tree.body, env)
+        except Exception:
+            return True
+
+    def _grab_expression_env(
+        self,
         category: dict,
         course: dict,
         class_item: dict | None,
@@ -79,7 +201,7 @@ class GrabTaskMixin:
                 "capacity": capacity,
                 "capacityLeft": max(0, capacity - selected),
             }
-        env = {
+        return {
             "course": self._AttrDict(course_obj),
             "class_": self._AttrDict(class_obj or {}),
             "teachers": [
@@ -91,12 +213,45 @@ class GrabTaskMixin:
             "conflicts": self._class_conflicts(class_item, conflict_context),
             "has_capacity": bool(class_item and capacity > selected),
         }
+
+    def _grab_scan_node_can_match(self, node, env: dict) -> bool:
+        if isinstance(node, ast.BoolOp):
+            results = [
+                self._grab_scan_node_can_match(value, env) for value in node.values
+            ]
+            if isinstance(node.op, ast.And):
+                return all(results)
+            if isinstance(node.op, ast.Or):
+                return any(results)
+            return True
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            value = self._grab_static_node_value(node.operand, env)
+            return True if value is None else not bool(value)
+        value = self._grab_static_node_value(node, env)
+        return True if value is None else bool(value)
+
+    def _grab_static_node_value(self, node, env: dict):
+        if self._grab_node_has_dynamic_value(node):
+            return None
         try:
-            return bool(
-                eval(expression.replace("class.", "class_."), {"__builtins__": {}}, env)
-            )
+            expr = ast.Expression(body=node)
+            ast.fix_missing_locations(expr)
+            return eval(compile(expr, "<grab-scan>", "eval"), {"__builtins__": {}}, env)
         except Exception:
-            return False
+            return None
+
+    def _grab_node_has_dynamic_value(self, node) -> bool:
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and child.id in self._DYNAMIC_GRAB_NAMES:
+                return True
+            if (
+                isinstance(child, ast.Attribute)
+                and child.attr in self._DYNAMIC_GRAB_CLASS_FIELDS
+                and isinstance(child.value, ast.Name)
+                and child.value.id == "class_"
+            ):
+                return True
+        return False
 
     class _AttrDict(dict):
         def __getattr__(self, key):
@@ -115,16 +270,31 @@ class GrabTaskMixin:
             expression = str(payload.get("expression") or "True")
             match_limit = int(payload.get("matchLimit") or 200)
             state = self.tree_state()
-            conflict_context = self._build_conflict_context(self.fetch_timetable())
-            category_ids = set(self._extract_category_ids(expression))
-            course_ids = set(self._extract_course_ids(expression))
-            if context.get("type") == "category":
-                category_ids.add(str(context.get("categoryId")))
-            elif context.get("categoryId") not in (None, ""):
-                category_ids.add(str(context.get("categoryId")))
-            if context.get("kchId"):
-                course_ids.add(str(context.get("kchId")))
-            needs_classes = self._expr_needs_classes(expression)
+            conflict_context = self._build_conflict_context(
+                self.fetch_timetable(refresh=False)
+            )
+            category_ids, course_ids = self._extract_scan_scope(expression)
+            if course_ids and not category_ids:
+                if (
+                    context.get("categoryId") not in (None, "")
+                    and str(context.get("kchId") or "") in course_ids
+                ):
+                    category_ids.add(str(context.get("categoryId")))
+                found_course_ids = set()
+                found_category_ids = set()
+                for category in state["items"]:
+                    for course in category.get("courses", []):
+                        if str(course["kchId"]) in course_ids:
+                            found_course_ids.add(str(course["kchId"]))
+                            found_category_ids.add(str(category["id"]))
+                if found_course_ids == course_ids:
+                    category_ids.update(found_category_ids)
+            if not category_ids and not course_ids:
+                if context.get("categoryId") not in (None, ""):
+                    category_ids.add(str(context.get("categoryId")))
+                if context.get("kchId"):
+                    course_ids.add(str(context.get("kchId")))
+            needs_classes = True
             missing = {"courseLoads": [], "classLoads": []}
             matches = []
             scan_course_count = 0
@@ -135,7 +305,9 @@ class GrabTaskMixin:
                 category_id = str(category["id"])
                 if category_ids and category_id not in category_ids:
                     continue
-                if not category.get("coursesLoaded") or category.get("hasMore"):
+                if not course_ids and (
+                    not category.get("coursesLoaded") or category.get("hasMore")
+                ):
                     missing["courseLoads"].append(
                         {
                             "categoryId": category["id"],
@@ -145,7 +317,19 @@ class GrabTaskMixin:
                     )
                     request_count += 1
                     continue
-                for course in category.get("courses", []):
+                courses_by_id = {
+                    str(course["kchId"]): course
+                    for course in category.get("courses", [])
+                }
+                if course_ids:
+                    courses = [
+                        courses_by_id.get(kch_id)
+                        or self._course_summary(int(category_id), kch_id, [])
+                        for kch_id in sorted(course_ids)
+                    ]
+                else:
+                    courses = category.get("courses", [])
+                for course in courses:
                     if course_ids and str(course["kchId"]) not in course_ids:
                         continue
                     scan_course_count += 1
@@ -159,8 +343,8 @@ class GrabTaskMixin:
                         )
                         request_count += 1
                         continue
-                    for class_item in course.get("classes") or [None]:
-                        if self._eval_grab_expression(
+                    for class_item in course.get("classes") or []:
+                        if self._eval_grab_scan_expression(
                             expression, category, course, class_item, conflict_context
                         ):
                             matches.append(
@@ -223,13 +407,7 @@ class GrabTaskMixin:
                         "classIds": set(),
                     },
                 )
-                bucket["classIds"].add(
-                    str(
-                        class_item.get("doJxbId")
-                        or class_item.get("jxbId")
-                        or class_item.get("classNo")
-                    )
-                )
+                bucket["classIds"].update(self._class_identity_set(class_item))
             task_id = f"grab-{self.next_grab_task_id}"
             self.next_grab_task_id += 1
             now = time.time()
@@ -260,6 +438,7 @@ class GrabTaskMixin:
                 "successCount": 0,
                 "lastError": "",
                 "lastResult": "",
+                "lastTickDebug": {},
                 "events": [],
                 "candidateCourses": [
                     {**value, "classIds": sorted(value["classIds"])}
@@ -274,6 +453,7 @@ class GrabTaskMixin:
             self._log_info(
                 f"创建抢课任务 {task_id}: {task['candidateCourseCount']} 门候选课程"
             )
+            self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
 
     def _parse_timestamp(self, value):
@@ -295,11 +475,15 @@ class GrabTaskMixin:
 
     def list_grab_tasks(self):
         with self.lock:
-            return {
+            result = {
                 "items": [
                     self._public_grab_task(task) for task in self.grab_tasks.values()
                 ]
             }
+            if self.grab_tasks and self.mod.is_authenticated:
+                result["tree"] = self.tree_state()
+                result["timetable"] = self.fetch_timetable(refresh=False)
+            return result
 
     def stop_grab_task(self, payload: dict):
         with self.lock:
@@ -307,6 +491,7 @@ class GrabTaskMixin:
             task["status"] = "stopped"
             task["progress"] = "已手动停止"
             self._add_task_event(task, "手动停止")
+            self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
 
     def start_grab_task(self, payload: dict):
@@ -317,7 +502,12 @@ class GrabTaskMixin:
             task["lastTickAt"] = 0
             task["startedAt"] = time.time()
             self._add_task_event(task, "手动启动")
+            self._publish_grab_state()
             return {"ok": True, "task": self._public_grab_task(task)}
+
+    def _publish_grab_state(self):
+        if hasattr(self, "_publish_event"):
+            self._publish_event("grab.tasks", self.list_grab_tasks())
 
     def _get_grab_task(self, payload: dict):
         task_id = str(payload.get("id") or "")
@@ -351,6 +541,12 @@ class GrabTaskMixin:
             "expression": task.get("expression"),
             "lastError": task.get("lastError"),
             "lastResult": task.get("lastResult"),
+            "lastTickDebug": task.get("lastTickDebug", {}),
+            "candidateCourses": task.get("candidateCourses", []),
+            "context": task.get("context", {}),
+            "createdAt": task.get("createdAt"),
+            "startedAt": task.get("startedAt"),
+            "lastTickAt": task.get("lastTickAt"),
             "events": task.get("events", [])[-20:],
         }
 
@@ -387,7 +583,15 @@ class GrabTaskMixin:
         task["progress"] = (
             f"tick {task['tickCount']} / 刷新 {task['candidateCourseCount']} 门课程"
         )
-        conflict_context = self._build_conflict_context(self.fetch_timetable())
+        conflict_context = self._build_conflict_context(
+            self.fetch_timetable(refresh=False)
+        )
+        skipped_id_count = 0
+        skipped_expression_count = 0
+        skipped_capacity_count = 0
+        checked_class_count = 0
+        matched_identity_count = 0
+        attempted_count = 0
         for course_target in task["candidateCourses"]:
             try:
                 data = self._fetch_classes_for_task(task, course_target)
@@ -403,13 +607,12 @@ class GrabTaskMixin:
                 continue
             class_ids = set(course_target["classIds"])
             for class_item in data.get("classes", []):
-                item_id = str(
-                    class_item.get("doJxbId")
-                    or class_item.get("jxbId")
-                    or class_item.get("classNo")
-                )
-                if item_id not in class_ids:
+                checked_class_count += 1
+                item_ids = self._class_identity_set(class_item)
+                if class_ids and not item_ids.intersection(class_ids):
+                    skipped_id_count += 1
                     continue
+                matched_identity_count += 1
                 course = self._course_summary(
                     course_target["categoryId"],
                     course_target["kchId"],
@@ -421,19 +624,27 @@ class GrabTaskMixin:
                 if not self._eval_grab_expression(
                     task["expression"], category, course, class_item, conflict_context
                 ):
+                    skipped_expression_count += 1
                     continue
                 if self._to_int(class_item.get("capacity")) <= self._to_int(
                     class_item.get("selectedCount")
                 ):
+                    skipped_capacity_count += 1
+                    continue
+                choose_id = self._class_choose_id(class_item)
+                if not choose_id:
+                    task["lastError"] = "命中教学班但缺少 doJxbId/jxbId，无法提交选课"
+                    self._add_task_event(task, task["lastError"])
                     continue
                 res = self.choose_class(
                     {
                         "categoryId": course_target["categoryId"],
                         "kchId": course_target["kchId"],
-                        "doJxbId": class_item.get("doJxbId"),
+                        "doJxbId": choose_id,
                         "courseName": course_target["courseName"],
                     }
                 )
+                attempted_count += 1
                 task["lastResult"] = str(res.get("payload", ""))[:300]
                 if not res.get("ok"):
                     task["lastError"] = res.get("message", "选课失败")
@@ -447,15 +658,30 @@ class GrabTaskMixin:
                     f"已尝试选课 {course_target['courseName']} / {class_item.get('classNo')}"
                 )
                 self._add_task_event(task, task["progress"])
-                self.fetch_timetable()
+                self.fetch_timetable(refresh=True)
                 if task.get("stopOnFirstSuccess"):
                     task["status"] = "success"
                     task["progress"] = (
                         f"成功后停止: {course_target['courseName']} / {class_item.get('classNo')}"
                     )
                     self._add_task_event(task, task["progress"])
+                    self._publish_grab_state()
                     return
-        task["progress"] = f"tick {task['tickCount']} 完成，未命中余量"
+        task["lastTickDebug"] = {
+            "checkedClassCount": checked_class_count,
+            "matchedIdentityCount": matched_identity_count,
+            "attemptedCount": attempted_count,
+            "skippedIdCount": skipped_id_count,
+            "skippedExpressionCount": skipped_expression_count,
+            "skippedCapacityCount": skipped_capacity_count,
+        }
+        task["progress"] = (
+            f"tick {task['tickCount']} 完成，未命中余量"
+            f" / ID跳过 {skipped_id_count}"
+            f" / 表达式跳过 {skipped_expression_count}"
+            f" / 容量跳过 {skipped_capacity_count}"
+        )
+        self._publish_grab_state()
 
     def _fetch_classes_for_task(self, task: dict, course_target: dict):
         try:

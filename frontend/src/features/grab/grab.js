@@ -5,6 +5,16 @@ import { defaultGrabExpression, grabSymbolDocs, grabSymbols, validateGrabExpress
 import { grabContextPayload } from "./preview.js";
 
 export function createGrabFeature({ state, getApp }) {
+  let previewTimer = null;
+
+  function scheduleGrabPreview() {
+    if (previewTimer) window.clearTimeout(previewTimer);
+    previewTimer = window.setTimeout(() => {
+      previewTimer = null;
+      refreshGrabPreview().catch(getApp().showError);
+    }, 350);
+  }
+
   function getGrabExpressionValue() {
     if (state.grabEditor) return state.grabEditor.getValue();
     return state.grabExpression;
@@ -71,7 +81,7 @@ export function createGrabFeature({ state, getApp }) {
     });
     state.grabEditor.onDidChangeModelContent(() => {
       state.grabExpression = state.grabEditor.getValue();
-      refreshGrabPreview().catch(getApp().showError);
+      scheduleGrabPreview();
     });
     textarea.classList.add("monaco-enabled");
   }
@@ -107,7 +117,7 @@ export function createGrabFeature({ state, getApp }) {
     const candidateCourseText = data.ready ? String(data.candidateCourseCount || 0) : "?";
     const candidateClassText = data.ready ? String(data.candidateClassCount || 0) : "?";
     const requestText = data.ready ? String(data.estimatedRequestsPerTick || 0) : "?";
-    state.grabStatusText = `语法正确，匹配 ${data.matches.length} 项，候选课程 ${candidateCourseText} 门，候选教学班 ${candidateClassText} 个，预计每轮扫描 ${requestText} 个请求`;
+    state.grabStatusText = `语法正确，扫描候选 ${data.matches.length} 项，候选课程 ${candidateCourseText} 门，候选教学班 ${candidateClassText} 个，预计每轮扫描 ${requestText} 个请求`;
     state.grabStatusClass = "grab-status is-ok";
     state.grabPreviewData = data;
   }
@@ -144,25 +154,74 @@ export function createGrabFeature({ state, getApp }) {
     closeGrabModal();
   }
 
-  async function pollGrabTasks() {
+  function applyGrabTasksPayload(data) {
     const app = getApp();
+    const items = data?.items || [];
+    for (const task of items) {
+      state.grabTasks[task.id] = task;
+      app.activity.upsertActivity(task.id, {
+        name: task.name,
+        status: task.status,
+        progress: `${task.progress} / tick ${task.tickCount} / 成功 ${task.successCount}`,
+      });
+    }
+    if (data?.tree) {
+      app.tree.applyTreeState(data.tree);
+      app.tree.renderTree();
+    }
+    if (data?.timetable) {
+      state.timetable = data.timetable;
+      app.timetable.renderTimetable();
+      app.timetable.renderTimetableDetailAll();
+    }
+  }
+
+  async function pollGrabTasks() {
     try {
       const data = await apiGet("/api/grab/tasks");
-      const hasActiveTask = (data.items || []).some((task) => task.status === "running");
-      for (const task of data.items || []) {
-        state.grabTasks[task.id] = task;
-        app.activity.upsertActivity(task.id, {
-          name: task.name,
-          status: task.status,
-          progress: `${task.progress} / tick ${task.tickCount} / 成功 ${task.successCount}`,
-        });
-      }
-      if (hasActiveTask) await app.tree.syncTreeState();
+      applyGrabTasksPayload(data);
     } catch (error) {
       console.error(error);
-    } finally {
-      window.setTimeout(pollGrabTasks, 2000);
     }
+  }
+
+  function connectEventStream() {
+    if (state.eventSource) state.eventSource.close();
+    const source = new EventSource("/api/events");
+    const applySnapshot = (payload) => {
+      if (payload.grabTasks) applyGrabTasksPayload(payload.grabTasks);
+      if (payload.tree) {
+        getApp().tree.applyTreeState(payload.tree);
+        getApp().tree.renderTree();
+      }
+      if (payload.timetable) {
+        state.timetable = payload.timetable;
+        getApp().timetable.renderTimetable();
+        getApp().timetable.renderTimetableDetailAll();
+      }
+    };
+    source.addEventListener("snapshot", (event) => {
+      try {
+        applySnapshot(JSON.parse(event.data));
+      } catch (error) {
+        console.error(error);
+      }
+    });
+    source.addEventListener("grab.tasks", (event) => {
+      try {
+        applyGrabTasksPayload(JSON.parse(event.data));
+      } catch (error) {
+        console.error(error);
+      }
+    });
+    source.addEventListener("error", () => {
+      source.close();
+      if (state.eventSource === source) {
+        state.eventSource = null;
+        window.setTimeout(connectEventStream, 1000);
+      }
+    });
+    state.eventSource = source;
   }
 
   function openActivityTaskMenu(taskId, anchor) {
@@ -190,9 +249,11 @@ export function createGrabFeature({ state, getApp }) {
     openGrabModal,
     closeGrabModal,
     refreshGrabPreview,
+    scheduleGrabPreview,
     loadGrabMissing,
     confirmGrabExpression,
     pollGrabTasks,
+    connectEventStream,
     openActivityTaskMenu,
     showGrabTaskDetail,
     closeGrabTaskDetail,

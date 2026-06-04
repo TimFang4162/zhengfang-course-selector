@@ -74,6 +74,7 @@ export const state = createMutable({
   rawTab: "preview",
   rawPreviewSrcdoc: "",
   logSource: null,
+  eventSource: null,
   logItems: [],
   logDetailKey: null,
   logEntries: new Map(),

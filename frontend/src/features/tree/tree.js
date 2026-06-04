@@ -97,9 +97,9 @@ export function createTreeFeature({ state, getApp, helpers }) {
     renderTree();
   }
 
-  async function refreshTimetable() {
+  async function refreshTimetable(refresh = true) {
     const app = getApp();
-    state.timetable = await apiGet("/api/timetable");
+    state.timetable = await apiGet(`/api/timetable${refresh ? "?refresh=1" : ""}`);
     setFilterStatus();
     app.timetable.renderTimetable();
     app.timetable.renderTimetableDetailAll();
@@ -124,7 +124,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
       loaded: true,
     };
     state.loadingCategories.delete(categoryId);
-    await syncTreeState();
     renderTree();
   }
 
@@ -200,7 +199,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
     const data = await apiGet(`/api/classes?category_id=${categoryId}&kch_id=${encodeURIComponent(kchId)}`);
     state.courseClasses[`${categoryId}:${kchId}`] = data.classes;
     state.loadingCourses.delete(`${categoryId}:${kchId}`);
-    await syncTreeState();
     renderTree();
   }
 
