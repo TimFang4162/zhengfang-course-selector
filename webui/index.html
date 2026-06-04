@@ -16,13 +16,25 @@
           </div>
           <div class="header-badge">Enterprise</div>
         </div>
-        <div class="form-row">
+        <div class="form-row address-row">
           <label for="base-url">教务地址</label>
-          <select id="base-url"></select>
+          <div class="address-controls">
+            <select id="base-url"></select>
+            <button type="button" id="test-addresses">测速</button>
+          </div>
+          <input id="custom-base-url" class="hidden" type="url" placeholder="https://jwxt.example.edu.cn" />
         </div>
         <div class="form-row checkbox-row">
-          <label><input type="checkbox" id="use-saved" /> 使用已保存凭据</label>
+          <label><input type="checkbox" id="disable-ssl-verify" checked /> 禁用 SSL 验证</label>
+          <span class="dim">应用于登录、选课请求和测速</span>
+        </div>
+        <input type="checkbox" id="use-saved" class="hidden" />
+        <div id="saved-login-panel" class="saved-login-panel hidden">
           <span id="saved-hint" class="dim"></span>
+          <button type="button" id="saved-login-button">以已保存凭据登录</button>
+        </div>
+        <div class="form-row login-separator">
+          <span>账号密码登录</span>
         </div>
         <div class="form-row">
           <label for="student-number">学号</label>
@@ -36,7 +48,7 @@
           <label><input type="checkbox" id="save-creds" /> 保存本次凭据</label>
         </div>
         <div class="form-actions">
-          <button type="button" id="login-button">登录</button>
+          <button type="button" id="login-button">账号密码登录</button>
           <span id="login-status" class="dim"></span>
         </div>
       </div>
@@ -58,14 +70,35 @@
                 <option value="refresh-categories">刷新列表</option>
                 <option value="refresh-timetable">刷新课表</option>
               </select>
+              <button type="button" id="toggle-sidebar" title="折叠侧栏">⇤</button>
             </div>
           </div>
 
           <section id="tab-tree" class="tab-panel active section-panel">
             <div class="toolbar toolbar-tight">
-              <button type="button" id="filter-conflict">冲突筛选:关</button>
-              <button type="button" id="filter-credit">学分筛选:关</button>
-              <span id="filter-status" class="dim"></span>
+              <div class="tree-actions">
+                <div class="menu-root">
+                  <button type="button" class="menu-button" id="display-menu-button">显示</button>
+                  <div class="menu-popover hidden" id="display-menu">
+                    <button type="button" data-action="toggle-conflict">灰色显示冲突教学班:关</button>
+                    <button type="button" data-action="toggle-credit">隐藏超学分课程:关</button>
+                  </div>
+                </div>
+                <div class="menu-root">
+                  <button type="button" class="menu-button" id="feature-menu-button">功能</button>
+                  <div class="menu-popover hidden" id="feature-menu">
+                    <button type="button" data-action="export-courses">导出所有课程</button>
+                  </div>
+                </div>
+              </div>
+              <div class="tree-search">
+                <input id="course-search" type="search" placeholder="搜索课程/教师/教学班" />
+                <select id="search-scope" aria-label="搜索范围">
+                  <option value="all">全部大类</option>
+                </select>
+                <button type="button" id="local-search">本地搜索</button>
+                <button type="button" id="remote-search">远程搜索</button>
+              </div>
             </div>
             <div id="course-tree" class="tree-view"></div>
           </section>
@@ -97,6 +130,22 @@
             </div>
             <div id="log-list" class="log-list"></div>
           </div>
+          <div id="activity-splitter" class="splitter splitter-horizontal" aria-hidden="true"></div>
+          <div class="activity-shell">
+            <div class="log-header">
+              <span class="log-title">ACTIVITY</span>
+            </div>
+            <div class="activity-panel">
+              <table class="activity-table">
+                <thead>
+                  <tr><th>任务</th><th>状态</th><th>进度</th></tr>
+                </thead>
+                <tbody id="activity-list">
+                  <tr><td colspan="3" class="dim">暂无活动</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </aside>
       </div>
     </div>
@@ -117,6 +166,96 @@
       </div>
     </div>
 
+    <div id="grab-modal" class="modal hidden">
+      <div class="modal-card surface grab-card">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Grab Rule</div>
+            <strong id="grab-title">添加抢课任务</strong>
+          </div>
+          <button type="button" id="grab-close">关闭</button>
+        </div>
+        <div class="grab-editor">
+          <label for="grab-expression">表达式</label>
+          <div id="grab-monaco" class="grab-monaco"></div>
+          <textarea id="grab-expression" spellcheck="false"></textarea>
+          <div class="grab-hints" id="grab-hints"></div>
+          <div class="grab-status" id="grab-status"></div>
+        </div>
+        <div class="grab-preview">
+          <div class="grab-preview-header">预览：将会查询/匹配的项目</div>
+          <div id="grab-preview-list" class="grab-preview-list"></div>
+        </div>
+        <div class="grab-settings form-card">
+          <div class="form-section-title">任务配置</div>
+          <div class="settings-grid">
+            <div class="field-group span-2">
+              <label for="grab-start-mode">启动时间</label>
+              <div class="inline-fields">
+                <select id="grab-start-mode">
+                  <option value="now">立即开始</option>
+                  <option value="scheduled">指定时间点</option>
+                </select>
+                <input id="grab-start-at" type="datetime-local" disabled />
+              </div>
+              <div class="field-help">指定时间点按本机时间提交给后端调度。</div>
+            </div>
+            <div class="field-group">
+              <label>停止条件</label>
+              <label class="toggle-row"><input id="grab-stop-success" type="checkbox" checked /> 成功选到课程后停止</label>
+            </div>
+            <div class="field-group">
+              <label for="grab-error-policy">错误处理</label>
+              <select id="grab-error-policy">
+                <option value="retry_once">重试一次请求</option>
+                <option value="skip">跳过</option>
+                <option value="stop">立即停止</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="grab-tick-interval">Tick 间隔</label>
+              <div class="input-with-unit"><input id="grab-tick-interval" type="number" min="1" value="3" /><span>秒</span></div>
+            </div>
+            <div class="field-group">
+              <label for="grab-timeout">超时时间</label>
+              <div class="input-with-unit"><input id="grab-timeout" type="number" min="1" value="600" /><span>秒</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="grab-preview-refresh">刷新预览</button>
+          <button type="button" id="grab-confirm">确认添加</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="task-modal" class="modal hidden">
+      <div class="modal-card surface">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Grab Task</div>
+            <strong id="task-title">任务详情</strong>
+          </div>
+          <button type="button" id="task-close">关闭</button>
+        </div>
+        <div id="task-content" class="modal-content"></div>
+      </div>
+    </div>
+
+    <div id="speed-modal" class="modal hidden">
+      <div class="modal-card surface">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Connectivity</div>
+            <strong>教务地址测速</strong>
+          </div>
+          <button type="button" id="speed-close">关闭</button>
+        </div>
+        <div id="speed-content" class="modal-content speed-content"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="/app.js"></script>
   </body>
   </html>

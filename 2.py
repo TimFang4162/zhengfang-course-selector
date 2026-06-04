@@ -35,10 +35,18 @@ STUDENT_NUMBER = ""  # 在此填入学号
 PASSWORD = ""  # 在此填入密码
 CREDENTIALS_FILE = Path(__file__).with_name(".jwxt_credentials.json")
 ADDRESS_CHOICES = [
-    ("1", "http://10.1.70.171", "内网地址 10.1.70.171"),
-    ("2", "http://10.1.70.170", "内网地址 10.1.70.170"),
-    ("3", "https://jwxt.zjnu.edu.cn", "校外统一地址 jwxt.zjnu.edu.cn"),
-    ("4", "https://webvpn.zjnu.edu.cn", "WebVPN 外层地址"),
+    ("1", "http://10.1.70.164", "内网地址 10.1.70.164"),
+    ("2", "http://10.1.70.165", "内网地址 10.1.70.165"),
+    ("3", "http://10.1.70.166", "内网地址 10.1.70.166"),
+    ("4", "http://10.1.70.167", "内网地址 10.1.70.167"),
+    ("5", "http://10.1.70.168", "内网地址 10.1.70.168"),
+    ("6", "http://10.1.70.169", "内网地址 10.1.70.169"),
+    ("7", "http://10.1.70.170", "内网地址 10.1.70.170"),
+    ("8", "http://10.1.70.171", "内网地址 10.1.70.171"),
+    ("9", "http://10.1.70.172", "内网地址 10.1.70.172"),
+    ("10", "http://10.1.70.173", "内网地址 10.1.70.173"),
+    ("11", "https://jwxt.zjnu.edu.cn", "校外统一地址 jwxt.zjnu.edu.cn"),
+    ("12", "https://webvpn.zjnu.edu.cn", "WebVPN 外层地址"),
 ]
 
 # --- 全局变量 ---
@@ -211,10 +219,18 @@ def style_category_label(label: str) -> str:
     return f"[yellow]{label}[/]"
 
 
-def style_course_label(label: str, selected: bool) -> str:
-    color = "green" if selected else "blue"
+def style_course_label(label: str, selected: bool, muted: bool = False) -> str:
+    color = "grey50" if muted else ("green" if selected else "blue")
     suffix = " (已选)" if selected else ""
     return f"[{color}]{label}{suffix}[/]"
+
+
+def style_class_label(label: str, selected: bool, muted: bool = False) -> str:
+    if selected:
+        return f"[green]{label}[/]"
+    if muted:
+        return f"[grey50]{label}[/]"
+    return label
 
 
 def get_course_credit_text(course_info_list) -> str:
@@ -225,13 +241,19 @@ def get_course_credit_text(course_info_list) -> str:
 
 
 def build_course_node_label(
-    course_name: str, kch_id: str, course_info_list, class_count: int, selected: bool
+    course_name: str,
+    kch_id: str,
+    course_info_list,
+    class_count: int,
+    selected: bool,
+    muted: bool = False,
 ) -> str:
     return style_course_label(
         build_course_tree_label(
             course_name, kch_id, get_course_credit_text(course_info_list), class_count
         ),
         selected,
+        muted,
     )
 
 
@@ -1191,9 +1213,6 @@ class CourseApp(App):
         width: 40;
         height: auto;
     }
-    .hidden {
-        display: none;
-    }
     """
 
     big_list_cache = []
@@ -1204,6 +1223,7 @@ class CourseApp(App):
     course_class_cache = {}
     display_week = 1
     filter_no_conflict = False
+    filter_credit_exceeded = False
     timetable_entries = []
     timetable_day_width = 10
     selected_timetable_cell = None
@@ -1222,7 +1242,8 @@ class CourseApp(App):
                     with TabPane("课程树", id="tab-tree"):
                         with Vertical():
                             with Horizontal(id="tree-toolbar"):
-                                yield Button("[bold]显示选项[/]", id="btn-display-opts")
+                                yield Button("冲突筛选:关", id="btn-filter-conflict")
+                                yield Button("学分筛选:关", id="btn-filter-credit")
                                 yield Static("", id="toolbar-status")
                             yield Tree("课程分类", id="course_tree")
                     with TabPane("当前课表", id="tab-timetable"):
@@ -1268,18 +1289,20 @@ class CourseApp(App):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
-        if btn_id == "btn-display-opts":
+        if btn_id == "btn-filter-conflict":
             self.filter_no_conflict = not self.filter_no_conflict
-            self.query_one("#toolbar-status", Static).update(
-                f"过滤冲突: {'开' if self.filter_no_conflict else '关'}"
+            event.button.label = (
+                "冲突筛选:开" if self.filter_no_conflict else "冲突筛选:关"
             )
-            if self.filter_no_conflict:
-                self.apply_tree_filter()
-            else:
-                tree = self.get_tree()
-                for cat_node in tree.root.children:
-                    for course_node in cat_node.children:
-                        course_node.remove_class("hidden")
+            self.update_filter_status()
+            self.refresh_tree_filter_marks()
+        if btn_id == "btn-filter-credit":
+            self.filter_credit_exceeded = not self.filter_credit_exceeded
+            event.button.label = (
+                "学分筛选:开" if self.filter_credit_exceeded else "学分筛选:关"
+            )
+            self.update_filter_status()
+            self.refresh_tree_filter_marks()
 
     def on_key(self, event) -> None:
         if event.key != "enter":
@@ -1587,40 +1610,6 @@ class CourseApp(App):
         )
         self._toggle_or_select_timetable_cell(row_key, col_key)
 
-    def apply_tree_filter(self):
-        if not self.filter_no_conflict:
-            return
-        occupied = set()
-        for entry in self.timetable_entries:
-            for w, day, jieci in entry["slots"]:
-                occupied.add((day, jieci, w))
-        tree = self.get_tree()
-        for cat_node in tree.root.children:
-            for course_node in cat_node.children:
-                data = course_node.data or {}
-                if data.get("type") != "course":
-                    continue
-                final_data = data.get("final_data")
-                if not final_data:
-                    course_node.set_class("hidden" if not data.get("loaded") else "")
-                    continue
-                has_no_conflict = False
-                for clz, detail in final_data:
-                    sksj = clz.get("sksj", "").replace("<br/>", ", ")
-                    slots = parse_sksj_to_slots(sksj)
-                    conflict = False
-                    for w, day, jieci in slots:
-                        if (day, jieci, w) in occupied:
-                            conflict = True
-                            break
-                    if not conflict:
-                        has_no_conflict = True
-                        break
-                if has_no_conflict:
-                    course_node.remove_class("hidden")
-                else:
-                    course_node.set_class("hidden")
-
     def populate_big_tree(self):
         tree = self.get_tree()
         tree.root.remove_children()
@@ -1652,6 +1641,150 @@ class CourseApp(App):
     def build_extra_params(self, target_big):
         rwlx = "1" if target_big[0] == "主修课程" else "2"
         return [rwlx, target_big[2], target_big[3], target_big[4], target_big[1]]
+
+    def get_remaining_credit(self) -> float:
+        return max(0.0, self.max_credit - self.current_credit)
+
+    def class_conflicts_with_timetable(self, clz: dict, detail: dict) -> bool:
+        sksj = first_non_empty(clz.get("sksj"), detail.get("sksj")).replace(
+            "<br/>", ", "
+        )
+        class_slots = parse_sksj_to_slots(sksj)
+        if not class_slots:
+            return False
+        occupied = set()
+        for entry in self.timetable_entries:
+            for week, day, jieci in entry["slots"]:
+                occupied.add((week, day, jieci))
+        for slot in class_slots:
+            if slot in occupied:
+                return True
+        return False
+
+    def course_exceeds_remaining_credit(self, course_info_list, kch_id: str) -> bool:
+        if kch_id in self.selected_course_ids:
+            return False
+        credit_text = get_course_credit_text(course_info_list)
+        if not credit_text:
+            return False
+        try:
+            return float(credit_text) > self.get_remaining_credit()
+        except Exception:
+            return False
+
+    def class_is_filtered(
+        self, clz: dict, detail: dict, course_info_list, kch_id: str
+    ) -> bool:
+        if is_selected_class_pair(
+            clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
+        ):
+            return False
+        if self.filter_no_conflict and self.class_conflicts_with_timetable(clz, detail):
+            return True
+        if self.filter_credit_exceeded and self.course_exceeds_remaining_credit(
+            course_info_list, kch_id
+        ):
+            return True
+        return False
+
+    def course_is_filtered(
+        self, course_info_list, kch_id: str, final_data=None
+    ) -> bool:
+        if kch_id in self.selected_course_ids:
+            return False
+        if self.filter_credit_exceeded and self.course_exceeds_remaining_credit(
+            course_info_list, kch_id
+        ):
+            return True
+        if not self.filter_no_conflict or not final_data:
+            return False
+        for clz, detail in final_data:
+            if not self.class_is_filtered(clz, detail, course_info_list, kch_id):
+                return False
+        return True
+
+    def update_filter_status(self):
+        parts = []
+        if self.filter_no_conflict:
+            parts.append("冲突过滤:开")
+        if self.filter_credit_exceeded:
+            parts.append(f"学分过滤:开({self.get_remaining_credit():g})")
+        self.query_one("#toolbar-status", Static).update(" | ".join(parts))
+
+    def refresh_tree_filter_marks(self):
+        tree = self.get_tree()
+        for category_node in tree.root.children:
+            category_muted = True
+            for course_node in category_node.children:
+                data = course_node.data or {}
+                if data.get("type") != "course":
+                    continue
+                kch_id = data.get("kch_id", "")
+                course_name = data.get("course_name", kch_id)
+                course_info_list = data.get("course_info_list") or []
+                final_data = data.get("final_data") or []
+                class_count = (
+                    len(final_data) if data.get("loaded") else len(course_info_list)
+                )
+                course_muted = self.course_is_filtered(
+                    course_info_list,
+                    kch_id,
+                    final_data if data.get("loaded") else None,
+                )
+                if not course_muted:
+                    category_muted = False
+                course_node.set_label(
+                    build_course_node_label(
+                        course_name,
+                        kch_id,
+                        course_info_list,
+                        class_count,
+                        kch_id in self.selected_course_ids,
+                        course_muted,
+                    )
+                )
+                for class_node in course_node.children:
+                    class_data = class_node.data or {}
+                    if class_data.get("type") != "class":
+                        continue
+                    clz, detail = class_data.get("class_pair", ({}, {}))
+                    class_muted = self.class_is_filtered(
+                        clz, detail, course_info_list, kch_id
+                    )
+                    class_node.set_label(
+                        style_class_label(
+                            build_class_tree_label(
+                                class_data.get("class_index", 1),
+                                course_name,
+                                clz,
+                                detail,
+                            ),
+                            is_selected_class_pair(
+                                clz,
+                                detail,
+                                self.selected_class_ids,
+                                self.selected_do_jxb_ids,
+                            ),
+                            class_muted,
+                        )
+                    )
+                    if not class_muted:
+                        category_muted = False
+            category_data = category_node.data or {}
+            if category_data.get("type") == "category":
+                category_name = category_data.get("target", [""])[0]
+                course_count = sum(
+                    1
+                    for course_node in category_node.children
+                    if (course_node.data or {}).get("type") == "course"
+                )
+                more_suffix = "+" if category_data.get("has_more") else ""
+                base_label = f"{category_name} ({course_count}{more_suffix})"
+                category_node.set_label(
+                    style_category_label(base_label)
+                    if not category_muted
+                    else f"[grey50]{base_label}[/]"
+                )
 
     def populate_category_node(self, node, target, page_result, append=False):
         node.remove_children()
@@ -1701,6 +1834,7 @@ class CourseApp(App):
                 course_info_list,
                 len(course_info_list),
                 kch_id in self.selected_course_ids,
+                self.course_is_filtered(course_info_list, kch_id),
             )
             course_node = node.add(
                 course_label,
@@ -1744,15 +1878,19 @@ class CourseApp(App):
             course_info_list,
             len(final_data),
             kch_id in self.selected_course_ids,
+            self.course_is_filtered(course_info_list, kch_id, final_data),
         )
         node.set_label(course_header)
         for index, item in enumerate(final_data, start=1):
             clz, detail = item
             label = build_class_tree_label(index, course_name, clz, detail)
-            if is_selected_class_pair(
-                clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
-            ):
-                label = f"[green]{label}[/]"
+            label = style_class_label(
+                label,
+                is_selected_class_pair(
+                    clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
+                ),
+                self.class_is_filtered(clz, detail, course_info_list, kch_id),
+            )
             node.add_leaf(
                 label,
                 data={
@@ -1767,41 +1905,7 @@ class CourseApp(App):
             )
 
     def refresh_tree_selection_marks(self):
-        tree = self.get_tree()
-        for category_node in tree.root.children:
-            for course_node in category_node.children:
-                data = course_node.data or {}
-                if data.get("type") != "course":
-                    continue
-                kch_id = data.get("kch_id", "")
-                course_name = data.get("course_name", kch_id)
-                course_info_list = data.get("course_info_list") or []
-                class_count = (
-                    len(data.get("final_data", []))
-                    if data.get("loaded")
-                    else len(course_info_list)
-                )
-                label = build_course_node_label(
-                    course_name,
-                    kch_id,
-                    course_info_list,
-                    class_count,
-                    kch_id in self.selected_course_ids,
-                )
-                course_node.set_label(label)
-                for class_node in course_node.children:
-                    class_data = class_node.data or {}
-                    if class_data.get("type") != "class":
-                        continue
-                    clz, detail = class_data.get("class_pair", ({}, {}))
-                    class_label = build_class_tree_label(
-                        class_data.get("class_index", 1), course_name, clz, detail
-                    )
-                    if is_selected_class_pair(
-                        clz, detail, self.selected_class_ids, self.selected_do_jxb_ids
-                    ):
-                        class_label = f"[green]{class_label}[/]"
-                    class_node.set_label(class_label)
+        self.refresh_tree_filter_marks()
 
     def set_selected_context(self, data):
         self.current_context["selected_node_data"] = data
@@ -1886,8 +1990,7 @@ class CourseApp(App):
         self.render_timetable()
         self.show_all_choosed()
         self.refresh_tree_selection_marks()
-        if self.filter_no_conflict:
-            self.apply_tree_filter()
+        self.update_filter_status()
 
     @work(thread=True)
     def action_auto_login(self):
