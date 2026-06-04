@@ -1,5 +1,6 @@
 .grab-card {
   width: min(820px, calc(100vw - 32px));
+  min-height: 0;
 }
 
 .grab-editor {

@@ -147,6 +147,7 @@ def _request(method: str, url: str, **kwargs):
     _log_request_event(
         {
             "type": "request",
+            "level": "info",
             "phase": "start",
             "requestId": request_id,
             "method": method.upper(),
@@ -173,6 +174,7 @@ def _request(method: str, url: str, **kwargs):
         _log_request_event(
             {
                 "type": "request",
+                "level": "error",
                 "phase": "finish",
                 "requestId": request_id,
                 "method": method.upper(),
@@ -197,6 +199,7 @@ def _request(method: str, url: str, **kwargs):
     _log_request_event(
         {
             "type": "request",
+            "level": "info" if response.ok else "error",
             "phase": "finish",
             "requestId": request_id,
             "method": method.upper(),

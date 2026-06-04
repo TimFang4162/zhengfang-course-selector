@@ -75,6 +75,7 @@ export const state = createMutable({
   rawPreviewSrcdoc: "",
   logSource: null,
   eventSource: null,
+  logFilterType: "all",
   logItems: [],
   logDetailKey: null,
   logEntries: new Map(),

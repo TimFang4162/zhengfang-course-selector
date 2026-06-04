@@ -229,7 +229,9 @@ label {
 .login-card,
 .modal-card {
   width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   padding: 18px;
+  overflow: hidden;
   box-shadow: var(--vscode-shadow);
 }
 

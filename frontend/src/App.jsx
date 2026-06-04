@@ -232,7 +232,7 @@ function RightPane() {
   let logListRef;
 
   createEffect(() => {
-    state.logItems.length;
+    app.logs.visibleLogItems().length;
     if (logListRef) logListRef.scrollTop = logListRef.scrollHeight;
   });
 
@@ -241,18 +241,28 @@ function RightPane() {
       <div class="log-shell">
         <div class="log-header">
           <span class="log-title">LOG</span>
-          <button type="button" id="clear-logs" onClick={() => app.logs.clearLogs().catch(app.showError)}>清空</button>
+          <div class="log-actions">
+            <select id="log-filter-type" aria-label="日志类型" value={state.logFilterType} onChange={(event) => { state.logFilterType = event.currentTarget.value; }}>
+              <option value="all">全部</option>
+              <option value="request">请求</option>
+              <option value="business">业务</option>
+              <option value="debug">调试</option>
+              <option value="system">系统</option>
+            </select>
+            <button type="button" id="clear-logs" onClick={() => app.logs.clearLogs().catch(app.showError)}>清空</button>
+          </div>
         </div>
         <div id="log-list" class="log-list" ref={logListRef}>
-          <For each={state.logItems}>
-            {(item) => (
+          <For each={app.logs.visibleLogItems()}>
+            {(item, index) => (
               <button
                 type="button"
-                class={`log-line${item.type === "request" ? " is-request" : ""}${item.detail || item.type === "request" ? " is-clickable" : ""}${item.phase === "start" ? " is-pending" : ""}`}
+                class={`log-line is-${item.type || "business"} level-${item.level || "info"} is-clickable${item.phase === "start" ? " is-pending" : ""}`}
                 data-log-key={app.logs.logEntryKey(item)}
                 onClick={() => app.logs.openLogDetail(app.logs.logEntryKey(item))}
               >
-                <span class="log-time">[{item.timestamp}]</span>
+                <span class="log-time">{app.logs.logTimestampText(item, index())}</span>
+                <span class="log-type">{app.logs.logTypeLabel(item.type)}</span>
                 <span class="log-message">{app.logs.describeLogEntry(item)}</span>
               </button>
             )}
@@ -387,7 +397,7 @@ function ModalLayer() {
   const logDetailTitle = () => {
     const entry = logDetailEntry();
     if (!entry) return "日志详情";
-    return entry.type === "request" ? `${entry.method || "HTTP"} ${entry.path || ""}` : `日志 #${entry.id}`;
+    return entry.type === "request" ? `${entry.method || "HTTP"} ${entry.path || ""}` : `${app.logs.logTypeText(entry.type)} #${entry.id}`;
   };
 
   return (
@@ -523,11 +533,13 @@ function ModalLayer() {
                   fallback={(
                     <>
                       <div class="class-meta"><div>时间</div><div>{entry.timestamp}</div></div>
+                      <div class="class-meta"><div>类型</div><div>{app.logs.logTypeText(entry.type)} / {entry.level || "info"}</div></div>
                       <div class="class-meta"><div>消息</div><div><pre class="log-detail-pre">{app.logs.formatLogDetailBlock(entry.message || "")}</pre></div></div>
                     </>
                   )}
                 >
                   <div class="class-meta"><div>时间</div><div>{entry.timestamp}</div></div>
+                  <div class="class-meta"><div>类型</div><div>{app.logs.logTypeText(entry.type)} / {entry.level || "info"}</div></div>
                   <div class="class-meta"><div>状态</div><div>{String(entry.status ?? "ERROR")}</div></div>
                   <div class="class-meta"><div>耗时</div><div>{String(entry.ms ?? 0)}ms</div></div>
                   <div class="class-meta"><div>URL</div><div>{entry.detail?.url || ""}</div></div>

@@ -34,6 +34,21 @@
   color: var(--vscode-fg-muted);
 }
 
+.log-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.log-actions select {
+  min-height: 24px;
+  max-width: 86px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  background-color: var(--vscode-editor-bg);
+  font-size: 12px;
+}
+
 .log-header button:hover {
   background: var(--vscode-list-hover-bg);
   color: var(--vscode-fg);
@@ -101,7 +116,7 @@
 
 .log-line {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-columns: 78px 34px minmax(0, 1fr);
   column-gap: 8px;
   width: 100%;
   margin: 0;
@@ -122,6 +137,12 @@
   white-space: nowrap;
 }
 
+.log-type {
+  color: var(--vscode-fg-subtle);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .log-message {
   min-width: 0;
   color: var(--vscode-fg-muted);
@@ -138,8 +159,34 @@
   background: var(--vscode-hover-alpha);
 }
 
-.log-line.is-request .log-message {
-  color: var(--vscode-info);
+.log-line.is-business .log-message,
+.log-line.is-business .log-type {
+  color: var(--vscode-fg);
+}
+
+.log-line.is-system .log-message,
+.log-line.is-system .log-type {
+  color: var(--vscode-warning);
+}
+
+.log-line.is-request .log-message,
+.log-line.is-request .log-type {
+  color: var(--vscode-fg-muted);
+}
+
+.log-line.is-debug .log-message,
+.log-line.is-debug .log-type {
+  color: var(--vscode-fg-subtle);
+}
+
+.log-line.level-error .log-message,
+.log-line.level-error .log-type {
+  color: var(--vscode-error);
+}
+
+.log-line.level-warn .log-message,
+.log-line.level-warn .log-type {
+  color: var(--vscode-warning);
 }
 
 .log-line.is-clickable {
@@ -158,8 +205,16 @@
   border-left-color: var(--vscode-warning);
 }
 
-.log-line.is-request:not(.is-pending) {
-  border-left-color: color-mix(in srgb, var(--vscode-info) 50%, transparent);
+.log-line.is-business:not(.is-pending) {
+  border-left-color: color-mix(in srgb, var(--vscode-success) 45%, transparent);
+}
+
+.log-line.is-system:not(.is-pending) {
+  border-left-color: color-mix(in srgb, var(--vscode-warning) 55%, transparent);
+}
+
+.log-line.level-error:not(.is-pending) {
+  border-left-color: var(--vscode-error);
 }
 
 .log-detail-pre {

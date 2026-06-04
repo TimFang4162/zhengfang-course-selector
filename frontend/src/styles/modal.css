@@ -1,5 +1,9 @@
 .modal-card {
+  display: flex;
+  max-height: calc(100vh - 32px);
+  flex-direction: column;
   width: min(620px, calc(100vw - 32px));
+  min-height: 0;
 }
 
 .modal-header {
@@ -13,7 +17,9 @@
 }
 
 .modal-content {
+  min-height: 0;
   padding: 10px;
+  overflow-y: auto;
   background: var(--vscode-editor-bg);
   border: 1px solid var(--vscode-border);
 }

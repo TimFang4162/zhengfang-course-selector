@@ -42,7 +42,7 @@ class JWXTWebService(GrabTaskMixin):
             try:
                 self._scheduler_tick()
             except Exception as exc:
-                self._log_debug(f"抢课调度异常: {exc}")
+                self._log_system(f"抢课调度异常: {exc}", level="error")
 
     def _plain(self, renderable) -> str:
         if isinstance(renderable, dict):
@@ -57,12 +57,14 @@ class JWXTWebService(GrabTaskMixin):
             "timestamp": time.strftime("%H:%M:%S", time.localtime()),
             "message": self._plain(payload),
             "type": "business",
+            "level": "info",
             "detail": None,
         }
         if isinstance(payload, dict):
             entry.update(
                 {
                     "type": payload.get("type", "business"),
+                    "level": payload.get("level", "info"),
                     "phase": payload.get("phase"),
                     "requestId": payload.get("requestId"),
                     "message": payload.get("message") or entry["message"],
@@ -136,13 +138,16 @@ class JWXTWebService(GrabTaskMixin):
 
     def _log_renderable(self, renderable):
         with self.lock:
-            self._append_log(self._plain(renderable))
+            self._append_log(renderable)
 
     def _log_debug(self, message: str):
-        self._log_renderable(message)
+        self._log_renderable({"type": "debug", "level": "debug", "message": message})
 
     def _log_info(self, message: str):
-        self._log_renderable(message)
+        self._log_renderable({"type": "business", "level": "info", "message": message})
+
+    def _log_system(self, message: str, level: str = "info"):
+        self._log_renderable({"type": "system", "level": level, "message": message})
 
     def bootstrap(self):
         with self.lock:
@@ -640,7 +645,7 @@ class JWXTWebService(GrabTaskMixin):
         with self.lock:
             self.logs = []
             self.next_log_id = 1
-            self._append_log("日志已清空")
+            self._log_info("日志已清空")
             return {"ok": True}
 
     def _normalize_class(self, index: int, course_name: str, clz: dict, detail: dict):

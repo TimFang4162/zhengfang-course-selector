@@ -22,6 +22,37 @@ function describeLogEntry(item) {
   return item.message;
 }
 
+function logTypeLabel(type) {
+  const labels = {
+    request: "REQ",
+    business: "BUS",
+    debug: "DBG",
+    system: "SYS",
+  };
+  return labels[type] || "LOG";
+}
+
+function logTypeText(type) {
+  const labels = {
+    request: "请求",
+    business: "业务",
+    debug: "调试",
+    system: "系统",
+  };
+  return labels[type] || "日志";
+}
+
+function visibleLogItems() {
+  if (state.logFilterType === "all") return state.logItems;
+  return state.logItems.filter((item) => item.type === state.logFilterType);
+}
+
+function logTimestampText(item, index) {
+  const items = visibleLogItems();
+  if (index <= 0) return `[${item.timestamp}]`;
+  return items[index - 1]?.timestamp === item.timestamp ? "" : `[${item.timestamp}]`;
+}
+
 function upsertLogEntry(item) {
   const key = logEntryKey(item);
   const existing = state.logEntries.get(key) || {};
@@ -82,5 +113,5 @@ function clearLogs() {
   });
 }
 
-return { renderLogs, openLogDetail, closeLogDetail, connectLogStream, clearLogs, describeLogEntry, formatLogDetailBlock, logEntryKey };
+return { renderLogs, openLogDetail, closeLogDetail, connectLogStream, clearLogs, describeLogEntry, formatLogDetailBlock, logEntryKey, logTypeLabel, logTypeText, visibleLogItems, logTimestampText };
 }
