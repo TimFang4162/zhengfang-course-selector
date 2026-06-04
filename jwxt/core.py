@@ -3,6 +3,7 @@ import html
 import json
 import re
 import time
+from typing import Any
 from pathlib import Path
 
 import requests
@@ -60,6 +61,7 @@ max_credit_limit = 0.0
 current_credit_display = 0.0
 is_authenticated = False
 request_logger = None
+request_seq = 0
 
 COURSE_PAGE_SIZE = 50
 MAX_WEEK = 19
@@ -87,14 +89,142 @@ def _log_request_start(method: str, url: str):
         request_logger(f"{method.upper()} {_format_request_path(url)}")
 
 
+def _next_request_id() -> str:
+    global request_seq
+    request_seq += 1
+    return f"req-{request_seq}"
+
+
+def _truncate_text(value: Any, limit: int = 20000) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}\n... [truncated {len(text) - limit} chars]"
+
+
+def _serialize_request_body(kwargs: dict) -> str:
+    if "json" in kwargs and kwargs["json"] is not None:
+        try:
+            return _truncate_text(
+                json.dumps(kwargs["json"], ensure_ascii=False, indent=2)
+            )
+        except Exception:
+            return _truncate_text(kwargs["json"])
+    if "data" in kwargs and kwargs["data"] is not None:
+        data = kwargs["data"]
+        if isinstance(data, dict):
+            return _truncate_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str)
+            )
+        return _truncate_text(data)
+    return ""
+
+
+def _serialize_response_body(response) -> str:
+    try:
+        content_type = response.headers.get("Content-Type", "")
+        if any(
+            token in content_type
+            for token in ("application/json", "text/", "javascript", "xml", "html")
+        ):
+            return _truncate_text(response.text)
+        return f"<{content_type or 'binary'} {len(response.content)} bytes>"
+    except Exception as exc:
+        return f"<unavailable: {exc}>"
+
+
+def _log_request_event(entry: dict):
+    if request_logger is not None:
+        request_logger(entry)
+
+
+def _request(method: str, url: str, **kwargs):
+    started = time.perf_counter()
+    request_id = _next_request_id()
+    path = _format_request_path(url)
+    request_headers = dict(kwargs.get("headers") or {})
+    request_body = _serialize_request_body(kwargs)
+    _log_request_event(
+        {
+            "type": "request",
+            "phase": "start",
+            "requestId": request_id,
+            "method": method.upper(),
+            "path": path,
+            "status": None,
+            "ok": None,
+            "ms": None,
+            "message": f"{method.upper()} {path}",
+            "detail": {
+                "url": url,
+                "method": method.upper(),
+                "requestHeaders": request_headers,
+                "requestBody": request_body,
+                "responseHeaders": {},
+                "responseBody": "",
+                "error": "",
+            },
+        }
+    )
+    try:
+        response = sess.request(method=method.upper(), url=url, **kwargs)
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        _log_request_event(
+            {
+                "type": "request",
+                "phase": "finish",
+                "requestId": request_id,
+                "method": method.upper(),
+                "path": path,
+                "status": None,
+                "ok": False,
+                "ms": elapsed_ms,
+                "message": f"{method.upper()} {path} -> ERROR {exc}",
+                "detail": {
+                    "url": url,
+                    "method": method.upper(),
+                    "requestHeaders": request_headers,
+                    "requestBody": request_body,
+                    "responseHeaders": {},
+                    "responseBody": "",
+                    "error": str(exc),
+                },
+            }
+        )
+        raise
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    _log_request_event(
+        {
+            "type": "request",
+            "phase": "finish",
+            "requestId": request_id,
+            "method": method.upper(),
+            "path": path,
+            "status": response.status_code,
+            "ok": response.ok,
+            "ms": elapsed_ms,
+            "message": f"{method.upper()} {path} -> {response.status_code} ({elapsed_ms}ms)",
+            "detail": {
+                "url": url,
+                "method": method.upper(),
+                "requestHeaders": request_headers,
+                "requestBody": request_body,
+                "responseHeaders": dict(response.headers),
+                "responseBody": _serialize_response_body(response),
+                "error": "",
+            },
+        }
+    )
+    return response
+
+
 def http_get(url: str, **kwargs):
-    _log_request_start("GET", url)
-    return sess.get(url, **kwargs)
+    return _request("GET", url, **kwargs)
 
 
 def http_post(url: str, **kwargs):
-    _log_request_start("POST", url)
-    return sess.post(url, **kwargs)
+    return _request("POST", url, **kwargs)
 
 
 def rsa_encryption(n, e, msg):
@@ -649,6 +779,21 @@ def _academic_course_status(code, max_score="") -> tuple[str, str]:
 
 def parse_academic_page(text: str) -> dict:
     hidden = _extract_hidden_inputs(text)
+    gpa_match = re.search(
+        r'name=["\']showGpa["\'].*?<font[^>]*color:\s*red[^>]*>\s*([0-9.]+)',
+        text,
+        re.S,
+    )
+    plan_counts_match = re.search(
+        r"计划总课程.*?&nbsp;([0-9]+)&nbsp;.*?通过.*?&nbsp;([0-9]+)&nbsp;.*?未通过.*?&nbsp;([0-9]+)&nbsp;.*?未修.*?&nbsp;([0-9]+)&nbsp;.*?在读\s*&nbsp;([0-9]+)",
+        text,
+        re.S,
+    )
+    outside_counts_match = re.search(
+        r"计划外.*?通过.*?&nbsp;([0-9]+)&nbsp;.*?未通过.*?&nbsp;([0-9]+)&nbsp;",
+        text,
+        re.S,
+    )
     node_pattern = re.compile(
         r"<li id='li(?P<li_id>[^']*)'(?P<body>.*?)<span id='showKc", re.S
     )
@@ -717,6 +862,32 @@ def parse_academic_page(text: str) -> dict:
                 "cjztkz",
                 "cjzt",
             ]
+        },
+        "rawHtml": text,
+        "rawDetailJson": [],
+        "summary": {
+            "serverGpa": gpa_match.group(1) if gpa_match else "",
+            "planTotalCourses": int(plan_counts_match.group(1))
+            if plan_counts_match
+            else 0,
+            "planPassedCourses": int(plan_counts_match.group(2))
+            if plan_counts_match
+            else 0,
+            "planFailedCourses": int(plan_counts_match.group(3))
+            if plan_counts_match
+            else 0,
+            "planUnstartedCourses": int(plan_counts_match.group(4))
+            if plan_counts_match
+            else 0,
+            "planStudyingCourses": int(plan_counts_match.group(5))
+            if plan_counts_match
+            else 0,
+            "outsidePassedCourses": int(outside_counts_match.group(1))
+            if outside_counts_match
+            else 0,
+            "outsideFailedCourses": int(outside_counts_match.group(2))
+            if outside_counts_match
+            else 0,
         },
         "nodes": roots,
         "flatNodes": list(nodes_by_id.values()),
@@ -808,6 +979,15 @@ def fetch_academic_status(log_func=None, debug_func=None):
             node["courses"] = [
                 normalize_academic_course(item) for item in courses or []
             ]
+            parsed["rawDetailJson"].append(
+                {
+                    "nodeId": node["id"],
+                    "nodeName": node["name"],
+                    "endpoint": endpoint,
+                    "payload": payload,
+                    "response": courses or [],
+                }
+            )
         parsed.pop("flatNodes", None)
         return parsed
     except Exception as exc:
@@ -815,4 +995,19 @@ def fetch_academic_status(log_func=None, debug_func=None):
             log_func(f"获取学业情况失败: {exc}")
         if debug_func:
             debug_func(f"学业情况异常: {exc}")
-        return {"params": {}, "nodes": []}
+        return {
+            "params": {},
+            "rawHtml": "",
+            "rawDetailJson": [],
+            "summary": {
+                "serverGpa": "",
+                "planTotalCourses": 0,
+                "planPassedCourses": 0,
+                "planFailedCourses": 0,
+                "planUnstartedCourses": 0,
+                "planStudyingCourses": 0,
+                "outsidePassedCourses": 0,
+                "outsideFailedCourses": 0,
+            },
+            "nodes": [],
+        }

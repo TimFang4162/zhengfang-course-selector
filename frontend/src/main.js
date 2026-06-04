@@ -1,5 +1,7 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/min/vs/editor/editor.main.css";
+import "monaco-editor/esm/vs/basic-languages/html/html.contribution.js";
+import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
 import { mountSolidRoot } from "./solid-entry.js";
 
 const state = {
@@ -26,6 +28,12 @@ const state = {
   },
   academicStatus: null,
   academicLoading: false,
+  academicFilters: {
+    suggestedTerm: "all",
+    statusType: "all",
+    courseNature: "all",
+    nodeStatus: "all",
+  },
   displayWeek: 1,
   activeTab: "tree",
   logSince: 0,
@@ -33,6 +41,11 @@ const state = {
   modalClass: null,
   grabDraft: null,
   grabEditor: null,
+  rawContentEditor: null,
+  rawContentMode: "html",
+  logSource: null,
+  logEntries: new Map(),
+  logDomByKey: new Map(),
 };
 
 const weekdayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -138,6 +151,33 @@ function initGrabMonaco() {
   });
   state.grabEditor.onDidChangeModelContent(() => refreshGrabPreview().catch(showError));
   textarea.classList.add("monaco-enabled");
+}
+
+function initRawContentMonaco() {
+  const root = document.getElementById("academic-raw-content");
+  if (!root || state.rawContentEditor) return;
+  state.rawContentEditor = monaco.editor.create(root, {
+    value: "",
+    language: "html",
+    theme: "vs-dark",
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    readOnly: true,
+    fontSize: 13,
+    wordWrap: "on",
+  });
+}
+
+function setRawContentValue(value, language) {
+  initRawContentMonaco();
+  if (!state.rawContentEditor) return;
+  const model = state.rawContentEditor.getModel();
+  if (model) {
+    monaco.editor.setModelLanguage(model, language);
+    state.rawContentEditor.setValue(value || "");
+  }
+  state.rawContentMode = language;
 }
 
 function applyStoredLayout() {
@@ -1196,13 +1236,13 @@ function escapeHtml(text) {
 
 function academicCreditSummary(nodes) {
   const root = (nodes || [])[0];
-  if (!root) return "暂无学业情况";
+  if (!root) return { plan: "暂无学业情况", earned: "0.0", required: "-", remaining: "-" };
   const earned = root.earnedCredit || "0.0";
   const required = root.requiredCredit || "-";
   const remaining = Number.isFinite(Number(required)) && Number.isFinite(Number(earned))
     ? Math.max(0, Number(required) - Number(earned)).toFixed(1)
     : "-";
-  return `${root.name} · 已获 ${earned}/${required} 学分 · 未获 ${remaining}`;
+  return { plan: root.name || "-", earned, required, remaining };
 }
 
 function formatCacheTime(timestamp) {
@@ -1236,6 +1276,127 @@ function academicOverview(nodes) {
   return { root, all, leafNodes, courses, passedCourses, required, earned, percent };
 }
 
+function localAcademicGpa(courses) {
+  let weightedPoints = 0;
+  let totalCredits = 0;
+  for (const course of courses || []) {
+    const credit = Number(course.creditValue);
+    const point = Number(course.gradePoint);
+    const isCompleted = course.statusType === "passed" || course.statusType === "substituted";
+    if (!isCompleted || !Number.isFinite(credit) || !Number.isFinite(point) || credit <= 0) continue;
+    weightedPoints += credit * point;
+    totalCredits += credit;
+  }
+  if (!totalCredits) return "-";
+  return (weightedPoints / totalCredits).toFixed(2);
+}
+
+function filteredAcademicCourses(courses) {
+  const suggestedTerm = state.academicFilters.suggestedTerm;
+  const statusType = state.academicFilters.statusType;
+  const courseNature = state.academicFilters.courseNature;
+  return (courses || []).filter((course) => {
+    const termKey = [course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ");
+    if (suggestedTerm !== "all" && termKey !== suggestedTerm) {
+      return false;
+    }
+    if (statusType !== "all" && String(course.statusType || "") !== statusType) {
+      return false;
+    }
+    if (courseNature !== "all" && String(course.courseNature || "").trim() !== courseNature) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function academicFilterTerms(nodes) {
+  const terms = new Set();
+  const walk = (items) => {
+    for (const item of items || []) {
+      for (const course of item.courses || []) {
+        const value = [course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ");
+        if (value) terms.add(value);
+      }
+      walk(item.children || []);
+    }
+  };
+  walk(nodes || []);
+  return [...terms].filter(Boolean).sort();
+}
+
+function academicFilterNatures(nodes) {
+  const natures = new Set();
+  const walk = (items) => {
+    for (const item of items || []) {
+      for (const course of item.courses || []) {
+        if (course.courseNature) natures.add(String(course.courseNature).trim());
+      }
+      walk(item.children || []);
+    }
+  };
+  walk(nodes || []);
+  return [...natures].filter(Boolean).sort();
+}
+
+function syncAcademicFilterOptions(nodes) {
+  const select = document.getElementById("academic-filter-term");
+  const natureSelect = document.getElementById("academic-filter-nature");
+  if (!select || !natureSelect) return;
+  const terms = academicFilterTerms(nodes);
+  const previous = state.academicFilters.suggestedTerm;
+  select.innerHTML = "<option value=\"all\">全部时间</option>";
+  for (const term of terms) {
+    const option = document.createElement("option");
+    option.value = term;
+    option.textContent = term;
+    select.appendChild(option);
+  }
+  select.value = [...select.options].some((option) => option.value === previous) ? previous : "all";
+  state.academicFilters.suggestedTerm = select.value;
+
+  const natures = academicFilterNatures(nodes);
+  const previousNature = state.academicFilters.courseNature;
+  natureSelect.innerHTML = "<option value=\"all\">全部性质</option>";
+  for (const nature of natures) {
+    const option = document.createElement("option");
+    option.value = nature;
+    option.textContent = nature;
+    natureSelect.appendChild(option);
+  }
+  natureSelect.value = [...natureSelect.options].some((option) => option.value === previousNature) ? previousNature : "all";
+  state.academicFilters.courseNature = natureSelect.value;
+}
+
+function academicNodeMatchesStatus(node) {
+  const nodeStatus = state.academicFilters.nodeStatus;
+  if (nodeStatus === "all") return true;
+  return String(node.creditStatus || "") === nodeStatus;
+}
+
+function activeAcademicFilterCount() {
+  let count = 0;
+  if (state.academicFilters.suggestedTerm !== "all") count += 1;
+  if (state.academicFilters.statusType !== "all") count += 1;
+  if (state.academicFilters.courseNature !== "all") count += 1;
+  if (state.academicFilters.nodeStatus !== "all") count += 1;
+  return count;
+}
+
+function updateAcademicFilterButton() {
+  const button = document.getElementById("academic-filter-button");
+  if (!button) return;
+  const count = activeAcademicFilterCount();
+  button.textContent = count > 0 ? `筛选(${count})` : "筛选";
+}
+
+function academicNodeHasVisibleContent(node) {
+  if (!academicNodeMatchesStatus(node)) return false;
+  const visibleCourses = filteredAcademicCourses(node.courses || []);
+  if (visibleCourses.length) return true;
+  return (node.children || []).some((child) => academicNodeHasVisibleContent(child));
+}
+
 function academicStatusClass(course) {
   return ` is-${course.statusType || "unknown"}`;
 }
@@ -1259,12 +1420,13 @@ function renderAcademicNodeBadges(node) {
 }
 
 function renderAcademicCourses(courses) {
-  if (!courses?.length) return "<div class=\"academic-empty dim\">暂无课程明细</div>";
+  const filtered = filteredAcademicCourses(courses);
+  if (!filtered.length) return "<div class=\"academic-empty dim\">当前筛选下暂无课程明细</div>";
   return `
     <table class="academic-course-table">
       <thead><tr><th>课程</th><th>学分</th><th>状态</th><th>成绩</th><th>学时</th><th>课程性质</th><th>建议修读</th><th>课程类别</th></tr></thead>
       <tbody>
-        ${courses.map((course) => `
+        ${filtered.map((course) => `
           <tr class="${academicStatusClass(course)}">
             <td>${escapeHtml(course.name)}<br><span class="dim">${escapeHtml(course.kch || course.kchId)}</span></td>
             <td>${escapeHtml(course.creditText || "-")}</td>
@@ -1282,8 +1444,9 @@ function renderAcademicCourses(courses) {
 }
 
 function renderAcademicNode(node, level = 0) {
-  const children = node.children || [];
-  const courses = node.courses || [];
+  const children = (node.children || []).filter((child) => academicNodeHasVisibleContent(child));
+  const courses = filteredAcademicCourses(node.courses || []);
+  if (!children.length && !courses.length) return "";
   const courseCount = courses.length;
   const passedCount = courses.filter((course) => course.statusType === "passed" || course.statusType === "substituted").length;
   const required = Number(node.requiredCredit);
@@ -1311,35 +1474,81 @@ function renderAcademicNode(node, level = 0) {
 
 function renderAcademicStatus() {
   const root = document.getElementById("academic-status");
-  const summary = document.getElementById("academic-summary");
-  if (!root || !summary) return;
+  if (!root) return;
+  updateAcademicFilterButton();
   if (state.academicLoading) {
-    summary.textContent = "加载中...";
     root.innerHTML = "<div class=\"academic-empty dim\">正在拉取学业情况和课程明细...</div>";
     return;
   }
   const nodes = state.academicStatus?.nodes || [];
-  summary.textContent = `${academicCreditSummary(nodes)} · ${academicCacheLabel(state.academicStatus?.cacheStatus)} ${formatCacheTime(state.academicStatus?.updatedAt)}`;
+  syncAcademicFilterOptions(nodes);
   if (!nodes.length) {
     root.innerHTML = "<div class=\"academic-empty dim\">暂无学业情况数据，点击刷新重新获取。</div>";
     return;
   }
   const overview = academicOverview(nodes);
+  const summary = academicCreditSummary(nodes);
+  const visibleNodes = nodes.filter((node) => academicNodeHasVisibleContent(node));
+  const serverGpa = state.academicStatus?.summary?.serverGpa || "-";
+  const serverSummary = state.academicStatus?.summary || {};
   root.innerHTML = `
     <div class="academic-overview">
-      <div><span class="dim">方案</span><strong>${escapeHtml(overview.root?.name || "-")}</strong></div>
-      <div><span class="dim">学分</span><strong>${escapeHtml(overview.earned)}/${escapeHtml(overview.required)}</strong></div>
-      <div><span class="dim">完成</span><strong>${escapeHtml(overview.percent)}%</strong></div>
-      <div><span class="dim">节点</span><strong>${overview.leafNodes.filter((item) => item.passed).length}/${overview.leafNodes.length}</strong></div>
-      <div><span class="dim">课程</span><strong>${overview.passedCourses}/${overview.courses.length}</strong></div>
+      <div><span class="dim">方案</span><strong>${escapeHtml(summary.plan)}</strong></div>
+      <div><span class="dim">学分</span><strong>${escapeHtml(summary.earned)}/${escapeHtml(summary.required)}</strong></div>
+      <div><span class="dim">未获</span><strong>${escapeHtml(summary.remaining)}</strong></div>
+      <div><span class="dim">GPA</span><strong>${escapeHtml(serverGpa)}</strong></div>
+      <div><span class="dim">计划课程</span><strong>${escapeHtml(serverSummary.planPassedCourses ?? 0)}/${escapeHtml(serverSummary.planTotalCourses ?? 0)}</strong></div>
+      <div><span class="dim">未修/在读</span><strong>${escapeHtml(serverSummary.planUnstartedCourses ?? 0)}/${escapeHtml(serverSummary.planStudyingCourses ?? 0)}</strong></div>
     </div>
     <div class="academic-tree">
       <div class="academic-tree-head">
         <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span>
       </div>
-      ${nodes.map((node) => renderAcademicNode(node)).join("")}
+      ${visibleNodes.map((node) => renderAcademicNode(node)).join("") || '<div class="academic-empty dim">当前筛选下没有匹配课程。</div>'}
     </div>
   `;
+}
+
+function showAcademicRawPage() {
+  const raw = state.academicStatus?.rawHtml || "";
+  document.getElementById("academic-raw-title").textContent = "教务原始网页";
+  document.querySelector('[data-raw-tab="preview"]').classList.remove("hidden");
+  const frame = document.getElementById("academic-raw-preview");
+  frame.srcdoc = raw || "<div>暂无原始网页内容</div>";
+  setRawContentValue(raw || "暂无原始网页内容", "html");
+  switchAcademicRawTab("preview");
+  document.getElementById("academic-raw-modal").classList.remove("hidden");
+}
+
+function showAcademicDetailJson() {
+  const raw = state.academicStatus?.rawDetailJson || [];
+  document.getElementById("academic-raw-title").textContent = "学业明细原始 JSON";
+  document.querySelector('[data-raw-tab="preview"]').classList.add("hidden");
+  setRawContentValue(JSON.stringify(raw, null, 2) || "[]", "json");
+  switchAcademicRawTab("source");
+  document.getElementById("academic-raw-modal").classList.remove("hidden");
+}
+
+function exportAcademicDataJson() {
+  const data = state.academicStatus || {};
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `academic-status-${new Date().toISOString().replaceAll(":", "-")}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function switchAcademicRawTab(tab) {
+  document.querySelectorAll("[data-raw-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.rawTab === tab);
+  });
+  document.getElementById("academic-raw-preview").classList.toggle("hidden", tab !== "preview");
+  document.getElementById("academic-raw-content").classList.toggle("hidden", tab !== "source");
+  if (state.rawContentEditor) state.rawContentEditor.layout();
 }
 
 function showCourseDetail(entry) {
@@ -1710,6 +1919,7 @@ function showGrabTaskDetail(task) {
 
 async function withdrawSelectedEntry(entry) {
   const result = await apiPost("/api/withdraw", { kchId: entry.kchId, doJxbId: entry.doJxbId });
+  if (!result.ok) throw new Error(result.message || "退课失败");
   state.timetable = result.timetable;
   renderTimetable();
   renderTimetableDetailAll();
@@ -1751,6 +1961,7 @@ async function executeModalAction() {
       ? { kchId: item.kchId, doJxbId: item.doJxbId }
       : { categoryId, kchId: item.kchId, doJxbId: item.doJxbId, courseName: course.courseName };
     const result = await apiPost(isSelectedClass(item) ? "/api/withdraw" : "/api/choose", payload);
+    if (!result.ok) throw new Error(result.message || (isSelectedClass(item) ? "退课失败" : "选课失败"));
     state.timetable = result.timetable;
     renderTimetable();
     renderTimetableDetailAll();
@@ -1765,32 +1976,111 @@ function renderLogs(items) {
   const list = document.getElementById("log-list");
   const shouldStickToBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
   for (const item of items) {
-    const line = document.createElement("div");
-    line.className = "log-line";
-    const timestamp = document.createElement("span");
-    timestamp.className = "log-time";
-    timestamp.textContent = `[${item.timestamp}]`;
-    const message = document.createElement("span");
-    message.className = "log-message";
-    message.textContent = item.message;
-    line.append(timestamp, message);
-    list.appendChild(line);
+    upsertLogEntry(item, list);
     state.logSince = Math.max(state.logSince, item.id);
+  }
+  while (list.children.length > 600) {
+    const first = list.firstElementChild;
+    if (!first) break;
+    state.logDomByKey.delete(first.dataset.logKey);
+    list.removeChild(first);
   }
   if (shouldStickToBottom || items.length) {
     list.scrollTop = list.scrollHeight;
   }
 }
 
-async function pollLogs() {
-  try {
-    const data = await apiGet(`/api/logs?since=${state.logSince}`);
-    renderLogs(data.items || []);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    window.setTimeout(pollLogs, 1500);
+function logEntryKey(item) {
+  return item.requestId || `log-${item.id}`;
+}
+
+function describeLogEntry(item) {
+  if (item.type === "request") {
+    if (item.phase === "start") {
+      return `${item.method || "HTTP"} ${item.path || ""} (...)`;
+    }
+    const status = item.status ?? "ERR";
+    const cost = item.ms ?? 0;
+    return `${item.method || "HTTP"} ${item.path || ""} (${status}, ${cost}ms)`;
   }
+  return item.message;
+}
+
+function upsertLogEntry(item, list = document.getElementById("log-list")) {
+  const key = logEntryKey(item);
+  const existing = state.logEntries.get(key) || {};
+  const merged = { ...existing, ...item, id: item.id ?? existing.id };
+  state.logEntries.set(key, merged);
+
+  let line = state.logDomByKey.get(key);
+  if (!line) {
+    line = document.createElement("div");
+    line.dataset.logKey = key;
+    const timestamp = document.createElement("span");
+    timestamp.className = "log-time";
+    const message = document.createElement("span");
+    message.className = "log-message";
+    line.append(timestamp, message);
+    line.addEventListener("click", () => openLogDetail(key));
+    list.appendChild(line);
+    state.logDomByKey.set(key, line);
+  }
+
+  line.className = `log-line${merged.type === "request" ? " is-request" : ""}${merged.detail || merged.type === "request" ? " is-clickable" : ""}${merged.phase === "start" ? " is-pending" : ""}`;
+  line.querySelector(".log-time").textContent = `[${merged.timestamp}]`;
+  line.querySelector(".log-message").textContent = describeLogEntry(merged);
+}
+
+function formatLogDetailBlock(value) {
+  return escapeHtml(typeof value === "string" ? value : JSON.stringify(value, null, 2));
+}
+
+function openLogDetail(logKey) {
+  const entry = state.logEntries.get(logKey);
+  if (!entry) return;
+  document.getElementById("log-detail-title").textContent = entry.type === "request"
+    ? `${entry.method || "HTTP"} ${entry.path || ""}`
+    : `日志 #${entry.id}`;
+  if (entry.type === "request") {
+    const detail = entry.detail || {};
+    document.getElementById("log-detail-content").innerHTML = `
+      <div class="class-meta"><div>时间</div><div>${escapeHtml(entry.timestamp)}</div></div>
+      <div class="class-meta"><div>状态</div><div>${escapeHtml(String(entry.status ?? "ERROR"))}</div></div>
+      <div class="class-meta"><div>耗时</div><div>${escapeHtml(String(entry.ms ?? 0))}ms</div></div>
+      <div class="class-meta"><div>URL</div><div>${escapeHtml(detail.url || "")}</div></div>
+      <div class="class-meta"><div>请求头</div><div><pre class="log-detail-pre">${formatLogDetailBlock(detail.requestHeaders || {})}</pre></div></div>
+      <div class="class-meta"><div>请求体</div><div><pre class="log-detail-pre">${formatLogDetailBlock(detail.requestBody || "")}</pre></div></div>
+      <div class="class-meta"><div>响应头</div><div><pre class="log-detail-pre">${formatLogDetailBlock(detail.responseHeaders || {})}</pre></div></div>
+      <div class="class-meta"><div>响应体</div><div><pre class="log-detail-pre">${formatLogDetailBlock(detail.responseBody || detail.error || "")}</pre></div></div>
+    `;
+  } else {
+    document.getElementById("log-detail-content").innerHTML = `
+      <div class="class-meta"><div>时间</div><div>${escapeHtml(entry.timestamp)}</div></div>
+      <div class="class-meta"><div>消息</div><div><pre class="log-detail-pre">${formatLogDetailBlock(entry.message || "")}</pre></div></div>
+    `;
+  }
+  document.getElementById("log-detail-modal").classList.remove("hidden");
+}
+
+function connectLogStream() {
+  if (state.logSource) state.logSource.close();
+  const source = new EventSource("/api/logs/stream");
+  source.addEventListener("log", (event) => {
+    try {
+      const item = JSON.parse(event.data);
+      renderLogs([item]);
+    } catch (error) {
+      console.error(error);
+    }
+  });
+  source.addEventListener("error", () => {
+    source.close();
+    if (state.logSource === source) {
+      state.logSource = null;
+      window.setTimeout(connectLogStream, 1000);
+    }
+  });
+  state.logSource = source;
 }
 
 function showError(error) {
@@ -1815,6 +2105,14 @@ function bindEvents() {
     event.stopPropagation();
     toggleMenu("feature-menu");
   });
+  document.getElementById("academic-filter-button").addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleMenu("academic-filter-menu");
+  });
+  document.getElementById("academic-more-button").addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleMenu("academic-more-menu");
+  });
   document.getElementById("display-menu").addEventListener("click", (event) => {
     const action = event.target.dataset.action;
     if (!action) return;
@@ -1826,6 +2124,12 @@ function bindEvents() {
     if (!action) return;
     runFeatureAction(action);
     closeMenus();
+  });
+  document.getElementById("academic-filter-menu").addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  document.getElementById("academic-more-menu").addEventListener("click", (event) => {
+    event.stopPropagation();
   });
   document.addEventListener("click", closeMenus);
   document.getElementById("toggle-sidebar").textContent = state.sidebarCollapsed ? "⇥" : "⇤";
@@ -1860,7 +2164,46 @@ function bindEvents() {
     renderTimetable();
   });
   document.getElementById("week-refresh").addEventListener("click", () => refreshTimetable().catch(showError));
+  document.getElementById("academic-show-raw").addEventListener("click", () => {
+    closeMenus();
+    showAcademicRawPage();
+  });
+  document.getElementById("academic-show-detail-json").addEventListener("click", () => {
+    closeMenus();
+    showAcademicDetailJson();
+  });
+  document.getElementById("academic-export-json").addEventListener("click", () => {
+    closeMenus();
+    exportAcademicDataJson();
+  });
   document.getElementById("academic-refresh").addEventListener("click", () => refreshAcademicStatus(true).catch(showError));
+  document.getElementById("academic-filter-term").addEventListener("change", (event) => {
+    state.academicFilters.suggestedTerm = event.target.value;
+    renderAcademicStatus();
+  });
+  document.getElementById("academic-filter-status").addEventListener("change", (event) => {
+    state.academicFilters.statusType = event.target.value;
+    renderAcademicStatus();
+  });
+  document.getElementById("academic-filter-nature").addEventListener("change", (event) => {
+    state.academicFilters.courseNature = event.target.value;
+    renderAcademicStatus();
+  });
+  document.getElementById("academic-filter-node-status").addEventListener("change", (event) => {
+    state.academicFilters.nodeStatus = event.target.value;
+    renderAcademicStatus();
+  });
+  document.getElementById("academic-filter-reset").addEventListener("click", () => {
+    state.academicFilters.suggestedTerm = "all";
+    state.academicFilters.statusType = "all";
+    state.academicFilters.courseNature = "all";
+    state.academicFilters.nodeStatus = "all";
+    document.getElementById("academic-filter-term").value = "all";
+    document.getElementById("academic-filter-status").value = "all";
+    document.getElementById("academic-filter-nature").value = "all";
+    document.getElementById("academic-filter-node-status").value = "all";
+    renderAcademicStatus();
+  });
   document.getElementById("modal-close").addEventListener("click", closeClassModal);
   document.getElementById("modal-action").addEventListener("click", () => executeModalAction().catch(showError));
   document.getElementById("grab-close").addEventListener("click", closeGrabModal);
@@ -1872,6 +2215,15 @@ function bindEvents() {
   });
   document.getElementById("task-close").addEventListener("click", () => {
     document.getElementById("task-modal").classList.add("hidden");
+  });
+  document.getElementById("log-detail-close").addEventListener("click", () => {
+    document.getElementById("log-detail-modal").classList.add("hidden");
+  });
+  document.getElementById("academic-raw-close").addEventListener("click", () => {
+    document.getElementById("academic-raw-modal").classList.add("hidden");
+  });
+  document.querySelectorAll("[data-raw-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchAcademicRawTab(button.dataset.rawTab));
   });
   document.getElementById("workspace-base-url").addEventListener("change", (event) => {
     document.getElementById("base-url").value = event.target.value;
@@ -1904,6 +2256,8 @@ function bindEvents() {
       .then(() => {
         document.getElementById("log-list").innerHTML = "";
         state.logSince = 0;
+        state.logEntries.clear();
+        state.logDomByKey.clear();
       })
       .catch(showError);
   });
@@ -1920,7 +2274,7 @@ async function main() {
   await loadBootstrap();
   updateAuthStatus();
   constrainLayoutVars();
-  pollLogs();
+  connectLogStream();
   pollGrabTasks();
 }
 

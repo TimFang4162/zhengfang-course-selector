@@ -1,4 +1,6 @@
 import json
+import queue
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -81,6 +83,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 since = int(query.get("since", ["0"])[0])
                 self._write_json(SERVICE.get_logs(since))
                 return
+            if parsed.path == "/api/logs/stream":
+                self._stream_logs()
+                return
             if parsed.path == "/api/grab/tasks":
                 self._write_json(SERVICE.list_grab_tasks())
                 return
@@ -154,6 +159,37 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _stream_logs(self):
+        subscriber, snapshot = SERVICE.subscribe_logs()
+        try:
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            for entry in snapshot:
+                self._write_sse("log", entry)
+            self._write_sse("ready", {"ok": True})
+            while True:
+                try:
+                    entry = subscriber.get(timeout=15)
+                    self._write_sse("log", entry)
+                except queue.Empty:
+                    self._write_sse("ping", {"ts": int(time.time())})
+        except BrokenPipeError, ConnectionResetError:
+            return
+        finally:
+            SERVICE.unsubscribe_logs(subscriber)
+
+    def _write_sse(self, event: str, data):
+        body = (
+            f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode(
+                "utf-8"
+            )
+        )
+        self.wfile.write(body)
+        self.wfile.flush()
 
 
 def main():

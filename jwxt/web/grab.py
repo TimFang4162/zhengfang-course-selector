@@ -3,6 +3,39 @@ import time
 
 
 class GrabTaskMixin:
+    def _build_conflict_context(self, timetable: dict):
+        occupied_slots = set()
+        selected_class_ids = set()
+        selected_do_jxb_ids = set()
+        for entry in (timetable or {}).get("entries", []):
+            for slot in entry.get("slots") or []:
+                occupied_slots.add(tuple(slot))
+        for item in (timetable or {}).get("selectedClassIds", []):
+            if item not in (None, ""):
+                selected_class_ids.add(str(item))
+        for item in (timetable or {}).get("selectedDoJxbIds", []):
+            if item not in (None, ""):
+                selected_do_jxb_ids.add(str(item))
+        return {
+            "occupiedSlots": occupied_slots,
+            "selectedClassIds": selected_class_ids,
+            "selectedDoJxbIds": selected_do_jxb_ids,
+        }
+
+    def _class_conflicts(self, class_item: dict | None, conflict_context: dict) -> bool:
+        if not class_item:
+            return False
+        jxb_id = str(class_item.get("jxbId") or "")
+        do_jxb_id = str(class_item.get("doJxbId") or "")
+        if jxb_id and jxb_id in conflict_context["selectedClassIds"]:
+            return False
+        if do_jxb_id and do_jxb_id in conflict_context["selectedDoJxbIds"]:
+            return False
+        for slot in class_item.get("slots") or []:
+            if tuple(slot) in conflict_context["occupiedSlots"]:
+                return True
+        return False
+
     def _expr_needs_classes(self, expression: str) -> bool:
         return bool(
             re.search(
@@ -19,7 +52,12 @@ class GrabTaskMixin:
         )
 
     def _eval_grab_expression(
-        self, expression: str, category: dict, course: dict, class_item: dict | None
+        self,
+        expression: str,
+        category: dict,
+        course: dict,
+        class_item: dict | None,
+        conflict_context: dict,
     ):
         selected = self._to_int(class_item.get("selectedCount")) if class_item else 0
         capacity = self._to_int(class_item.get("capacity")) if class_item else 0
@@ -50,7 +88,7 @@ class GrabTaskMixin:
             ]
             if class_item
             else [],
-            "conflicts": False,
+            "conflicts": self._class_conflicts(class_item, conflict_context),
             "has_capacity": bool(class_item and capacity > selected),
         }
         try:
@@ -77,6 +115,7 @@ class GrabTaskMixin:
             expression = str(payload.get("expression") or "True")
             match_limit = int(payload.get("matchLimit") or 200)
             state = self.tree_state()
+            conflict_context = self._build_conflict_context(self.fetch_timetable())
             category_ids = set(self._extract_category_ids(expression))
             course_ids = set(self._extract_course_ids(expression))
             if context.get("type") == "category":
@@ -122,7 +161,7 @@ class GrabTaskMixin:
                         continue
                     for class_item in course.get("classes") or [None]:
                         if self._eval_grab_expression(
-                            expression, category, course, class_item
+                            expression, category, course, class_item, conflict_context
                         ):
                             matches.append(
                                 {
@@ -348,6 +387,7 @@ class GrabTaskMixin:
         task["progress"] = (
             f"tick {task['tickCount']} / 刷新 {task['candidateCourseCount']} 门课程"
         )
+        conflict_context = self._build_conflict_context(self.fetch_timetable())
         for course_target in task["candidateCourses"]:
             try:
                 data = self._fetch_classes_for_task(task, course_target)
@@ -379,7 +419,7 @@ class GrabTaskMixin:
                 )
                 category = {"id": course_target["categoryId"], "name": ""}
                 if not self._eval_grab_expression(
-                    task["expression"], category, course, class_item
+                    task["expression"], category, course, class_item, conflict_context
                 ):
                     continue
                 if self._to_int(class_item.get("capacity")) <= self._to_int(
@@ -394,8 +434,15 @@ class GrabTaskMixin:
                         "courseName": course_target["courseName"],
                     }
                 )
-                task["successCount"] += 1
                 task["lastResult"] = str(res.get("payload", ""))[:300]
+                if not res.get("ok"):
+                    task["lastError"] = res.get("message", "选课失败")
+                    task["progress"] = (
+                        f"选课失败: {course_target['courseName']} / {class_item.get('classNo')}"
+                    )
+                    self._add_task_event(task, task["progress"])
+                    continue
+                task["successCount"] += 1
                 task["progress"] = (
                     f"已尝试选课 {course_target['courseName']} / {class_item.get('classNo')}"
                 )

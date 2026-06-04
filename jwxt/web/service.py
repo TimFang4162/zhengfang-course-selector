@@ -1,6 +1,7 @@
 import ssl
 import threading
 import time
+import queue
 from urllib.request import Request, urlopen
 
 from jwxt import core
@@ -22,6 +23,7 @@ class JWXTWebService(GrabTaskMixin):
         self.next_grab_task_id = 1
         self.scheduler_started = False
         self.disable_ssl_verify = not bool(self.mod.sess.verify)
+        self.log_subscribers = []
         self.mod.set_request_logger(self._log_renderable)
         self._start_scheduler()
 
@@ -41,21 +43,63 @@ class JWXTWebService(GrabTaskMixin):
                 self._log_debug(f"抢课调度异常: {exc}")
 
     def _plain(self, renderable) -> str:
+        if isinstance(renderable, dict):
+            return str(renderable.get("message") or "")
         if hasattr(renderable, "plain"):
             return str(renderable.plain)
         return str(renderable)
 
-    def _append_log(self, message: str):
-        self.logs.append(
-            {
-                "id": self.next_log_id,
-                "timestamp": time.strftime("%H:%M:%S", time.localtime()),
-                "message": message,
-            }
-        )
+    def _append_log(self, payload):
+        entry = {
+            "id": self.next_log_id,
+            "timestamp": time.strftime("%H:%M:%S", time.localtime()),
+            "message": self._plain(payload),
+            "type": "business",
+            "detail": None,
+        }
+        if isinstance(payload, dict):
+            entry.update(
+                {
+                    "type": payload.get("type", "business"),
+                    "phase": payload.get("phase"),
+                    "requestId": payload.get("requestId"),
+                    "message": payload.get("message") or entry["message"],
+                    "method": payload.get("method"),
+                    "path": payload.get("path"),
+                    "status": payload.get("status"),
+                    "ok": payload.get("ok"),
+                    "ms": payload.get("ms"),
+                    "detail": payload.get("detail"),
+                }
+            )
+        self.logs.append(entry)
+        self._publish_log_event(entry)
         self.next_log_id += 1
         if len(self.logs) > 500:
             self.logs = self.logs[-500:]
+
+    def _publish_log_event(self, entry: dict):
+        alive = []
+        for subscriber in self.log_subscribers:
+            try:
+                subscriber.put_nowait(entry)
+                alive.append(subscriber)
+            except Exception:
+                continue
+        self.log_subscribers = alive
+
+    def subscribe_logs(self):
+        q = queue.Queue()
+        with self.lock:
+            self.log_subscribers.append(q)
+            snapshot = self.logs[-200:]
+        return q, snapshot
+
+    def unsubscribe_logs(self, subscriber):
+        with self.lock:
+            self.log_subscribers = [
+                item for item in self.log_subscribers if item is not subscriber
+            ]
 
     def _log_renderable(self, renderable):
         with self.lock:
@@ -234,7 +278,13 @@ class JWXTWebService(GrabTaskMixin):
             items = []
             for kch_id, course_info_list in result.get("courses", {}).items():
                 existing = course_bucket.get(kch_id, [])
-                merged = existing + list(course_info_list)
+                merged_by_jxb_id = {
+                    self._course_item_key(item, index, "existing"): item
+                    for index, item in enumerate(existing)
+                }
+                for index, item in enumerate(course_info_list):
+                    merged_by_jxb_id[self._course_item_key(item, index, "new")] = item
+                merged = list(merged_by_jxb_id.values())
                 course_bucket[kch_id] = merged
                 first = merged[0] if merged else {}
                 credit_text = self.mod.get_course_credit_text(merged)
@@ -484,6 +534,7 @@ class JWXTWebService(GrabTaskMixin):
         if res is None:
             return {
                 "ok": False,
+                "message": "请求失败",
                 "payload": {"error": "请求失败"},
                 "timetable": self.fetch_timetable(),
             }
@@ -491,11 +542,36 @@ class JWXTWebService(GrabTaskMixin):
             payload = res.json()
         except Exception:
             payload = {"raw": res.text}
-        return {"ok": True, "payload": payload, "timetable": self.fetch_timetable()}
+        ok, message = self._parse_operation_result(payload, res)
+        return {
+            "ok": ok,
+            "message": message,
+            "payload": payload,
+            "timetable": self.fetch_timetable(),
+        }
+
+    def _parse_operation_result(self, payload, res):
+        if isinstance(payload, dict):
+            flag = str(payload.get("flag", "")).strip()
+            message = str(
+                payload.get("msg") or payload.get("message") or payload.get("raw") or ""
+            ).strip()
+            if flag == "1":
+                return True, message or "操作成功"
+            if flag == "3":
+                return True, message or "操作成功"
+            if flag:
+                return False, message or f"操作失败(flag={flag})"
+        if res.ok:
+            return True, "操作成功"
+        return False, f"HTTP {res.status_code}"
 
     def get_logs(self, since: int):
         with self.lock:
-            return {"items": [item for item in self.logs if item["id"] > since]}
+            items = [item for item in self.logs if item["id"] > since]
+            if since <= 0 and not items:
+                items = self.logs[-200:]
+            return {"items": items}
 
     def clear_logs(self):
         with self.lock:
@@ -567,3 +643,12 @@ class JWXTWebService(GrabTaskMixin):
             return float(value)
         except Exception:
             return None
+
+    def _course_item_key(self, item: dict, index: int, prefix: str):
+        return str(
+            item.get("jxb_id")
+            or item.get("do_jxb_id")
+            or item.get("jxbh")
+            or item.get("jxbmc")
+            or f"{prefix}:{index}"
+        )

@@ -522,7 +522,7 @@ label {
 
 .academic-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(64px, 0.55fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 1px;
   margin: 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -812,10 +812,6 @@ label {
 }
 
 @media (max-width: 900px) {
-  .academic-overview {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .academic-tree-head,
   .academic-node summary {
     grid-template-columns: 18px minmax(0, 1fr) minmax(74px, 92px) minmax(48px, 58px);
@@ -833,10 +829,6 @@ label {
 }
 
 @media (max-width: 640px) {
-  .academic-overview {
-    grid-template-columns: 1fr;
-  }
-
   .academic-tree-head,
   .academic-node summary {
     grid-template-columns: 18px minmax(0, 1fr) minmax(62px, 78px);
@@ -1170,6 +1162,27 @@ label {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.log-line.is-request .log-message {
+  color: var(--blue);
+}
+
+.log-line.is-clickable {
+  cursor: pointer;
+}
+
+.log-line.is-pending .log-message {
+  color: var(--yellow);
+}
+
+.log-detail-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text);
+}
+
 .timetable-wrap {
   flex: 1 1 auto;
   border-bottom: 1px solid var(--border-subtle);
@@ -1356,6 +1369,66 @@ label {
 
 .grab-card {
   width: min(820px, calc(100vw - 32px));
+}
+
+.academic-toolbar {
+  justify-content: flex-start;
+}
+
+.academic-filter-menu {
+  min-width: 220px;
+  padding: 8px;
+}
+
+.academic-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+#academic-more-menu {
+  min-width: 180px;
+}
+
+.raw-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.raw-tab {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--muted);
+}
+
+.raw-tab.active {
+  color: #ffffff;
+  background: var(--active);
+}
+
+.academic-raw-body {
+  max-height: min(70vh, 800px);
+  overflow: auto;
+}
+
+.academic-raw-pane {
+  min-height: 200px;
+}
+
+.academic-raw-frame {
+  width: 100%;
+  min-height: 60vh;
+  border: 0;
+  background: #ffffff;
+}
+
+.academic-raw-editor {
+  height: 60vh;
+  border: 1px solid var(--border);
 }
 
 .grab-editor {
