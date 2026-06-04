@@ -1,4 +1,5 @@
 import base64
+import html
 import json
 import re
 import time
@@ -571,3 +572,247 @@ def fetch_choosed_list(log_func=None, debug_func=None):
         if log_func:
             log_func(f"获取已选课程失败: {exc}")
         return []
+
+
+def _extract_hidden_inputs(text: str) -> dict:
+    values = {}
+    for tag in re.findall(r"<input\b[^>]*>", text, flags=re.I):
+        name_match = re.search(r"\bname=['\"]([^'\"]*)", tag, flags=re.I)
+        id_match = re.search(r"\bid=['\"]([^'\"]*)", tag, flags=re.I)
+        value_match = re.search(r"\bvalue=['\"]([^'\"]*)", tag, flags=re.I)
+        key = name_match or id_match
+        if key:
+            values[key.group(1)] = html.unescape(
+                value_match.group(1) if value_match else ""
+            )
+    return values
+
+
+def _clean_academic_node_label(raw_label: str) -> str:
+    label = raw_label.replace("&nbsp;", " ")
+    label = re.sub(r"\"\s*\+\s*\$\.i18n\.get\('yqxf'\).*?\+\s*\"", "要求学分", label)
+    label = re.sub(r"\"\s*\+\s*\$\.i18n\.get\('hdxf'\).*?\+\s*\"", "获得学分", label)
+    label = re.sub(r"\"\s*\+\s*\$\.i18n\.get\('whdxf'\).*?\+\s*\"", "未获得学分", label)
+    label = re.sub(r"\"\s*\+\s*\$\.i18n\.get\('.*?'\).*?\+\s*\"", " ", label)
+    label = re.sub(r"<[^>]*>", " ", label)
+    label = re.sub(r"[\"+]", " ", label)
+    label = html.unescape(label)
+    label = re.sub(r"\s+", " ", label).strip()
+    label = re.sub(r"\s*(要求学分|获得学分|未获得学分):.*$", "", label).strip()
+    return label
+
+
+def _academic_credit_status(
+    earned: str, required: str, passed: bool
+) -> tuple[str, str]:
+    try:
+        earned_value = float(earned)
+        required_value = float(required)
+    except Exception:
+        return ("unknown", "未知")
+    if earned_value < required_value:
+        return ("not_full", "学分未满")
+    if not passed:
+        return ("node_failed", "节点未过")
+    if earned_value == required_value:
+        return ("full", "学分已满")
+    return ("overflow", "学分超出")
+
+
+def _academic_substitute_status(value: str) -> tuple[str, str]:
+    parts = [part for part in str(value or "").split(",") if part]
+    if "1" in parts:
+        return ("external_course", "校外课程替代节点")
+    if "2" in parts:
+        return ("internal_course", "校内课程替代节点")
+    if "3" in parts:
+        return ("node", "节点替代")
+    return ("none", "")
+
+
+def _academic_course_status(code, max_score="") -> tuple[str, str]:
+    raw = str(code or "")
+    if raw == "1" or max_score == "未开放":
+        return ("studying", "在修")
+    if raw == "2":
+        return ("failed", "未过")
+    if raw == "3":
+        return ("not_started", "未修")
+    if raw in ("4", "21"):
+        return ("passed", "已修")
+    if raw in ("5", "6", "7", "8", "9"):
+        return ("substituted", "课程替代")
+    if raw == "10":
+        return ("warning_ignored", "预警不审核")
+    return ("unknown", raw)
+
+
+def parse_academic_page(text: str) -> dict:
+    hidden = _extract_hidden_inputs(text)
+    node_pattern = re.compile(
+        r"<li id='li(?P<li_id>[^']*)'(?P<body>.*?)<span id='showKc", re.S
+    )
+    nodes_by_id = {}
+    for match in node_pattern.finditer(text):
+        body = match.group("body")
+        p_match = re.search(
+            r"<p class='title1' id='p(?P<p_id>[^']*)' yxxf='(?P<earned>[^']*)' "
+            r"yqzdxf='(?P<required>[^']*)' sftg='(?P<passed>[^']*)'>(?P<label>.*?)$",
+            body,
+            re.S,
+        )
+        if not p_match:
+            continue
+        node_id = p_match.group("p_id") or match.group("li_id")
+        if node_id in nodes_by_id:
+            continue
+        parent_match = re.search(r"fxfyqjd_id='([^']*)'", body)
+        jdkcsx_match = re.search(r"jdkcsx='([^']*)'", body)
+        sfmjd_match = re.search(r"sfmjd='([^']*)'", body)
+        thzt_match = re.search(
+            rf"id\s*=\s*'thzt{re.escape(node_id)}' value='([^']*)'", text
+        )
+        credit_status, credit_status_text = _academic_credit_status(
+            p_match.group("earned"),
+            p_match.group("required"),
+            p_match.group("passed") == "1",
+        )
+        substitute_status, substitute_status_text = _academic_substitute_status(
+            thzt_match.group(1) if thzt_match else ""
+        )
+        nodes_by_id[node_id] = {
+            "id": node_id,
+            "parentId": parent_match.group(1) if parent_match else "",
+            "name": _clean_academic_node_label(p_match.group("label")) or node_id,
+            "earnedCredit": format_credit_text(p_match.group("earned")),
+            "requiredCredit": format_credit_text(p_match.group("required")),
+            "passed": p_match.group("passed") == "1",
+            "creditStatus": credit_status,
+            "creditStatusText": credit_status_text,
+            "substituteStatus": substitute_status,
+            "substituteStatusText": substitute_status_text,
+            "courseSource": jdkcsx_match.group(1) if jdkcsx_match else "",
+            "isLeaf": (sfmjd_match.group(1) if sfmjd_match else "") == "1",
+            "children": [],
+            "courses": [],
+        }
+    for node in nodes_by_id.values():
+        parent = nodes_by_id.get(node["parentId"])
+        if parent:
+            parent["children"].append(node)
+    roots = [
+        node for node in nodes_by_id.values() if not nodes_by_id.get(node["parentId"])
+    ]
+    return {
+        "params": {
+            key: hidden.get(key, "")
+            for key in [
+                "xh_id",
+                "cjlrxn",
+                "cjlrxq",
+                "bkcjlrxn",
+                "bkcjlrxq",
+                "xscjcxkz",
+                "cjcxkzzt",
+                "cjztkz",
+                "cjzt",
+            ]
+        },
+        "nodes": roots,
+        "flatNodes": list(nodes_by_id.values()),
+    }
+
+
+def normalize_academic_course(item: dict) -> dict:
+    credit_text = format_credit_text(item.get("XF"))
+    try:
+        credit_value = float(credit_text) if credit_text else None
+    except Exception:
+        credit_value = None
+    status_type, status_text = _academic_course_status(
+        item.get("XDZT"), str(item.get("MAXCJ") or "")
+    )
+    return {
+        "kchId": str(item.get("KCH_ID") or item.get("KCH") or ""),
+        "kch": str(item.get("KCH") or item.get("KCH_ID") or ""),
+        "name": str(item.get("KCMC") or ""),
+        "englishName": str(item.get("KCYWMC") or ""),
+        "creditText": credit_text,
+        "creditValue": credit_value,
+        "statusCode": str(item.get("XDZT") or ""),
+        "statusType": status_type,
+        "status": status_text,
+        "score": str(item.get("CJ") or ""),
+        "maxScore": str(item.get("MAXCJ") or ""),
+        "gradePoint": str(item.get("JD") or ""),
+        "academicYear": str(item.get("XNMC") or item.get("JYXDXNMC") or ""),
+        "term": str(item.get("XQMMC") or item.get("JYXDXQMC") or ""),
+        "suggestedYear": str(item.get("JYXDXNMC") or ""),
+        "suggestedTerm": str(item.get("JYXDXQMC") or ""),
+        "courseCategory": str(item.get("KCLBMC") or ""),
+        "courseNature": str(item.get("KCXZMC") or ""),
+        "courseFormat": str(item.get("KCGSMC") or ""),
+        "hoursText": str(item.get("XSXXXX") or ""),
+        "planned": str(item.get("SFJHKC") or ""),
+    }
+
+
+def fetch_academic_status(log_func=None, debug_func=None):
+    try:
+        if debug_func:
+            debug_func("GET 学业情况页面")
+        page = http_get(
+            base_url
+            + "/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html?gnmkdm=N105515&layout=default",
+            timeout=12,
+        ).text
+        parsed = parse_academic_page(page)
+        params = parsed["params"]
+        for node in parsed["flatNodes"]:
+            if not node["isLeaf"]:
+                continue
+            payload = {
+                "fromXh_id": "",
+                "xfyqjd_id": node["id"],
+                "xh_id": params.get("xh_id", ""),
+            }
+            if node["id"] in ("qtkcxfyq", "cxcyqkxfyq"):
+                payload.update(
+                    {
+                        "cjlrxn": params.get("cjlrxn", ""),
+                        "cjlrxq": params.get("cjlrxq", ""),
+                        "bkcjlrxn": params.get("bkcjlrxn", ""),
+                        "bkcjlrxq": params.get("bkcjlrxq", ""),
+                        "xscjcxkz": params.get("xscjcxkz", ""),
+                        "cjcxkzzt": params.get("cjcxkzzt", ""),
+                        "cjztkz": params.get("cjztkz", ""),
+                        "cjzt": params.get("cjzt", ""),
+                    }
+                )
+            endpoint = (
+                "xsxyqk_cxJxzxjhxfyqKcxx.html"
+                if node["courseSource"] == "1"
+                or node["id"] in ("qtkcxfyq", "cxcyqkxfyq")
+                else "xsxyqk_cxJxzxjhxfyqFKcxx.html"
+            )
+            if debug_func:
+                debug_func(f"POST 学业情况课程明细: {node['name']}")
+            try:
+                courses = http_post(
+                    base_url + f"/jwglxt/xsxy/{endpoint}?gnmkdm=N105515",
+                    data=payload,
+                    timeout=10,
+                ).json()
+            except Exception:
+                courses = []
+            node["courses"] = [
+                normalize_academic_course(item) for item in courses or []
+            ]
+        parsed.pop("flatNodes", None)
+        return parsed
+    except Exception as exc:
+        if log_func:
+            log_func(f"获取学业情况失败: {exc}")
+        if debug_func:
+            debug_func(f"学业情况异常: {exc}")
+        return {"params": {}, "nodes": []}

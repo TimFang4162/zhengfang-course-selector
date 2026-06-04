@@ -24,6 +24,8 @@ const state = {
     maxCredit: 32,
     currentCredit: 0,
   },
+  academicStatus: null,
+  academicLoading: false,
   displayWeek: 1,
   activeTab: "tree",
   logSince: 0,
@@ -454,6 +456,9 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `tab-${tab}`);
   });
+  if (tab === "academic" && !state.academicStatus && !state.academicLoading) {
+    refreshAcademicStatus(false).catch(showError);
+  }
 }
 
 function updateAuthStatus() {
@@ -535,7 +540,9 @@ async function loadBootstrap() {
     renderTree();
     renderTimetable();
     renderTimetableDetailAll();
+    return;
   }
+  document.getElementById("login-overlay").classList.remove("hidden");
 }
 
 async function doLogin(useSavedOverride = false) {
@@ -686,6 +693,17 @@ async function refreshTimetable() {
   renderTimetable();
   renderTimetableDetailAll();
   renderTree();
+}
+
+async function refreshAcademicStatus(force = false) {
+  state.academicLoading = true;
+  renderAcademicStatus();
+  try {
+    state.academicStatus = await apiGet(`/api/academic-status${force ? "?refresh=1" : ""}`);
+  } finally {
+    state.academicLoading = false;
+  }
+  renderAcademicStatus();
 }
 
 async function loadCategoryCourses(categoryId, page = 1) {
@@ -1174,6 +1192,154 @@ function escapeHtml(text) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function academicCreditSummary(nodes) {
+  const root = (nodes || [])[0];
+  if (!root) return "暂无学业情况";
+  const earned = root.earnedCredit || "0.0";
+  const required = root.requiredCredit || "-";
+  const remaining = Number.isFinite(Number(required)) && Number.isFinite(Number(earned))
+    ? Math.max(0, Number(required) - Number(earned)).toFixed(1)
+    : "-";
+  return `${root.name} · 已获 ${earned}/${required} 学分 · 未获 ${remaining}`;
+}
+
+function formatCacheTime(timestamp) {
+  if (!timestamp) return "未缓存";
+  return new Date(timestamp * 1000).toLocaleTimeString();
+}
+
+function academicCacheLabel(status) {
+  if (status === "hit") return "缓存命中";
+  if (status === "miss") return "缓存未命中已拉取";
+  if (status === "refresh") return "缓存已更新";
+  return "缓存状态未知";
+}
+
+function academicOverview(nodes) {
+  const root = (nodes || [])[0];
+  const all = [];
+  const walk = (items) => {
+    for (const item of items || []) {
+      all.push(item);
+      walk(item.children || []);
+    }
+  };
+  walk(nodes);
+  const leafNodes = all.filter((item) => !(item.children || []).length);
+  const courses = leafNodes.flatMap((item) => item.courses || []);
+  const passedCourses = courses.filter((course) => course.statusType === "passed" || course.statusType === "substituted").length;
+  const required = root?.requiredCredit || "-";
+  const earned = root?.earnedCredit || "0.0";
+  const percent = Number(required) > 0 ? Math.min(100, (Number(earned) / Number(required)) * 100).toFixed(1) : "-";
+  return { root, all, leafNodes, courses, passedCourses, required, earned, percent };
+}
+
+function academicStatusClass(course) {
+  return ` is-${course.statusType || "unknown"}`;
+}
+
+function academicBadgeClass(type) {
+  return `academic-badge is-${type || "unknown"}`;
+}
+
+function renderAcademicCourseStatus(course) {
+  return `<span class="${academicBadgeClass(course.statusType)}">${escapeHtml(course.status || "-")}</span>`;
+}
+
+function renderAcademicNodeBadges(node) {
+  const badges = [
+    `<span class="${academicBadgeClass(node.creditStatus)}">${escapeHtml(node.creditStatusText || "未知")}</span>`,
+  ];
+  if (node.substituteStatus && node.substituteStatus !== "none") {
+    badges.push(`<span class="${academicBadgeClass("substitute")}">${escapeHtml(node.substituteStatusText || "课程替代")}</span>`);
+  }
+  return badges.join("");
+}
+
+function renderAcademicCourses(courses) {
+  if (!courses?.length) return "<div class=\"academic-empty dim\">暂无课程明细</div>";
+  return `
+    <table class="academic-course-table">
+      <thead><tr><th>课程</th><th>学分</th><th>状态</th><th>成绩</th><th>学时</th><th>课程性质</th><th>建议修读</th><th>课程类别</th></tr></thead>
+      <tbody>
+        ${courses.map((course) => `
+          <tr class="${academicStatusClass(course)}">
+            <td>${escapeHtml(course.name)}<br><span class="dim">${escapeHtml(course.kch || course.kchId)}</span></td>
+            <td>${escapeHtml(course.creditText || "-")}</td>
+            <td>${renderAcademicCourseStatus(course)}</td>
+            <td>${escapeHtml(course.score || course.maxScore || "-")}</td>
+            <td>${escapeHtml(course.hoursText || "-")}</td>
+            <td>${escapeHtml(course.courseNature || "-")}</td>
+            <td>${escapeHtml([course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ") || "-")}</td>
+            <td>${escapeHtml(course.courseCategory || "-")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderAcademicNode(node, level = 0) {
+  const children = node.children || [];
+  const courses = node.courses || [];
+  const courseCount = courses.length;
+  const passedCount = courses.filter((course) => course.statusType === "passed" || course.statusType === "substituted").length;
+  const required = Number(node.requiredCredit);
+  const earned = Number(node.earnedCredit || 0);
+  const width = Number.isFinite(required) && required > 0 ? Math.min(100, (earned / required) * 100) : 0;
+  const open = level <= 1 ? "open" : "";
+  const progressClass = ` is-${node.creditStatus || "unknown"}`;
+  return `
+    <details class="academic-node level-${level}" ${open}>
+      <summary>
+        <span class="tree-arrow">▸</span>
+        <span class="academic-node-title">${escapeHtml(node.name)}</span>
+        <span class="academic-node-credit">${escapeHtml(node.earnedCredit || "0.0")}/${escapeHtml(node.requiredCredit || "-")} 学分</span>
+        <span class="academic-node-state">${renderAcademicNodeBadges(node)}</span>
+        <span class="academic-node-count">${children.length ? `${children.length} 子项` : `${passedCount}/${courseCount || "-"} 课程`}</span>
+      </summary>
+      <div class="academic-progress${progressClass}"><span style="width:${width}%"></span></div>
+      <div class="academic-children">
+        ${children.map((child) => renderAcademicNode(child, level + 1)).join("")}
+        ${children.length ? "" : renderAcademicCourses(courses)}
+      </div>
+    </details>
+  `;
+}
+
+function renderAcademicStatus() {
+  const root = document.getElementById("academic-status");
+  const summary = document.getElementById("academic-summary");
+  if (!root || !summary) return;
+  if (state.academicLoading) {
+    summary.textContent = "加载中...";
+    root.innerHTML = "<div class=\"academic-empty dim\">正在拉取学业情况和课程明细...</div>";
+    return;
+  }
+  const nodes = state.academicStatus?.nodes || [];
+  summary.textContent = `${academicCreditSummary(nodes)} · ${academicCacheLabel(state.academicStatus?.cacheStatus)} ${formatCacheTime(state.academicStatus?.updatedAt)}`;
+  if (!nodes.length) {
+    root.innerHTML = "<div class=\"academic-empty dim\">暂无学业情况数据，点击刷新重新获取。</div>";
+    return;
+  }
+  const overview = academicOverview(nodes);
+  root.innerHTML = `
+    <div class="academic-overview">
+      <div><span class="dim">方案</span><strong>${escapeHtml(overview.root?.name || "-")}</strong></div>
+      <div><span class="dim">学分</span><strong>${escapeHtml(overview.earned)}/${escapeHtml(overview.required)}</strong></div>
+      <div><span class="dim">完成</span><strong>${escapeHtml(overview.percent)}%</strong></div>
+      <div><span class="dim">节点</span><strong>${overview.leafNodes.filter((item) => item.passed).length}/${overview.leafNodes.length}</strong></div>
+      <div><span class="dim">课程</span><strong>${overview.passedCourses}/${overview.courses.length}</strong></div>
+    </div>
+    <div class="academic-tree">
+      <div class="academic-tree-head">
+        <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span>
+      </div>
+      ${nodes.map((node) => renderAcademicNode(node)).join("")}
+    </div>
+  `;
 }
 
 function showCourseDetail(entry) {
@@ -1694,6 +1860,7 @@ function bindEvents() {
     renderTimetable();
   });
   document.getElementById("week-refresh").addEventListener("click", () => refreshTimetable().catch(showError));
+  document.getElementById("academic-refresh").addEventListener("click", () => refreshAcademicStatus(true).catch(showError));
   document.getElementById("modal-close").addEventListener("click", closeClassModal);
   document.getElementById("modal-action").addEventListener("click", () => executeModalAction().catch(showError));
   document.getElementById("grab-close").addEventListener("click", closeGrabModal);
@@ -1726,6 +1893,10 @@ function bindEvents() {
     }
     if (action === "refresh-timetable") {
       refreshTimetable().catch(showError);
+      return;
+    }
+    if (action === "refresh-academic") {
+      refreshAcademicStatus(true).catch(showError);
     }
   });
   document.getElementById("clear-logs").addEventListener("click", () => {

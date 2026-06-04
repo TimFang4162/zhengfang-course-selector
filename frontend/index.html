@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
-    <div id="login-overlay" class="overlay">
+    <div id="login-overlay" class="overlay hidden">
       <div class="login-card surface">
         <div class="card-header login-header">
           <div>
@@ -61,6 +61,7 @@
             <div class="tabs compact-surface">
               <button type="button" class="tab active" data-tab="tree">课程树</button>
               <button type="button" class="tab" data-tab="timetable">当前课表</button>
+              <button type="button" class="tab" data-tab="academic">学业情况</button>
             </div>
             <div class="workspace-controls">
               <select id="workspace-base-url" aria-label="教务地址"></select>
@@ -69,6 +70,7 @@
                 <option value="show-login">切换账号</option>
                 <option value="refresh-categories">刷新列表</option>
                 <option value="refresh-timetable">刷新课表</option>
+                <option value="refresh-academic">刷新学业情况</option>
               </select>
               <button type="button" id="toggle-sidebar" title="折叠侧栏">⇤</button>
             </div>
@@ -117,6 +119,14 @@
             </div>
             <div id="detail-splitter" class="splitter splitter-horizontal" aria-hidden="true"></div>
             <div id="timetable-detail" class="detail-panel"></div>
+          </section>
+
+          <section id="tab-academic" class="tab-panel section-panel">
+            <div class="toolbar toolbar-tight academic-toolbar">
+              <button type="button" id="academic-refresh">刷新</button>
+              <span id="academic-summary" class="dim">尚未加载</span>
+            </div>
+            <div id="academic-status" class="academic-view"></div>
           </section>
         </main>
 

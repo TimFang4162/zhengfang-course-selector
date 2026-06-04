@@ -70,6 +70,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/timetable":
                 self._write_json(SERVICE.fetch_timetable())
                 return
+            if parsed.path == "/api/academic-status":
+                refresh = query.get("refresh", ["0"])[0] == "1"
+                self._write_json(SERVICE.fetch_academic_status(refresh=refresh))
+                return
             if parsed.path == "/api/tree/state":
                 self._write_json(SERVICE.tree_state())
                 return
