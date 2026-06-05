@@ -5,6 +5,7 @@ import re
 import time
 from typing import Any
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 import rsa
@@ -72,6 +73,161 @@ num_map = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6,
 def set_request_logger(logger):
     global request_logger
     request_logger = logger
+
+
+def build_remote_filter_params(filters: dict | None):
+    if not filters:
+        return {}
+    params = {}
+    keyword = str(filters.get("keyword") or "").strip()
+    keywords = [item.strip() for item in keyword.split(" ") if item.strip()]
+    for index, item in enumerate(keywords):
+        params[f"filter_list[{index}]"] = item
+    for field, values in (
+        ("jg_id_list", filters.get("collegeIds") or []),
+        ("zyh_id_list", filters.get("majorIds") or []),
+        ("kkbm_id_list", filters.get("teachingCollegeIds") or []),
+        ("njdm_id_list", filters.get("gradeIds") or []),
+        ("kclb_id_list", filters.get("courseCategoryIds") or []),
+        ("kcxzdm_list", filters.get("courseNatureIds") or []),
+        ("kcgs_list", filters.get("courseOwnershipIds") or []),
+        ("jxms_list", filters.get("teachingModeIds") or []),
+        ("sksj_list", filters.get("weekdayIds") or []),
+        ("skjc_list", filters.get("periodIds") or []),
+        ("xf_list", filters.get("credits") or []),
+        ("jxbmc_list", filters.get("classNames") or []),
+        ("tjbj_list", filters.get("recommended") or []),
+        ("yl_list", filters.get("hasCapacity") or []),
+        ("sksjct_list", filters.get("timeConflict") or []),
+        ("cxbj_list", filters.get("retake") or []),
+    ):
+        for index, value in enumerate(values):
+            value = str(value).strip()
+            if value:
+                params[f"{field}[{index}]"] = value
+    return params
+
+
+FILTER_OPTION_SOURCES = {
+    "college": (
+        "/jwglxt/xkgl/common_queryXyPaged.html?localeKey=zh_CN&jg_id=w&gnmkdm=N253512",
+        "jgxh",
+        "asc",
+    ),
+    "major": (
+        "/jwglxt/xkgl/common_queryZyPaged.html?localeKey=zh_CN&zyh_id=w&gnmkdm=N253512",
+        "zyxh",
+        "asc",
+    ),
+    "teachingCollege": (
+        "/jwglxt/xkgl/common_queryKkbmPaged.html?localeKey=zh_CN&gnmkdm=N253512",
+        "jgxh",
+        "asc",
+    ),
+    "courseCategory": (
+        "/jwglxt/xkgl/common_queryKclbListPaged.html?gnmkdm=N253512",
+        "kclbdm",
+        "asc",
+    ),
+    "courseNature": (
+        "/jwglxt/xkgl/common_queryKcxzPaged.html?gnmkdm=N253512",
+        "dm",
+        "asc",
+    ),
+    "courseOwnership": (
+        "/jwglxt/xkgl/common_queryKcgsPaged.html?gnmkdm=N253512",
+        "px,kcgsdm",
+        "asc",
+    ),
+    "teachingMode": (
+        "/jwglxt/xtgl/comm_cxJcsjList.html?lxdm=0032&gnmkdm=N253512",
+        "",
+        "",
+    ),
+    "weekday": ("/jwglxt/xtgl/comm_cxJcsjList.html?lxdm=0036&gnmkdm=N253512", "", ""),
+    "period": ("/jwglxt/xkgl/common_querySkjcList.html?gnmkdm=N253512", "dm", "asc"),
+}
+
+FILTER_OPTION_QUERY_FIELDS = {
+    "college": "jg_id",
+}
+
+
+def _with_query_param(path: str, key: str, value: str) -> str:
+    split = urlsplit(path)
+    params = dict(parse_qsl(split.query, keep_blank_values=True))
+    params[key] = value
+    return urlunsplit(
+        (split.scheme, split.netloc, split.path, urlencode(params), split.fragment)
+    )
+
+
+def _fetch_major_grid_options(page: int, show_count: int, query: str, extra: dict):
+    data = {
+        "title": "专业列表",
+        "mapper[key]": "zyh_id",
+        "mapper[text]": "zymc",
+        "index": "zyh_id_list",
+        "checked": "",
+        "multiselect": "true",
+        "selectAttr": "true",
+        "width": "800",
+        "height": "500",
+        "gridType": "4",
+        "queryModel.currentPage": str(page),
+        "queryModel.showCount": str(show_count),
+        "queryModel.sortOrder": "asc",
+        "queryModel.sortName": "zymc ",
+        "rangeable": "true",
+        "text": "专业",
+        "url": "/jwglxt/xkgl/common_queryZyPaged.html?localeKey=zh_CN&zyh_id=w",
+        "parent": "jg_id_list",
+        "sort": "zyxh",
+        "order": "asc",
+        "moreEvent": "dialog",
+        "multiple": "true",
+        "hidden": "false",
+        "showSize": "6",
+        "more": "true",
+        "zyh": query,
+        "_search": "false",
+        "time": "0",
+    }
+    college_id = str((extra or {}).get("jg_id_list[0]") or "").strip()
+    if college_id:
+        data["jg_id"] = college_id
+    return http_post(
+        url=base_url + "/jwglxt/grid/grid_cxCommonSelectList.html?gnmkdm=N253512",
+        data=data,
+        timeout=8,
+    ).json()
+
+
+def fetch_filter_options(option_type, page=1, show_count=20, query="", extra=None):
+    if option_type not in FILTER_OPTION_SOURCES:
+        raise ValueError("无效筛选项类型")
+    path, sort_name, sort_order = FILTER_OPTION_SOURCES[option_type]
+    start = (page - 1) * show_count
+    data = {
+        "queryModel.currentPage": str(page),
+        "queryModel.showCount": str(show_count),
+        "minNum": str(start),
+        "maxNum": str(start + show_count),
+        "queryModel.sortOrder": sort_order,
+        "queryModel.sortName": sort_name,
+        "rangeable": "true",
+    }
+    query = str(query or "").strip()
+    extra = extra or {}
+    if option_type == "major" and query:
+        return _fetch_major_grid_options(page, show_count, query, extra)
+    if query:
+        data["filter_list[0]"] = query
+        query_field = FILTER_OPTION_QUERY_FIELDS.get(option_type)
+        if query_field:
+            path = _with_query_param(path, query_field, query)
+    data.update(extra)
+    return http_post(url=base_url + path, data=data, timeout=8).json()
 
 
 def _format_request_path(url: str) -> str:
@@ -468,7 +624,7 @@ def fetch_big_list(log_func, debug_func):
         return []
 
 
-def fetch_small_list(target, log_func, debug_func, page=1):
+def fetch_small_list(target, log_func, debug_func, page=1, remote_filters=None):
     rwlx = "1" if target[0] == "主修课程" else "2"
     zyh_id = target[4]
     kklxdm = target[1]
@@ -520,6 +676,7 @@ def fetch_small_list(target, log_func, debug_func, page=1):
         "jspage": str(end),
         "jxbzb": "",
     }
+    data.update(build_remote_filter_params(remote_filters))
     try:
         debug_func(f"Fetch small list: {target[0]} [range {start}-{end}]")
         req = http_post(
@@ -552,7 +709,14 @@ def fetch_small_list(target, log_func, debug_func, page=1):
 
 
 def fetch_class_detail_and_plan(
-    kklxdm, kch_id, zyh_id, xkkz_id, rwlx, log_func, debug_func
+    kklxdm,
+    kch_id,
+    zyh_id,
+    xkkz_id,
+    rwlx,
+    log_func,
+    debug_func,
+    remote_filters=None,
 ):
     data = {
         "rwlx": rwlx,
@@ -592,6 +756,7 @@ def fetch_class_detail_and_plan(
         "cxbj": "0",
         "fxbj": "0",
     }
+    data.update(build_remote_filter_params(remote_filters))
     try:
         debug_func(f"查询班级详情: KCH={kch_id}")
         return http_post(

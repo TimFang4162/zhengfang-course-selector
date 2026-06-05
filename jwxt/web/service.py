@@ -2,6 +2,7 @@ import ssl
 import threading
 import time
 import queue
+import json
 from urllib.request import Request, urlopen
 
 from jwxt import core
@@ -17,6 +18,8 @@ class JWXTWebService(GrabTaskMixin):
         self.big_list_cache = []
         self.course_info_cache = {}
         self.course_page_state = {}
+        self.default_course_ids = {}
+        self.course_search_cache = {}
         self.class_cache = {}
         self.timetable_cache = None
         self.academic_status_cache = None
@@ -309,6 +312,8 @@ class JWXTWebService(GrabTaskMixin):
                 )
                 self.course_info_cache = {}
                 self.course_page_state = {}
+                self.default_course_ids = {}
+                self.course_search_cache = {}
                 self.class_cache = {}
                 self.timetable_cache = None
                 self.academic_status_cache = None
@@ -333,55 +338,201 @@ class JWXTWebService(GrabTaskMixin):
         except Exception as exc:
             raise ValueError("无效分类") from exc
 
-    def fetch_courses(self, category_id: int, page: int):
-        with self.lock:
-            self._require_auth()
-            target = self._get_target(category_id)
-            self._log_info(f"加载课程分页: {target[0]} 第 {page} 页")
-            result = self.mod.fetch_small_list(
-                target, self._log_renderable, self._log_debug, page
-            )
-            course_bucket = self.course_info_cache.setdefault(category_id, {})
-            page_state = self.course_page_state.setdefault(
-                category_id, {"loadedPages": [], "hasMore": True, "nextPage": 1}
-            )
-            items = []
-            for kch_id, course_info_list in result.get("courses", {}).items():
-                existing = course_bucket.get(kch_id, [])
-                merged_by_jxb_id = {
-                    self._course_item_key(item, index, "existing"): item
-                    for index, item in enumerate(existing)
-                }
-                for index, item in enumerate(course_info_list):
-                    merged_by_jxb_id[self._course_item_key(item, index, "new")] = item
-                merged = list(merged_by_jxb_id.values())
-                course_bucket[kch_id] = merged
-                first = merged[0] if merged else {}
-                credit_text = self.mod.get_course_credit_text(merged)
-                items.append(
-                    {
-                        "kchId": kch_id,
-                        "courseName": first.get("kcmc", kch_id),
-                        "creditText": credit_text,
-                        "creditValue": self._to_float_or_none(credit_text),
-                        "classCount": len(merged),
-                    }
-                )
+    def _course_result_item(
+        self, category_id: int, kch_id: str, course_info_list: list
+    ):
+        first = course_info_list[0] if course_info_list else {}
+        credit_text = self.mod.get_course_credit_text(course_info_list)
+        return {
+            "categoryId": category_id,
+            "courseNo": kch_id,
+            "kchId": kch_id,
+            "courseName": first.get("kcmc", kch_id),
+            "creditText": credit_text,
+            "creditValue": self._to_float_or_none(credit_text),
+            "classCount": len(course_info_list),
+        }
+
+    def _merge_course_info(self, category_id: int, kch_id: str, course_info_list: list):
+        course_bucket = self.course_info_cache.setdefault(category_id, {})
+        existing = course_bucket.get(kch_id, [])
+        merged_by_jxb_id = {
+            self._course_item_key(item, index, "existing"): item
+            for index, item in enumerate(existing)
+        }
+        for index, item in enumerate(course_info_list):
+            merged_by_jxb_id[self._course_item_key(item, index, "new")] = item
+        merged = list(merged_by_jxb_id.values())
+        course_bucket[kch_id] = merged
+        return merged
+
+    def _query_courses(
+        self,
+        category_id: int,
+        page: int,
+        filters: dict | None,
+        log_prefix: str,
+        page_state: dict | None = None,
+        record_default: bool = False,
+    ):
+        target = self._get_target(category_id)
+        filter_key, normalized_filters = self._filter_key(filters or {})
+        self._log_info(f"{log_prefix}: {target[0]} 第 {page} 页")
+        result = self.mod.fetch_small_list(
+            target,
+            self._log_renderable,
+            self._log_debug,
+            page,
+            remote_filters=normalized_filters,
+        )
+        items = []
+        course_ids = []
+        for kch_id, course_info_list in result.get("courses", {}).items():
+            merged = self._merge_course_info(category_id, kch_id, course_info_list)
+            course_ids.append(kch_id)
+            items.append(self._course_result_item(category_id, kch_id, merged))
+        if record_default:
+            default_ids = self.default_course_ids.setdefault(category_id, [])
+            for kch_id in course_ids:
+                if kch_id not in default_ids:
+                    default_ids.append(kch_id)
+        if page_state is not None:
             if page not in page_state["loadedPages"]:
                 page_state["loadedPages"].append(page)
             page_state["hasMore"] = result.get("has_more", False)
             page_state["nextPage"] = result.get("next_page", page + 1)
-            self._log_info(
-                f"课程分页加载完成: {target[0]} 第 {result.get('page', page)} 页，{len(items)} 门课程"
+        self._log_info(
+            f"{log_prefix}完成: {target[0]} 第 {result.get('page', page)} 页，{len(items)} 门课程"
+        )
+        return {
+            "categoryId": category_id,
+            "page": result.get("page", page),
+            "count": result.get("count", 0),
+            "hasMore": result.get("has_more", False),
+            "nextPage": result.get("next_page", page + 1),
+            "filterKey": filter_key,
+            "courseIds": course_ids,
+            "courses": items,
+        }
+
+    def fetch_courses(self, category_id: int, page: int):
+        with self.lock:
+            self._require_auth()
+            target = self._get_target(category_id)
+            page_state = self.course_page_state.setdefault(
+                category_id, {"loadedPages": [], "hasMore": True, "nextPage": 1}
             )
+            return self._query_courses(
+                category_id,
+                page,
+                {"majorIds": [target[4]]} if target[4] else {},
+                "加载默认课程分页",
+                page_state,
+                record_default=True,
+            )
+
+    def _filter_key(self, filters: dict):
+        list_fields = [
+            "collegeIds",
+            "majorIds",
+            "teachingCollegeIds",
+            "gradeIds",
+            "courseCategoryIds",
+            "courseNatureIds",
+            "courseOwnershipIds",
+            "teachingModeIds",
+            "weekdayIds",
+            "periodIds",
+            "credits",
+            "classNames",
+            "recommended",
+            "hasCapacity",
+            "timeConflict",
+            "retake",
+        ]
+        normalized: dict = {
+            "keyword": str(filters.get("keyword") or "").strip(),
+        }
+        for field in list_fields:
+            normalized[field] = [
+                str(item).strip()
+                for item in filters.get(field) or []
+                if str(item).strip()
+            ]
+        return json.dumps(normalized, ensure_ascii=False, sort_keys=True), normalized
+
+    def search_courses(self, category_id: int, page: int, filters: dict):
+        with self.lock:
+            self._require_auth()
+            filter_key, normalized_filters = self._filter_key(filters or {})
+            cache_key = (category_id, filter_key)
+            search_bucket = self.course_search_cache.setdefault(
+                cache_key,
+                {"loadedPages": [], "hasMore": True, "nextPage": 1},
+            )
+            return self._query_courses(
+                category_id, page, normalized_filters, "远程搜索课程", search_bucket
+            )
+
+    def fetch_filter_options(
+        self,
+        option_type: str,
+        page: int = 1,
+        query: str = "",
+        parent: dict | None = None,
+    ):
+        with self.lock:
+            self._require_auth()
+            extra = {}
+            if option_type == "major" and parent and parent.get("collegeId"):
+                extra["jg_id_list[0]"] = str(parent["collegeId"])
+            self._log_debug(f"加载筛选选项: {option_type} 第 {page} 页")
+            data = self.mod.fetch_filter_options(
+                option_type, page=page, query=query, extra=extra
+            )
+            items = data.get("items") if isinstance(data, dict) else []
+            normalized_items = [
+                self._normalize_filter_option(option_type, item) for item in items or []
+            ]
+            if query and normalized_items:
+                needle = query.lower()
+                normalized_items = [
+                    item
+                    for item in normalized_items
+                    if needle in item["label"].lower()
+                    or needle in item["value"].lower()
+                ]
             return {
-                "categoryId": category_id,
-                "page": result.get("page", page),
-                "count": result.get("count", 0),
-                "hasMore": result.get("has_more", False),
-                "nextPage": result.get("next_page", page + 1),
-                "courses": items,
+                "type": option_type,
+                "page": page,
+                "hasMore": bool(items) and len(items) >= 20,
+                "items": normalized_items,
             }
+
+    def _normalize_filter_option(self, option_type: str, item: dict):
+        mappings = {
+            "college": ("jg_id", "jgmc"),
+            "major": ("zyh_id", "zymc"),
+            "teachingCollege": ("jg_id", "jgmc"),
+            "courseCategory": ("kclbdm", "kclbmc"),
+            "courseNature": ("dm", "mc"),
+            "courseOwnership": ("kcgsdm", "kcgsmc"),
+            "teachingMode": ("dm", "mc"),
+            "weekday": ("dm", "mc"),
+            "period": ("dm", "dm"),
+        }
+        key_field, text_field = mappings.get(option_type, ("key", "text"))
+        value = str(item.get(key_field) or "")
+        label = str(item.get(text_field) or value)
+        display_label = label
+        if option_type == "major":
+            display_label = str(item.get("zymc1") or item.get("zyjc") or label)
+        return {
+            "value": value,
+            "label": label,
+            "displayLabel": display_label,
+            "raw": item,
+        }
 
     def _course_summary(self, category_id: int, kch_id: str, course_info_list: list):
         first = course_info_list[0] if course_info_list else {}
@@ -414,6 +565,7 @@ class JWXTWebService(GrabTaskMixin):
                 category_id = category["id"]
                 page_state = self.course_page_state.get(category_id, {})
                 course_bucket = self.course_info_cache.get(category_id, {})
+                default_ids = self.default_course_ids.get(category_id, [])
                 items.append(
                     {
                         **category,
@@ -424,8 +576,11 @@ class JWXTWebService(GrabTaskMixin):
                         "nextPage": page_state.get("nextPage", 1),
                         "loadedPages": page_state.get("loadedPages", []),
                         "courses": [
-                            self._course_summary(category_id, kch_id, course_info_list)
-                            for kch_id, course_info_list in course_bucket.items()
+                            self._course_summary(
+                                category_id, kch_id, course_bucket.get(kch_id, [])
+                            )
+                            for kch_id in default_ids
+                            if kch_id in course_bucket
                         ],
                     }
                 )

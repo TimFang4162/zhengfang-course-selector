@@ -72,6 +72,17 @@ class RequestHandler(BaseHTTPRequestHandler):
                     SERVICE.fetch_classes(category_id, kch_id, refresh=refresh)
                 )
                 return
+            if parsed.path == "/api/course-filter-options":
+                option_type = str(query.get("type", [""])[0])
+                page = int(query.get("page", ["1"])[0])
+                search_query = str(query.get("q", [""])[0])
+                parent = {"collegeId": query.get("college_id", [""])[0]}
+                self._write_json(
+                    SERVICE.fetch_filter_options(
+                        option_type, page, search_query, parent
+                    )
+                )
+                return
             if parsed.path == "/api/timetable":
                 refresh = query.get("refresh", ["0"])[0] == "1"
                 self._write_json(SERVICE.fetch_timetable(refresh=refresh))
@@ -113,6 +124,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/settings":
                 self._write_json(SERVICE.update_settings(payload))
+                return
+            if parsed.path == "/api/courses/search":
+                category_id = int(payload.get("categoryId", 0))
+                page = int(payload.get("page", 1))
+                filters = payload.get("filters") or {}
+                self._write_json(SERVICE.search_courses(category_id, page, filters))
                 return
             if parsed.path == "/api/choose":
                 self._write_json(SERVICE.choose_class(payload))
