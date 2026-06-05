@@ -116,7 +116,7 @@
 .tree-view {
   flex: 1;
   padding: 4px 0 8px;
-  background: var(--vscode-side-bg);
+  background: var(--vscode-panel-bg);
 }
 
 .tree-row {
@@ -134,12 +134,12 @@
 }
 
 .tree-row.selected {
-  background: var(--vscode-list-selection-bg);
+  background: color-mix(in srgb, var(--vscode-success) 12%, transparent);
   border-color: transparent;
 }
 
 .tree-row.selected:hover {
-  background: var(--vscode-list-selection-hover-bg);
+  background: color-mix(in srgb, var(--vscode-success) 18%, var(--vscode-list-hover-bg));
 }
 
 .tree-label {
@@ -173,8 +173,9 @@
 }
 
 .tree-check.is-checked {
-  border-color: var(--vscode-accent);
-  background: var(--vscode-accent);
+  border-color: var(--vscode-success);
+  background: var(--vscode-success);
+  color: var(--vscode-editor-bg);
 }
 
 .tree-more-dot {
@@ -223,17 +224,43 @@
   text-overflow: ellipsis;
 }
 
+.tree-chip {
+  display: inline-flex;
+  max-width: 72px;
+  margin-left: 4px;
+  padding: 0 5px;
+  border: 1px solid var(--vscode-badge-border);
+  border-radius: 999px;
+  color: var(--vscode-fg-muted);
+  font-size: 11px;
+  line-height: 16px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.tree-chip.is-selected {
+  border-color: var(--vscode-success-border);
+  color: var(--vscode-success);
+}
+
 .tree-table-main {
   color: inherit;
 }
 
 .tree-table-code,
 .tree-table-credit,
-.tree-table-count,
 .tree-table-teacher,
 .tree-table-time,
 .tree-table-location,
 .tree-table-prop {
+  color: var(--vscode-fg-muted);
+}
+
+.tree-table-credit {
+  color: var(--vscode-fg);
+}
+
+.tree-table-count {
   color: var(--vscode-fg-muted);
 }
 
@@ -246,12 +273,13 @@
   border-bottom-color: var(--vscode-row-border);
 }
 
-.level-0 .tree-label {
-  color: var(--vscode-warning);
+.tree-row.level-0 .tree-label {
+  color: var(--vscode-fg-strong);
+  font-weight: 500;
 }
 
-.level-1 .tree-label {
-  color: var(--vscode-info);
+.tree-row.level-1 .tree-label {
+  color: var(--vscode-fg);
 }
 
 .tree-row.selected .tree-label,
@@ -260,11 +288,20 @@
 }
 
 .tree-row.muted .tree-label {
-  color: var(--vscode-gray);
+  color: var(--vscode-fg-subtle);
 }
 
 .tree-row.muted .tree-table > span {
-  color: var(--vscode-gray);
+  color: var(--vscode-fg-subtle);
+}
+
+.tree-row.muted .tree-chip {
+  border-color: color-mix(in srgb, var(--vscode-fg-subtle) 45%, transparent);
+  color: var(--vscode-fg-muted);
+}
+
+.tree-row.muted .tree-check {
+  opacity: 0.55;
 }
 
 .tree-arrow {

@@ -24,7 +24,7 @@ export const state = createMutable({
   expandedCourses: new Set(),
   loadingCategories: new Set(),
   loadingCourses: new Set(),
-  filters: { conflict: false, credit: false },
+  filters: { conflict: false, credit: false, completed: false },
   search: { query: "", scope: "all" },
   treeVersion: 0,
   sidebarCollapsed: false,
@@ -127,6 +127,7 @@ export function classConflicts(item) {
 
 export function classMuted(course, item) {
   if (isSelectedClass(item)) return false;
+  if (state.filters.completed && courseCompleted(course)) return true;
   if (state.filters.credit && courseExceedsCredit(course)) return true;
   if (state.filters.conflict && classConflicts(item)) return true;
   return false;
@@ -138,9 +139,29 @@ export function classConflictMuted(item) {
 
 export function courseMuted(categoryId, course) {
   if (isSelectedCourse(course)) return false;
+  if (state.filters.completed && courseCompleted(course)) return true;
   if (state.filters.credit && courseExceedsCredit(course)) return true;
   if (!state.filters.conflict) return false;
   const classItems = state.courseClasses[`${categoryId}:${course.kchId}`];
   if (!classItems || !classItems.length) return false;
   return classItems.every((item) => classMuted(course, item));
+}
+
+export function completedCourseIds() {
+  const ids = new Set();
+  const visit = (node) => {
+    for (const course of node?.courses || []) {
+      if (course.statusType === "passed" || course.statusType === "substituted") {
+        if (course.kchId) ids.add(String(course.kchId));
+        if (course.kch) ids.add(String(course.kch));
+      }
+    }
+    for (const child of node?.children || []) visit(child);
+  };
+  for (const node of state.academicStatus?.nodes || []) visit(node);
+  return ids;
+}
+
+export function courseCompleted(course) {
+  return completedCourseIds().has(String(course.kchId));
 }

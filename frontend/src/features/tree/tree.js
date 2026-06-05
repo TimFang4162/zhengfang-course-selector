@@ -28,6 +28,13 @@ export function createTreeFeature({ state, getApp, helpers }) {
   function runDisplayAction(action) {
     if (action === "toggle-conflict") state.filters.conflict = !state.filters.conflict;
     if (action === "toggle-credit") state.filters.credit = !state.filters.credit;
+    if (action === "toggle-completed") {
+      if (!state.academicStatus) {
+        window.alert("请先加载学业情况，再淡化已修读课程。");
+        return;
+      }
+      state.filters.completed = !state.filters.completed;
+    }
     if (action) {
       setFilterStatus();
       renderTree();

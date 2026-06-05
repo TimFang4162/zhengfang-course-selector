@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { useAppContext } from "../../app/app-context.jsx";
-import { classConflictMuted, classMuted, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
+import { classConflicts, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
 import { categoryInSearchScope, classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 
 function TreeRow(props) {
@@ -48,6 +48,10 @@ function Cell(props) {
   return <span class={props.className || ""}>{props.children || "-"}</span>;
 }
 
+function TreeChip(props) {
+  return <span class={`tree-chip${props.type ? ` is-${props.type}` : ""}`}>{props.children}</span>;
+}
+
 function hasReactive(set, value) {
   state.treeVersion;
   return set.has(value);
@@ -55,12 +59,16 @@ function hasReactive(set, value) {
 
 function CourseSummary(props) {
   const app = useAppContext();
-  const courseName = () => `${props.course.courseName}${isSelectedCourse(props.course) ? " (已选)" : ""}`;
+  const reasons = () => [
+    isSelectedCourse(props.course) ? "已选" : null,
+    state.filters.credit && courseExceedsCredit(props.course) ? "超学分" : null,
+    state.filters.completed && courseCompleted(props.course) ? "已修读" : null,
+  ].filter(Boolean);
 
   return (
     <RowChrome checked={isSelectedCourse(props.course)} onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category: props.category, course: props.course })}>
       <div class="tree-table tree-course-table">
-        <Cell className="tree-table-main">{courseName()}</Cell>
+        <Cell className="tree-table-main">{props.course.courseName} <For each={reasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
         <Cell className="tree-table-code">{props.course.kchId}</Cell>
         <Cell className="tree-table-credit">{props.course.creditText ? `${props.course.creditText}学分` : "-"}</Cell>
         <Cell className="tree-table-count">{props.course.classCount}教学班</Cell>
@@ -72,13 +80,17 @@ function CourseSummary(props) {
 function ClassSummary(props) {
   const app = useAppContext();
   const teacher = () => props.item.teacherTitle ? `${props.item.teacherName}/${props.item.teacherTitle}` : props.item.teacherName || "未标注教师";
+  const timeReasons = () => [
+    isSelectedClass(props.item) ? "已选" : null,
+    state.filters.conflict && classConflicts(props.item) && !isSelectedClass(props.item) ? "时间冲突" : null,
+  ].filter(Boolean);
 
   return (
     <RowChrome checked={isSelectedClass(props.item)} onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category: props.category, course: props.course, classItem: props.item })}>
       <div class="tree-table tree-class-table">
         <Cell className="tree-table-code">{props.item.index}. {props.item.classNo}</Cell>
         <Cell className="tree-table-teacher">{teacher()}</Cell>
-        <Cell className="tree-table-time">{props.item.sksj}</Cell>
+        <Cell className="tree-table-time">{props.item.sksj} <For each={timeReasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
         <Cell className="tree-table-location">{props.item.location}</Cell>
         <Cell className="tree-table-prop">{props.item.courseProperty}</Cell>
         <Cell className="tree-table-count">{props.item.selectedCount}/{props.item.capacity}</Cell>
@@ -108,7 +120,7 @@ function ClassRows(props) {
                   <TreeRow
                     level={2}
                     selected={isSelectedClass(item)}
-                    muted={classMuted(props.course, item) || classConflictMuted(item)}
+                    muted={classMuted(props.course, item)}
                     onClick={() => app.timetable.openClassModal(props.category.id, props.course, item)}
                   >
                     <ClassSummary category={props.category} course={props.course} item={item} />
@@ -193,7 +205,6 @@ function CategoryRows(props) {
 
 export function TreeView() {
   const shouldRenderCourse = (categoryId, course) => {
-    if (state.filters.credit && courseMuted(categoryId, course)) return false;
     return courseMatchesSearch(state, categoryId, course);
   };
 

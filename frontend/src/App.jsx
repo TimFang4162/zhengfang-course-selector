@@ -120,7 +120,8 @@ function WorkspaceTabs() {
               <button type="button" class="menu-button" id="display-menu-button" onClick={(event) => { event.stopPropagation(); toggleMenu("display-menu"); }}>显示</button>
               <div classList={{ "menu-popover": true, hidden: state.openMenu !== "display-menu" }} id="display-menu">
                 <button type="button" data-action="toggle-conflict" onClick={() => { app.tree.runDisplayAction("toggle-conflict"); closeMenus(); }}>灰色显示冲突教学班:{state.filters.conflict ? "开" : "关"}</button>
-                <button type="button" data-action="toggle-credit" onClick={() => { app.tree.runDisplayAction("toggle-credit"); closeMenus(); }}>隐藏超学分课程:{state.filters.credit ? "开" : "关"}</button>
+                <button type="button" data-action="toggle-credit" onClick={() => { app.tree.runDisplayAction("toggle-credit"); closeMenus(); }}>淡化超学分课程:{state.filters.credit ? "开" : "关"}</button>
+                <button type="button" data-action="toggle-completed" onClick={() => { app.tree.runDisplayAction("toggle-completed"); closeMenus(); }}>淡化已修读课程:{state.filters.completed ? "开" : "关"}</button>
               </div>
             </div>
             <div class="menu-root">
@@ -372,6 +373,12 @@ function AppShell() {
 
 function ModalLayer() {
   const app = useAppContext();
+  const classConflictEntries = () => {
+    const item = state.modalClass?.item;
+    if (!item?.slots?.length) return [];
+    const itemSlots = new Set(item.slots.map((slot) => slot.join("-")));
+    return (state.timetable.entries || []).filter((entry) => (entry.slots || []).some((slot) => itemSlots.has(slot.join("-"))));
+  };
   const classDebugPayload = () => {
     if (!state.modalClass) return null;
     if (state.modalClass.entry) return { source: "timetable", entry: state.modalClass.entry };
@@ -437,6 +444,9 @@ function ModalLayer() {
                   <div class="class-meta"><div>选课备注</div><div>{item.remark || "-"}</div></div>
                   <div class="class-meta"><div>课程性质</div><div>{item.courseProperty || "-"}</div></div>
                   <div class="class-meta"><div>已选/容量</div><div>{item.selectedCount}/{item.capacity}</div></div>
+                  <Show when={classConflictEntries().length}>
+                    <div class="class-meta"><div>冲突课程</div><div><For each={classConflictEntries()}>{(entry) => <div>{entry.name} <span class="dim">{entry.classNo || "-"} / {entry.sksj || "-"}</span></div>}</For></div></div>
+                  </Show>
                 </>
               )}
             </Show>
