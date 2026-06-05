@@ -59,6 +59,8 @@ export const state = createMutable({
   logSince: 0,
   selectedCell: null,
   modalClass: null,
+  courseDetail: null,
+  teacherDetail: null,
   grabDraft: null,
   grabExpression: "",
   grabStatusText: "",

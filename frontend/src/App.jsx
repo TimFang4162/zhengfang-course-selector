@@ -785,6 +785,33 @@ function ModalLayer() {
                   <Show when={classConflictEntries().length}>
                     <div class="class-meta"><div>冲突课程</div><div><For each={classConflictEntries()}>{(entry) => <div>{entry.name} <span class="dim">{entry.classNo || "-"} / {entry.sksj || "-"}</span></div>}</For></div></div>
                   </Show>
+                  <Show when={state.teacherDetail === null}>
+                    <button type="button" class="tree-more" onClick={() => app.timetable.loadTeacherDetail(item.teacherJghId, item.kchId || state.modalClass?.course?.kchId)} style="margin-top:8px">查看教师详情</button>
+                  </Show>
+                  <Show when={state.teacherDetail?._loading}>
+                    <div class="dim" style="margin-top:8px">加载教师详情中...</div>
+                  </Show>
+                  <Show when={state.teacherDetail && !state.teacherDetail._loading}>
+                    <details class="debug-details" open>
+                      <summary>教师详情</summary>
+                      <Show when={state.teacherDetail.name}
+                        fallback={<div class="dim" style="margin-top:6px">暂无教师详情数据</div>}
+                      >
+                        <div class="debug-grid">
+                          <Show when={state.teacherDetail.name}><div>教师姓名</div><div>{state.teacherDetail.name}</div></Show>
+                          <Show when={state.teacherDetail.pinyin}><div>姓名拼音</div><div>{state.teacherDetail.pinyin}</div></Show>
+                          <Show when={state.teacherDetail.gender}><div>性别</div><div>{state.teacherDetail.gender}</div></Show>
+                          <Show when={state.teacherDetail.title}><div>职称</div><div>{state.teacherDetail.title}</div></Show>
+                          <Show when={state.teacherDetail.department}><div>所在单位</div><div>{state.teacherDetail.department}</div></Show>
+                          <Show when={state.teacherDetail.education}><div>最高学历</div><div>{state.teacherDetail.education}</div></Show>
+                          <Show when={state.teacherDetail.email}><div>电子邮箱</div><div>{state.teacherDetail.email}</div></Show>
+                          <Show when={state.teacherDetail.research}><div>研究方向</div><div>{state.teacherDetail.research}</div></Show>
+                          <Show when={state.teacherDetail.office}><div>科室名称</div><div>{state.teacherDetail.office}</div></Show>
+                          <Show when={state.teacherDetail.introduction}><div>教师简介</div><div>{state.teacherDetail.introduction}</div></Show>
+                        </div>
+                      </Show>
+                    </details>
+                  </Show>
                 </>
               )}
             </Show>
@@ -796,6 +823,41 @@ function ModalLayer() {
                   <div class="class-meta"><div>学分</div><div>{course.creditText || "-"}</div></div>
                   <div class="class-meta"><div>教学班</div><div>{course.classCount ?? "-"}</div></div>
                   <div class="class-meta"><div>已选</div><div>{state.timetable.selectedCourseIds?.includes(course.kchId) ? "是" : "否"}</div></div>
+                  <Show when={state.courseDetail === null}>
+                    <button type="button" class="tree-more" onClick={() => app.timetable.loadCourseDetail(course.kchId)} style="margin-top:8px">查看课程详情</button>
+                  </Show>
+                  <Show when={state.courseDetail?._loading}>
+                    <div class="dim" style="margin-top:8px">加载课程详情中...</div>
+                  </Show>
+                  <Show when={state.courseDetail && !state.courseDetail._loading}>
+                    <details class="debug-details" open>
+                      <summary>课程基本信息</summary>
+                      <Show when={state.courseDetail.code || state.courseDetail.name}
+                        fallback={<div class="dim" style="margin-top:6px">暂无课程详情数据</div>}
+                      >
+                        <div class="debug-grid">
+                          <Show when={state.courseDetail.name}><div>课程名称</div><div>{state.courseDetail.name}</div></Show>
+                          <Show when={state.courseDetail.englishName}><div>英文名称</div><div>{state.courseDetail.englishName}</div></Show>
+                          <Show when={state.courseDetail.academy}><div>开课学院</div><div>{state.courseDetail.academy}</div></Show>
+                          <Show when={state.courseDetail.category}><div>课程类别</div><div>{state.courseDetail.category}</div></Show>
+                          <Show when={state.courseDetail.ownership}><div>课程归属</div><div>{state.courseDetail.ownership}</div></Show>
+                          <Show when={state.courseDetail.credits}><div>学分</div><div>{state.courseDetail.credits}</div></Show>
+                          <Show when={state.courseDetail.weeklyHours}><div>周学时</div><div>{state.courseDetail.weeklyHours}</div></Show>
+                          <Show when={state.courseDetail.gradeLevel}><div>成绩录入级别</div><div>{state.courseDetail.gradeLevel}</div></Show>
+                          <Show when={state.courseDetail.canAudit}><div>可否申请免听</div><div>{state.courseDetail.canAudit}</div></Show>
+                          <Show when={state.courseDetail.makeupExam}><div>统一安排补考否</div><div>{state.courseDetail.makeupExam}</div></Show>
+                          <Show when={state.courseDetail.canRetake}><div>是否可补考</div><div>{state.courseDetail.canRetake}</div></Show>
+                          <Show when={state.courseDetail.quickSelect}><div>可否快速选课</div><div>{state.courseDetail.quickSelect}</div></Show>
+                          <Show when={state.courseDetail.isPractice}><div>是否是实践课</div><div>{state.courseDetail.isPractice}</div></Show>
+                          <Show when={state.courseDetail.startYear}><div>课程启用年级</div><div>{state.courseDetail.startYear}</div></Show>
+                          <Show when={state.courseDetail.prerequisites}><div>预修课</div><div>{state.courseDetail.prerequisites}</div></Show>
+                          <Show when={state.courseDetail.targetAudience}><div>面向对象</div><div>{state.courseDetail.targetAudience}</div></Show>
+                          <Show when={state.courseDetail.introduction}><div>课程简介</div><div>{state.courseDetail.introduction}</div></Show>
+                          <Show when={state.courseDetail.syllabus}><div>教学大纲</div><div>{state.courseDetail.syllabus}</div></Show>
+                        </div>
+                      </Show>
+                    </details>
+                  </Show>
                 </>
               )}
             </Show>

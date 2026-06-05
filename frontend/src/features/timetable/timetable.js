@@ -1,4 +1,4 @@
-import { apiPost } from "../../api/client.js";
+import { apiGet, apiPost } from "../../api/client.js";
 import { isSelectedClass } from "../../app/state.js";
 import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { maxWeek } from "../../shared/constants.js";
@@ -68,14 +68,42 @@ export function createTimetableFeature({ state, getApp }) {
 
   function openClassModal(categoryId, course, item) {
     state.modalClass = { categoryId, course, item };
+    state.courseDetail = null;
+    state.teacherDetail = null;
   }
 
   function openCourseModal(categoryId, course) {
     state.modalClass = { categoryId, course };
+    state.courseDetail = null;
+    state.teacherDetail = null;
+  }
+
+  async function loadCourseDetail(kchId) {
+    if (!kchId || state.courseDetail) return;
+    state.courseDetail = { _loading: true };
+    try {
+      const res = await apiGet(`/api/course-detail?kch_id=${encodeURIComponent(kchId)}`);
+      state.courseDetail = res.detail || {};
+    } catch {
+      state.courseDetail = {};
+    }
+  }
+
+  async function loadTeacherDetail(jghId, kchId) {
+    if (!jghId || !kchId || state.teacherDetail) return;
+    state.teacherDetail = { _loading: true };
+    try {
+      const res = await apiGet(`/api/teacher-detail?jgh_id=${encodeURIComponent(jghId)}&kch_id=${encodeURIComponent(kchId)}`);
+      state.teacherDetail = res.detail || {};
+    } catch {
+      state.teacherDetail = {};
+    }
   }
 
   function closeClassModal() {
     state.modalClass = null;
+    state.courseDetail = null;
+    state.teacherDetail = null;
   }
 
   async function executeModalAction() {
@@ -109,5 +137,7 @@ export function createTimetableFeature({ state, getApp }) {
     openCourseModal,
     closeClassModal,
     executeModalAction,
+    loadCourseDetail,
+    loadTeacherDetail,
   };
 }

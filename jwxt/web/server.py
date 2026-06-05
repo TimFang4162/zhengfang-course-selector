@@ -72,6 +72,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                     SERVICE.fetch_classes(category_id, kch_id, refresh=refresh)
                 )
                 return
+            if parsed.path == "/api/course-detail":
+                kch_id = str(query.get("kch_id", [""])[0])
+                self._write_json(SERVICE.fetch_course_detail(kch_id))
+                return
+            if parsed.path == "/api/teacher-detail":
+                jgh_id = str(query.get("jgh_id", [""])[0])
+                kch_id = str(query.get("kch_id", [""])[0])
+                self._write_json(SERVICE.fetch_teacher_detail(jgh_id, kch_id))
+                return
             if parsed.path == "/api/course-filter-options":
                 option_type = str(query.get("type", [""])[0])
                 page = int(query.get("page", ["1"])[0])

@@ -562,26 +562,17 @@ class JWXTWebService(GrabTaskMixin):
             items = []
             categories = self.fetch_categories(refresh=False)["items"]
             for category in categories:
-                category_id = category["id"]
-                page_state = self.course_page_state.get(category_id, {})
-                course_bucket = self.course_info_cache.get(category_id, {})
-                default_ids = self.default_course_ids.get(category_id, [])
                 items.append(
                     {
                         **category,
-                        "coursesLoaded": bool(course_bucket),
-                        "hasMore": page_state.get(
-                            "hasMore", bool(course_bucket) is False
-                        ),
-                        "nextPage": page_state.get("nextPage", 1),
-                        "loadedPages": page_state.get("loadedPages", []),
-                        "courses": [
-                            self._course_summary(
-                                category_id, kch_id, course_bucket.get(kch_id, [])
-                            )
-                            for kch_id in default_ids
-                            if kch_id in course_bucket
-                        ],
+                        # Frontend tabs own their query filters; on reload we only
+                        # restore category metadata and let each tab fetch courses
+                        # again when the user expands a category.
+                        "coursesLoaded": False,
+                        "hasMore": True,
+                        "nextPage": 1,
+                        "loadedPages": [],
+                        "courses": [],
                     }
                 )
             return {"items": items, "updatedAt": time.time()}
@@ -876,6 +867,9 @@ class JWXTWebService(GrabTaskMixin):
         teacher_name, teacher_title = self.mod.parse_teacher_display(
             self.mod.first_non_empty(clz.get("jsxx"), detail.get("jsxx"))
         )
+        teacher_jgh_id = self.mod.parse_teacher_jgh_id(
+            self.mod.first_non_empty(clz.get("jsxx"), detail.get("jsxx"))
+        )
         sksj = self.mod.first_non_empty(clz.get("sksj"), detail.get("sksj")).replace(
             "<br/>", ", "
         )
@@ -903,6 +897,7 @@ class JWXTWebService(GrabTaskMixin):
             "classNo": str(class_no),
             "teacherName": teacher_name,
             "teacherTitle": teacher_title,
+            "teacherJghId": teacher_jgh_id,
             "sksj": sksj,
             "slots": self.mod.parse_sksj_to_slots(sksj),
             "location": location,

@@ -490,6 +490,20 @@ def parse_teacher_display(jsxx: str) -> tuple[str, str]:
     return "、".join(names), "、".join(titles)
 
 
+def parse_teacher_jgh_id(jsxx: str) -> str:
+    if not jsxx:
+        return ""
+    ids = []
+    for teacher in jsxx.split(";"):
+        teacher = teacher.strip()
+        if not teacher:
+            continue
+        parts = [part.strip() for part in teacher.split("/")]
+        if parts and parts[0]:
+            ids.append(parts[0])
+    return ";".join(ids)
+
+
 def extract_class_no(jxbmc: str) -> str:
     if not jxbmc:
         return ""
@@ -824,6 +838,106 @@ def execute_withdraw(jxb_id, kch_id, debug_func):
         )
     except Exception as exc:
         debug_func(f"退课请求异常: {exc}")
+        return None
+
+
+_COURSE_DETAIL_FIELDS = {
+    "课程代码": "code",
+    "课程名称": "name",
+    "课程英文名称": "englishName",
+    "开课学院": "academy",
+    "学分": "credits",
+    "课程类别": "category",
+    "课程归属": "ownership",
+    "开课学期": "term",
+    "成绩录入级别": "gradeLevel",
+    "可否申请免听": "canAudit",
+    "统一安排补考否": "makeupExam",
+    "可否快速选课": "quickSelect",
+    "课程启用年级": "startYear",
+    "是否是实践课": "isPractice",
+    "是否可补考": "canRetake",
+    "面向对象": "targetAudience",
+    "周学时": "weeklyHours",
+    "预修课": "prerequisites",
+    "课程简介": "introduction",
+    "教学大纲": "syllabus",
+}
+
+_TEACHER_DETAIL_FIELDS = {
+    "教师姓名": "name",
+    "姓名拼音": "pinyin",
+    "性别": "gender",
+    "所在单位": "department",
+    "最高学历": "education",
+    "电子邮箱": "email",
+    "研究方向": "research",
+    "科室名称": "office",
+    "职称": "title",
+    "教师简介": "introduction",
+}
+
+_TD_ROW_RE = re.compile(
+    r"<td[^>]*>\s*([^<{]+?)\s*<!--.*?-->\s*</td>\s*"
+    r"<td[^>]*align=\"left\">(.*?)</td>",
+    re.DOTALL,
+)
+_TD_ROW_WIDE_RE = re.compile(
+    r"<td[^>]*>\s*([^<{]+?)\s*<!--.*?-->\s*</td>\s*"
+    r"<td[^>]*colspan=\"\d+\">(.*?)</td>",
+    re.DOTALL,
+)
+_LABEL_VALUE_RE = re.compile(
+    r"<label[^>]*>\s*([^<{]+?)\s*<!--.*?-->\s*</label>\s*<div[^>]*>(.*?)</div>",
+    re.DOTALL,
+)
+
+
+def _strip_tags(s):
+    return html.unescape(re.sub(r"<[^>]+>", "", s)).strip()
+
+
+def fetch_course_detail(kch_id, debug_func=print):
+    try:
+        debug_func(f"查询课程详情: KCH={kch_id}")
+        resp = http_post(
+            url=base_url + "/jwglxt/xkgl/common_cxKcxxModel.html?gnmkdm=N253512",
+            data={"kch_id": kch_id},
+            timeout=8,
+        )
+        text = resp.text
+        result = {}
+        for label, raw_val in _TD_ROW_RE.findall(text):
+            key = _COURSE_DETAIL_FIELDS.get(label.strip())
+            if key:
+                result[key] = _strip_tags(raw_val)
+        for label, raw_val in _TD_ROW_WIDE_RE.findall(text):
+            key = _COURSE_DETAIL_FIELDS.get(label.strip())
+            if key:
+                result[key] = _strip_tags(raw_val)
+        return result
+    except Exception as exc:
+        debug_func(f"查询课程详情异常: {exc}")
+        return None
+
+
+def fetch_teacher_detail(jgh_id, kch_id, debug_func=print):
+    try:
+        debug_func(f"查询教师详情: JGH={jgh_id} KCH={kch_id}")
+        resp = http_post(
+            url=base_url + "/jwglxt/xkgl/common_cxJsxxModel.html?gnmkdm=N253512",
+            data={"jgh_id": jgh_id, "kch_id": kch_id},
+            timeout=8,
+        )
+        text = resp.text
+        result = {}
+        for label, raw_val in _LABEL_VALUE_RE.findall(text):
+            key = _TEACHER_DETAIL_FIELDS.get(label.strip())
+            if key:
+                result[key] = _strip_tags(raw_val)
+        return result
+    except Exception as exc:
+        debug_func(f"查询教师详情异常: {exc}")
         return None
 
 
