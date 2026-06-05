@@ -88,11 +88,15 @@ export function createGrabFeature({ state, getApp }) {
 
   function closeGrabModal() {
     state.grabDraft = null;
+    state.grabDraftLabel = "";
   }
 
   function openTreeMoreMenu(anchor, context) {
     const app = getApp();
     const items = [];
+    if (context.type === "category") {
+      items.push({ label: "刷新课程", action: () => app.tree.refreshCategoryCourses(context.category.id).catch(app.showError) });
+    }
     if (context.type === "course") {
       items.push(
         { label: "显示详情", action: () => app.timetable.openCourseModal(context.category.id, context.course) },
@@ -136,6 +140,7 @@ export function createGrabFeature({ state, getApp }) {
   function openGrabModal(context) {
     if (context?.type !== "selection") throw new Error("抢课任务只能从课程树选择列表创建");
     state.grabDraft = context;
+    state.grabDraftLabel = context.label || "选择规则";
     setGrabExpressionValue(defaultGrabExpression(context));
     state.grabPreviewData = null;
     state.grabStatusText = "";
@@ -150,7 +155,26 @@ export function createGrabFeature({ state, getApp }) {
       window.alert("请先在课程树中至少显式选中一个大类、课程或教学班。");
       return;
     }
-    openGrabModal({ type: "selection", selection });
+    openGrabModal({ type: "selection", selection, label: "列表选择" });
+  }
+
+  function openManualGrabModal() {
+    const context = {
+      type: "selection",
+      selection: {
+        includes: [{ type: "course", categoryId: "2", kchId: "000000X121A165" }],
+        excludes: [],
+      },
+      label: "手动添加",
+    };
+    state.grabDraft = context;
+    state.grabDraftLabel = context.label;
+    setGrabExpressionValue('((course.categoryId == "2" and course.id == "000000X121A165")) and has_capacity and not conflicts');
+    state.grabPreviewData = null;
+    state.grabStatusText = "";
+    state.grabStatusClass = "grab-status";
+    if (state.grabEditor) state.grabEditor.layout();
+    refreshGrabPreview().catch(getApp().showError);
   }
 
   async function refreshGrabPreview() {
@@ -297,6 +321,7 @@ export function createGrabFeature({ state, getApp }) {
     openTreeMoreMenu,
     openGrabModal,
     openGrabModalFromSelection,
+    openManualGrabModal,
     closeGrabModal,
     refreshGrabPreview,
     scheduleGrabPreview,

@@ -106,7 +106,7 @@ export function GrabModal() {
         <div class="modal-header">
           <div>
             <div class="eyebrow">Grab Rule</div>
-            <strong id="grab-title">添加抢课任务 / {state.grabDraft?.type || "-"}</strong>
+            <strong id="grab-title">添加抢课任务 / {state.grabDraftLabel || state.grabDraft?.type || "-"}</strong>
           </div>
           <button type="button" id="grab-close" onClick={app.grab.closeGrabModal}>关闭</button>
         </div>
