@@ -1,27 +1,25 @@
-export function normalizedSearchQuery(state) {
-  return state.search.query.trim().toLowerCase();
+export function normalizedSearchQuery(state, query = state.search.query) {
+  return String(query || "").trim().toLowerCase();
 }
 
-export function textMatchesSearch(state, ...parts) {
-  const query = normalizedSearchQuery(state);
+export function textMatchesSearch(state, queryOrPart, ...parts) {
+  const hasExplicitQuery = parts.length > 0;
+  const query = normalizedSearchQuery(state, hasExplicitQuery ? queryOrPart : state.search.query);
+  const values = hasExplicitQuery ? parts : [queryOrPart];
   if (!query) return true;
-  return parts.filter(Boolean).some((part) => String(part).toLowerCase().includes(query));
+  return values.filter(Boolean).some((part) => String(part).toLowerCase().includes(query));
 }
 
-export function classMatchesSearch(state, item) {
-  return textMatchesSearch(state, item.classNo, item.teacherName, item.teacherTitle, item.sksj, item.location, item.courseProperty);
+export function classMatchesSearch(state, item, query = state.search.query) {
+  return textMatchesSearch(state, query, item.classNo, item.teacherName, item.teacherTitle, item.teacherId, item.sksj, item.location, item.courseProperty);
 }
 
-export function courseMatchesSearch(state, categoryId, course) {
-  if (!textMatchesSearch(state, course.courseName, course.kchId, course.creditText, course.classCount)) {
+export function courseMatchesSearch(state, categoryId, course, query = state.search.query) {
+  if (!textMatchesSearch(state, query, course.courseName, course.kchId, course.creditText, course.classCount)) {
     const classStore = state.courseEntities.classes[categoryId] || {};
     const entity = state.courseEntities.courses[categoryId]?.[course.kchId];
     const classItems = (entity?.classIds || []).map((key) => classStore[key]).filter(Boolean);
-    return classItems.some((item) => classMatchesSearch(state, item));
+    return classItems.some((item) => classMatchesSearch(state, item, query));
   }
   return true;
-}
-
-export function categoryInSearchScope(state, categoryId) {
-  return state.search.scope === "all" || state.search.scope === categoryId;
 }

@@ -129,48 +129,174 @@
   background: var(--vscode-focus-border);
 }
 
-.tree-search {
-  display: flex;
-  min-width: 260px;
-  max-width: min(680px, 100%);
-  flex: 1 1 420px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.course-search-advanced {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 6px;
-  padding: 6px 8px;
+.course-query-panel {
+  flex: 0 0 auto;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--vscode-border-subtle);
   background: var(--vscode-side-bg);
 }
 
-.course-search-advanced label {
-  display: flex;
+.course-query-main {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.course-query-main input,
+.course-query-main select,
+.course-query-main button {
+  min-height: 26px;
+  font-size: 12px;
+}
+
+.course-query-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px;
+}
+
+.query-filter-field,
+.query-filter-button {
+  display: grid;
   min-width: 0;
-  flex-direction: column;
+  min-height: 40px;
+  align-content: center;
   gap: 2px;
+  padding: 4px 7px 5px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  background: var(--vscode-input-bg);
   color: var(--vscode-fg-muted);
   font-size: 11px;
 }
 
-.course-search-advanced input,
-.course-search-advanced select {
-  min-width: 0;
-  min-height: 24px;
+.query-filter-field:hover,
+.query-filter-button:hover {
+  border-color: var(--vscode-fg-subtle);
+  background: var(--vscode-list-hover-bg);
+}
+
+.query-filter-field input,
+.query-filter-field select {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vscode-fg);
   font-size: 12px;
 }
 
-.filter-picker-button {
-  display: block;
-  overflow: hidden;
+.query-filter-field input:focus,
+.query-filter-field select:focus {
+  outline: 0;
+}
+
+.query-filter-field:focus-within,
+.query-filter-button:focus-visible {
+  outline: 1px solid var(--vscode-focus-border);
+  outline-offset: -1px;
+  border-color: var(--vscode-focus-border);
+}
+
+.query-filter-button {
   width: 100%;
-  min-height: 24px;
   text-align: left;
+}
+
+.query-filter-button strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--vscode-fg);
+  font-size: 12px;
+  font-weight: 400;
+  word-break: break-word;
+}
+
+.tree-result-toolbar {
+  min-height: 32px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.query-toggle-button {
+  min-width: 72px;
+}
+
+.tree-result-filter {
+  display: grid;
+  grid-template-columns: minmax(150px, 240px) 24px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.tree-result-filter input {
+  min-height: 24px;
+  border-right: 0;
+  border-radius: 2px 0 0 2px;
+  font-size: 12px;
+}
+
+.tree-result-filter button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 0 2px 2px 0;
+  color: var(--vscode-fg-muted);
+  font-size: 15px;
+}
+
+.tree-result-filter button:disabled {
+  opacity: 0.35;
+}
+
+.filter-picker-button {
+  /* reserved for filter picker button identification */
+}
+
+.multi-select-dropdown {
+  position: relative;
+}
+
+.multi-select-menu {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-side-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.multi-select-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.multi-select-option:hover {
+  background: var(--vscode-list-hover-bg);
+}
+
+.multi-select-option input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.multi-select-option span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -280,30 +406,15 @@
   text-align: center;
 }
 
-#course-search {
+#course-query-keyword {
   min-width: 150px;
-  flex: 1 1 240px;
   min-height: 24px;
   padding: 2px 7px;
   font-size: 12px;
 }
 
-#search-scope {
-  min-width: 118px;
-  max-width: 180px;
-  min-height: 24px;
-  font-size: 12px;
-}
-
-#local-search,
 #remote-search,
-#clear-remote-search {
-  white-space: nowrap;
-}
-
-.search-draft-hint {
-  color: var(--vscode-fg-muted);
-  font-size: 12px;
+#reset-query {
   white-space: nowrap;
 }
 
@@ -564,13 +675,35 @@
 }
 
 @media (max-width: 960px) {
-  .tree-search {
-    flex-basis: 100%;
-    min-width: 0;
-    margin-left: 0;
+  .course-query-main {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  #course-query-keyword {
+    grid-column: 1 / -1;
+  }
+
+  .tree-result-toolbar {
+    align-items: stretch;
   }
 
   .tree-actions {
-    flex-basis: 100%;
+    flex: 1 1 auto;
+  }
+
+  .tree-result-filter {
+    flex: 1 1 220px;
+    grid-template-columns: minmax(0, 1fr) 24px;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .course-query-main {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #course-query-keyword {
+    grid-column: 1 / -1;
   }
 }

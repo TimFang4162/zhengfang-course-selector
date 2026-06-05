@@ -92,7 +92,7 @@ function WorkspaceTabs() {
   const app = useAppContext();
   const academicNodes = () => state.academicStatus?.nodes || [];
   const activeCourseTab = () => app.tree.activeCourseTab();
-  const activeSearchTab = () => activeCourseTab()?.type === "query" && !activeCourseTab()?.system ? activeCourseTab() : null;
+  const activeSearchTab = () => activeCourseTab()?.type === "query" ? activeCourseTab() : null;
 
   function toggleMenu(menu) {
     state.openMenu = state.openMenu === menu ? null : menu;
@@ -105,7 +105,9 @@ function WorkspaceTabs() {
   onMount(() => {
     const closeOutside = (event) => {
       if (event.target.closest?.(".menu-root")) return;
+      if (event.target.closest?.(".multi-select-dropdown")) return;
       closeMenus();
+      state.openDropdown = null;
     };
     document.addEventListener("click", closeOutside);
     onCleanup(() => document.removeEventListener("click", closeOutside));
@@ -117,16 +119,17 @@ function WorkspaceTabs() {
     app.tree.runSearchTab(tab, true).catch(app.showError);
   }
 
+  function applyResultFilter(value) {
+    const tab = activeSearchTab();
+    if (!tab) return;
+    tab.localFilter = value;
+    app.tree.applyLocalSearch();
+  }
+
   function setFilterList(field, value) {
     const tab = activeSearchTab();
     if (!tab) return;
     tab.draftFilters[field] = value.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
-  }
-
-  function setSingleFilter(field, value) {
-    const tab = activeSearchTab();
-    if (!tab) return;
-    tab.draftFilters[field] = value ? [value] : [];
   }
 
   function filterText(field) {
@@ -141,6 +144,13 @@ function WorkspaceTabs() {
     const values = activeSearchTab()?.draftFilters[field] || [];
     if (!values.length) return "全部";
     return values.map(filterLabel).join(", ");
+  }
+
+  function selectedSummary(field) {
+    const values = activeSearchTab()?.draftFilters[field] || [];
+    if (!values.length) return "全部";
+    if (values.length === 1) return filterLabel(values[0]);
+    return `${values.length} 项`;
   }
 
   function openFilterPicker(config) {
@@ -179,6 +189,111 @@ function WorkspaceTabs() {
     };
   }
 
+  function defaultFiltersForTab(tab) {
+    const filters = emptySearchFilters();
+    if (tab?.system) {
+      const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
+      if (majorId) filters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
+    }
+    return filters;
+  }
+
+  function queryConditionCount() {
+    const tab = activeSearchTab();
+    if (!tab?.draftFilters) return 0;
+    let count = tab.query?.trim() ? 1 : 0;
+    for (const [field, value] of Object.entries(tab.draftFilters)) {
+      if (field === "keyword") continue;
+      if (Array.isArray(value) && value.length) count += 1;
+    }
+    return count;
+  }
+
+  function resetQueryConditions() {
+    const tab = activeSearchTab();
+    if (!tab) return;
+    tab.query = "";
+    tab.draftFilters = defaultFiltersForTab(tab);
+    tab.appliedFilters = defaultFiltersForTab(tab);
+    tab.scope = "all";
+    tab.appliedScope = "all";
+    tab.results = {};
+    tab.expandedCategories.clear();
+    tab.expandedCourses.clear();
+    tab.title = tab.system ? "默认查询" : "查询";
+    app.tree.renderTree();
+  }
+
+  function FilterButton(props) {
+    return (
+      <button type="button" class="filter-picker-button query-filter-button" onClick={props.onClick} title={selectedLabels(props.field)}>
+        <span>{props.label}</span>
+        <strong>{selectedSummary(props.field)}</strong>
+      </button>
+    );
+  }
+
+  const dropdownTypeMap = {
+    courseCategoryIds: "courseCategory",
+    courseNatureIds: "courseNature",
+    courseOwnershipIds: "courseOwnership",
+    teachingModeIds: "teachingMode",
+    weekdayIds: "weekday",
+    periodIds: "period",
+  };
+
+  function toggleDropdown(field) {
+    if (state.openDropdown === field) {
+      state.openDropdown = null;
+      return;
+    }
+    state.openDropdown = field;
+    const type = dropdownTypeMap[field];
+    if (type && !state.filterOptions[type]?.loaded) app.tree.loadFilterOptions(type, {}, 1, "").catch(app.showError);
+  }
+
+  function MultiSelectDropdown(props) {
+    const isOpen = () => state.openDropdown === props.field;
+    const options = () => props.staticOptions || state.filterOptions[dropdownTypeMap[props.field]]?.items || [];
+    const selected = () => activeSearchTab()?.draftFilters[props.field] || [];
+
+    function isSelected(item) {
+      return selected().some((s) => filterValue(s) === item.value);
+    }
+
+    function toggleItem(item) {
+      const t = activeSearchTab();
+      if (!t) return;
+      const current = [...selected()];
+      const idx = current.findIndex((s) => filterValue(s) === item.value);
+      if (idx >= 0) current.splice(idx, 1);
+      else current.push({ value: item.value, label: item.displayLabel || item.label });
+      t.draftFilters[props.field] = current;
+      app.tree.renderTree();
+    }
+
+    return (
+      <div class="multi-select-dropdown">
+        <button type="button" class="query-filter-button" onClick={() => toggleDropdown(props.field)}>
+          <span>{props.label}</span>
+          <strong>{selectedSummary(props.field)}</strong>
+        </button>
+        <Show when={isOpen()}>
+          <div class="multi-select-menu">
+            <For each={options()}>
+              {(item) => (
+                <label class="multi-select-option">
+                  <input type="checkbox" checked={isSelected(item)} onChange={() => toggleItem(item)} />
+                  <span>{item.displayLabel || item.label}</span>
+                </label>
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    );
+  }
+
   return (
     <>
       <section id="tab-tree" classList={{ "tab-panel": true, "section-panel": true, active: state.activeTab === "tree" }}>
@@ -193,9 +308,41 @@ function WorkspaceTabs() {
               </span>
             )}
           </For>
-          <button type="button" class="course-tab-new" onClick={app.tree.createSearchTab}>+ 搜索</button>
+          <button type="button" class="course-tab-new" onClick={app.tree.createSearchTab}>+ 新查询</button>
         </div>
-        <div class="toolbar toolbar-tight">
+        <Show when={activeSearchTab()?.queryPanelOpen}>
+          <div class="course-query-panel">
+            <div class="course-query-main">
+              <input
+                id="course-query-keyword"
+                type="search"
+                placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..."
+                value={activeSearchTab()?.query || ""}
+                onInput={(event) => { activeSearchTab().query = event.currentTarget.value; }}
+                onKeyDown={(event) => { if (event.key === "Enter") runRemoteSearch(); }}
+              />
+              <button type="button" id="remote-search" onClick={runRemoteSearch}>查询</button>
+              <button type="button" id="reset-query" onClick={resetQueryConditions}>{activeSearchTab()?.system ? "恢复默认" : "重置条件"}</button>
+            </div>
+            <div class="course-query-grid">
+              <FilterButton label="学院" field="collegeIds" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} />
+              <FilterButton label="专业" field="majorIds" onClick={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })} />
+              <label class="query-filter-field"><span>年级</span><input type="text" value={filterText("gradeIds")} placeholder="全部" onInput={(event) => setFilterList("gradeIds", event.currentTarget.value)} /></label>
+              <FilterButton label="开课学院" field="teachingCollegeIds" onClick={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })} />
+              <MultiSelectDropdown label="课程类别" field="courseCategoryIds" />
+              <MultiSelectDropdown label="课程性质" field="courseNatureIds" />
+              <MultiSelectDropdown label="课程归属" field="courseOwnershipIds" />
+              <MultiSelectDropdown label="教学模式" field="teachingModeIds" />
+              <MultiSelectDropdown label="上课星期" field="weekdayIds" />
+              <MultiSelectDropdown label="上课节次" field="periodIds" />
+              <label class="query-filter-field"><span>教学班</span><input type="text" value={filterText("classNames")} placeholder="全部" onInput={(event) => setFilterList("classNames", event.currentTarget.value)} /></label>
+              <label class="query-filter-field"><span>学分</span><input type="text" value={filterText("credits")} placeholder="全部" onInput={(event) => setFilterList("credits", event.currentTarget.value)} /></label>
+              <MultiSelectDropdown label="是否重修" field="retake" staticOptions={[{ value: "1", label: "是" }, { value: "0", label: "否" }]} />
+              <MultiSelectDropdown label="有无余量" field="hasCapacity" staticOptions={[{ value: "1", label: "有" }, { value: "0", label: "无" }]} />
+            </div>
+          </div>
+        </Show>
+        <div class="toolbar toolbar-tight tree-result-toolbar">
           <div class="tree-actions">
             <div class="menu-root">
               <button type="button" class="menu-button" id="display-menu-button" onClick={(event) => { event.stopPropagation(); toggleMenu("display-menu"); }}>显示</button>
@@ -212,96 +359,22 @@ function WorkspaceTabs() {
                 <button type="button" data-action="export-courses" onClick={() => { app.tree.runFeatureAction("export-courses"); closeMenus(); }}>导出所有课程</button>
               </div>
             </div>
+            <button type="button" class="menu-button query-toggle-button" onClick={() => { activeSearchTab().queryPanelOpen = !activeSearchTab().queryPanelOpen; app.tree.renderTree(); }}>
+              查询({queryConditionCount()})
+            </button>
           </div>
-          <div class="tree-search">
-            <Show when={!activeSearchTab()} fallback={
-              <>
-                <input
-                  id="course-search"
-                  type="search"
-                  placeholder="远程搜索关键词"
-                  value={activeSearchTab()?.query || ""}
-                  onInput={(event) => { activeSearchTab().query = event.currentTarget.value; }}
-                  onKeyDown={(event) => { if (event.key === "Enter") runRemoteSearch(); }}
-                />
-                <select id="search-scope" aria-label="搜索范围" value={activeSearchTab()?.scope || "all"} onChange={(event) => { activeSearchTab().scope = event.currentTarget.value; }}>
-                  <option value="all">全部大类</option>
-                  <For each={state.categories}>
-                    {(category) => <option value={category.id}>{category.name}</option>}
-                  </For>
-                </select>
-                <button type="button" id="remote-search" onClick={runRemoteSearch}>应用搜索</button>
-                <button type="button" id="clear-remote-search" onClick={() => {
-                  const tab = activeSearchTab();
-                  tab.query = "";
-                  tab.draftFilters = emptySearchFilters();
-                  tab.appliedFilters = emptySearchFilters();
-                  tab.appliedScope = tab.scope;
-                  tab.results = {};
-                  tab.expandedCategories.clear();
-                  tab.expandedCourses.clear();
-                  tab.title = "搜索";
-                  app.tree.renderTree();
-                }}>清空结果</button>
-                <span class="search-draft-hint">条件修改后需点击应用搜索</span>
-              </>
-            }>
-              <input
-                id="course-search"
-                type="search"
-                placeholder="搜索课程/教师/教学班"
-                value={state.search.query}
-                onInput={(event) => { state.search.query = event.currentTarget.value; }}
-                onKeyDown={(event) => { if (event.key === "Enter") app.tree.applyLocalSearch(); }}
-              />
-              <select id="search-scope" aria-label="搜索范围" value={state.search.scope} onChange={(event) => { state.search.scope = event.currentTarget.value; app.tree.applyLocalSearch(); }}>
-                <option value="all">全部大类</option>
-                <For each={state.categories}>
-                  {(category) => <option value={category.id}>{category.name}</option>}
-                </For>
-              </select>
-              <button type="button" id="local-search" onClick={app.tree.applyLocalSearch}>本地搜索</button>
-            </Show>
+          <div class="tree-result-filter">
+            <input
+              id="course-result-filter"
+              type="search"
+              placeholder="筛选"
+              value={activeSearchTab()?.localFilter || ""}
+              onInput={(event) => applyResultFilter(event.currentTarget.value)}
+              onKeyDown={(event) => { if (event.key === "Escape") applyResultFilter(""); }}
+            />
+            <button type="button" aria-label="清除筛选" disabled={!activeSearchTab()?.localFilter} onClick={() => applyResultFilter("")}>×</button>
           </div>
         </div>
-        <Show when={activeSearchTab()}>
-          <div class="course-search-advanced">
-            <label>学院<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })}>{selectedLabels("collegeIds")}</button></label>
-            <label>专业<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })}>{selectedLabels("majorIds")}</button></label>
-            <label>开课学院<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })}>{selectedLabels("teachingCollegeIds")}</button></label>
-            <label>年级<input type="text" value={filterText("gradeIds")} placeholder="njdm_id_list" onInput={(event) => setFilterList("gradeIds", event.currentTarget.value)} /></label>
-            <label>课程类别<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseCategory", field: "courseCategoryIds", title: "课程类别" })}>{selectedLabels("courseCategoryIds")}</button></label>
-            <label>课程性质<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseNature", field: "courseNatureIds", title: "课程性质" })}>{selectedLabels("courseNatureIds")}</button></label>
-            <label>课程归属<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseOwnership", field: "courseOwnershipIds", title: "课程归属" })}>{selectedLabels("courseOwnershipIds")}</button></label>
-            <label>教学模式<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "teachingMode", field: "teachingModeIds", title: "教学模式" })}>{selectedLabels("teachingModeIds")}</button></label>
-            <label>星期
-              <button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "weekday", field: "weekdayIds", title: "星期" })}>{selectedLabels("weekdayIds")}</button>
-            </label>
-            <label>节次<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "period", field: "periodIds", title: "节次" })}>{selectedLabels("periodIds")}</button></label>
-            <label>学分<input type="text" value={filterText("credits")} placeholder="xf_list" onInput={(event) => setFilterList("credits", event.currentTarget.value)} /></label>
-            <label>教学班<input type="text" value={filterText("classNames")} placeholder="jxbmc_list" onInput={(event) => setFilterList("classNames", event.currentTarget.value)} /></label>
-            <label>推荐
-              <select value={filterText("recommended")} onChange={(event) => setSingleFilter("recommended", event.currentTarget.value)}>
-                <option value="">全部</option><option value="1">是</option>
-              </select>
-            </label>
-            <label>余量
-              <select value={filterText("hasCapacity")} onChange={(event) => setSingleFilter("hasCapacity", event.currentTarget.value)}>
-                <option value="">全部</option><option value="1">有</option><option value="0">无</option>
-              </select>
-            </label>
-            <label>时间冲突
-              <select value={filterText("timeConflict")} onChange={(event) => setSingleFilter("timeConflict", event.currentTarget.value)}>
-                <option value="">全部</option><option value="1">冲突</option><option value="0">不冲突</option>
-              </select>
-            </label>
-            <label>重修
-              <select value={filterText("retake")} onChange={(event) => setSingleFilter("retake", event.currentTarget.value)}>
-                <option value="">全部</option><option value="1">是</option><option value="0">否</option>
-              </select>
-            </label>
-          </div>
-        </Show>
         <TreeView />
       </section>
 

@@ -54,7 +54,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
   function ensureDefaultTab() {
     let tab = state.courseTabs.find((item) => item.id === "default");
     if (!tab) {
-      tab = queryTabDefaults("default", { title: "默认课程", system: true });
+      tab = queryTabDefaults("default", { title: "默认查询", system: true, queryPanelOpen: false });
       state.courseTabs.unshift(tab);
     }
     if (!tab.draftFilters) tab.draftFilters = defaultSearchFilters("");
@@ -64,8 +64,11 @@ export function createTreeFeature({ state, getApp, helpers }) {
     if (!tab.expandedCourses) tab.expandedCourses = new Set();
     if (!tab.loadingCategories) tab.loadingCategories = new Set();
     if (!tab.loadingCourses) tab.loadingCourses = new Set();
+    if (typeof tab.localFilter !== "string") tab.localFilter = "";
+    if (typeof tab.queryPanelOpen !== "boolean") tab.queryPanelOpen = false;
     tab.type = "query";
     tab.system = true;
+    tab.title = "默认查询";
     return tab;
   }
 
@@ -79,13 +82,15 @@ export function createTreeFeature({ state, getApp, helpers }) {
     return {
       id,
       type: "query",
-      title: "搜索",
+      title: "查询",
       system: false,
       query: state.search.query,
-      scope: state.search.scope,
+      scope: "all",
+      localFilter: "",
+      queryPanelOpen: true,
       draftFilters: cloneSearchFilters(filters),
       appliedFilters: cloneSearchFilters(filters),
-      appliedScope: state.search.scope,
+      appliedScope: "all",
       results: {},
       expandedCategories: new Set(),
       expandedCourses: new Set(),
@@ -198,9 +203,8 @@ export function createTreeFeature({ state, getApp, helpers }) {
   }
 
   function syncSearchScopeOptions() {
-    if (!state.categories.some((category) => category.id === state.search.scope)) state.search.scope = "all";
     for (const tab of state.courseTabs) {
-      if (tab.type === "query" && tab.scope !== "all" && !state.categories.some((category) => category.id === tab.scope)) tab.scope = "all";
+      if (tab.type === "query") tab.scope = "all";
     }
   }
 
@@ -211,7 +215,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
     const major = { value: majorId, label: `专业 ${majorId}` };
     if (!tab.draftFilters.majorIds.length) tab.draftFilters.majorIds = [major];
     if (!tab.appliedFilters.majorIds.length) tab.appliedFilters.majorIds = [major];
-    if (tab.title === "默认课程") tab.title = major.label;
+    tab.title = "默认查询";
   }
 
   function shouldRenderCourse(categoryId, course) {
@@ -227,12 +231,14 @@ export function createTreeFeature({ state, getApp, helpers }) {
 
   function createSearchTab() {
     const current = activeCourseTab();
-    const id = `search-${state.nextCourseTabId++}`;
+    const number = state.nextCourseTabId++;
+    const id = `search-${number}`;
     const tab = queryTabDefaults(id, {
+      title: `查询${number}`,
       draftFilters: cloneSearchFilters(current?.draftFilters || current?.appliedFilters || defaultSearchFilters(state.search.query)),
       appliedFilters: cloneSearchFilters(current?.appliedFilters || defaultSearchFilters(state.search.query)),
-      scope: current?.scope || state.search.scope,
-      appliedScope: current?.appliedScope || state.search.scope,
+      scope: "all",
+      appliedScope: "all",
     });
     state.courseTabs.push(tab);
     state.activeCourseTabId = id;
@@ -255,16 +261,21 @@ export function createTreeFeature({ state, getApp, helpers }) {
   }
 
   function updateSearchTabTitle(tab) {
+    if (tab.system) {
+      tab.title = "默认查询";
+      return;
+    }
     const query = (tab.appliedFilters.keyword || "").trim();
     const firstFilter = Object.values(tab.appliedFilters).flat().find((item) => item && typeof item === "object" && item.label);
-    tab.title = query || firstFilter?.label || (tab.system ? "默认课程" : "搜索");
+    tab.title = query || firstFilter?.label || "查询";
   }
 
   async function runSearchTab(tab = activeCourseTab(), reset = true) {
     if (!tab || tab.type !== "query") return;
     tab.draftFilters.keyword = tab.query;
     tab.appliedFilters = cloneSearchFilters(tab.draftFilters);
-    tab.appliedScope = tab.scope;
+    tab.scope = "all";
+    tab.appliedScope = "all";
     updateSearchTabTitle(tab);
     if (reset) {
       tab.results = {};
@@ -494,8 +505,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
     }
     expanded.add(categoryId);
     if (!tabBucket(categoryId, tab).loaded) {
-      if (tab.system) loadCategoryCourses(categoryId, 1).catch(app.showError);
-      else loadSearchCategoryCourses(tab, categoryId, 1).catch(app.showError);
+      loadSearchCategoryCourses(tab, categoryId, 1).catch(app.showError);
     } else renderTree();
   }
 

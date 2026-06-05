@@ -17,6 +17,7 @@ export const state = createMutable({
   speedRows: [],
   floatingMenu: null,
   openMenu: null,
+  openDropdown: null,
   categories: [],
   courseEntities: {
     categories: {},
@@ -25,7 +26,7 @@ export const state = createMutable({
   },
   filters: { conflict: false, credit: false, completed: false },
   search: { query: "", scope: "all" },
-  courseTabs: [{ id: "default", type: "query", title: "默认课程", system: true, query: "", scope: "all", draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
+  courseTabs: [{ id: "default", type: "query", title: "默认查询", system: true, query: "", scope: "all", localFilter: "", queryPanelOpen: false, draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
   activeCourseTabId: "default",
   nextCourseTabId: 1,
   filterOptions: {},

@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
 import { useAppContext } from "../../app/app-context.jsx";
 import { classConflicts, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
-import { categoryInSearchScope, classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
+import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 
 function TreeRow(props) {
   function activate(event) {
@@ -110,9 +110,9 @@ function ClassRows(props) {
   const classItems = () => app.tree.classBucket(props.category.id, props.course.kchId, activeTreeTab(app));
   const renderClassItems = () => {
     const items = classItems() || [];
-    if (activeTreeTab(app)?.type === "query" && !activeTreeTab(app)?.system) return items;
-    if (!normalizedSearchQuery(state)) return items;
-    return items.filter((item) => classMatchesSearch(state, item) || textMatchesSearch(state, props.course.courseName, props.course.kchId));
+    const query = activeTreeTab(app)?.localFilter || "";
+    if (!normalizedSearchQuery(state, query)) return items;
+    return items.filter((item) => classMatchesSearch(state, item, query) || textMatchesSearch(state, query, props.course.courseName, props.course.kchId));
   };
 
   return (
@@ -170,9 +170,9 @@ function CategoryRows(props) {
   const bucket = () => app.tree.categoryBucket(props.category.id, activeTab());
   const courses = () => bucket()?.courses || [];
   const renderCourses = () => {
-    if (activeTab()?.type === "query" && !activeTab()?.system) return courses();
-    if (!normalizedSearchQuery(state)) return courses();
-    return courses().filter((course) => props.shouldRenderCourse(props.category.id, course));
+    const query = activeTab()?.localFilter || "";
+    if (!normalizedSearchQuery(state, query)) return courses();
+    return courses().filter((course) => props.shouldRenderCourse(props.category.id, course, query));
   };
   const categoryMuted = () => renderCourses().length > 0 && renderCourses().every((course) => courseMuted(props.category.id, course));
   const categoryCountText = () => bucket()?.loaded && !bucket()?.hasMore ? String(renderCourses().length) : "?";
@@ -203,8 +203,7 @@ function CategoryRows(props) {
               <Show when={!hasReactive(app.tree.loadingCategories(activeTab()), props.category.id) && bucket()?.hasMore}>
                 <button type="button" class="tree-more" onClick={() => {
                   const tab = activeTab();
-                  if (tab?.system) app.tree.loadCategoryCourses(props.category.id, bucket().nextPage).catch(app.showError);
-                  else app.tree.loadSearchCategoryCourses(tab, props.category.id, bucket().nextPage).catch(app.showError);
+                  app.tree.loadSearchCategoryCourses(tab, props.category.id, bucket().nextPage).catch(app.showError);
                 }}>加载更多...</button>
               </Show>
             </Show>
@@ -218,13 +217,9 @@ function CategoryRows(props) {
 export function TreeView() {
   const app = useAppContext();
   const shouldRenderCourse = (categoryId, course) => {
-    return courseMatchesSearch(state, categoryId, course);
+    return courseMatchesSearch(state, categoryId, course, activeTreeTab(app)?.localFilter || "");
   };
-  const visibleCategories = () => {
-    const tab = activeTreeTab(app);
-    const scope = tab?.type === "query" ? tab.appliedScope : state.search.scope;
-    return state.categories.filter((category) => categoryInSearchScope({ search: { scope } }, category.id));
-  };
+  const visibleCategories = () => state.categories;
 
   return (
     <div id="course-tree" class="tree-view" data-tree-version={state.treeVersion}>
