@@ -211,6 +211,27 @@ function WorkspaceTabs() {
     return count;
   }
 
+  function normalizedFilterItems(items) {
+    return [...(items || [])]
+      .map((item) => String(filterValue(item)).trim())
+      .filter(Boolean)
+      .sort();
+  }
+
+  function hasPendingQueryChanges() {
+    const tab = activeSearchTab();
+    if (!tab?.draftFilters || !tab?.appliedFilters) return false;
+    if ((tab.query || "").trim() !== (tab.appliedFilters.keyword || "").trim()) return true;
+    for (const field of Object.keys(emptySearchFilters())) {
+      if (field === "keyword") continue;
+      const draft = normalizedFilterItems(tab.draftFilters[field]);
+      const applied = normalizedFilterItems(tab.appliedFilters[field]);
+      if (draft.length !== applied.length) return true;
+      if (draft.some((value, index) => value !== applied[index])) return true;
+    }
+    return false;
+  }
+
   function resetQueryConditions() {
     const tab = activeSearchTab();
     if (!tab) return;
