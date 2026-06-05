@@ -232,6 +232,11 @@ function WorkspaceTabs() {
     return false;
   }
 
+  function treeSelectionText() {
+    const stats = app.tree.selectionStats();
+    return stats.total ? `已选 ${stats.total} 项` : "未选择";
+  }
+
   function resetQueryConditions() {
     const tab = activeSearchTab();
     if (!tab) return;
@@ -385,6 +390,13 @@ function WorkspaceTabs() {
             <button type="button" class="menu-button query-toggle-button" onClick={() => { activeSearchTab().queryPanelOpen = !activeSearchTab().queryPanelOpen; app.tree.saveTabsState(); app.tree.renderTree(); }}>
               查询({queryConditionCount()})
             </button>
+            <button type="button" class="menu-button tree-selection-button" onClick={() => app.grab.openGrabModalFromSelection()}>
+              添加抢课任务
+            </button>
+            <button type="button" class="menu-button tree-selection-button" onClick={() => app.tree.clearTreeSelection()}>
+              清空选择
+            </button>
+            <span class="tree-selection-status">{treeSelectionText()}</span>
           </div>
           <div class="tree-result-filter">
             <input

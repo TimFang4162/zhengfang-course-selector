@@ -8,6 +8,171 @@ export function createTreeFeature({ state, getApp, helpers }) {
   const emptyBucket = { courseIds: [], courses: [], hasMore: false, nextPage: 1, loaded: false };
   const COURSE_TABS_KEY = "jwxt:course-tabs:v1";
 
+  function selectionStateValue(value) {
+    return value === "include" || value === "exclude" ? value : "inherit";
+  }
+
+  function courseSelectionKey(categoryId, kchId) {
+    return `${categoryId}:${kchId}`;
+  }
+
+  function classSelectionKey(categoryId, kchId, classItem) {
+    const classNo = String(classItem?.classNo || classItem?.jxbId || classItem?.doJxbId || "");
+    return `${categoryId}:${kchId}:${classNo}`;
+  }
+
+  function selectionCycle(current) {
+    if (current === "include") return "exclude";
+    if (current === "exclude") return "inherit";
+    return "include";
+  }
+
+  function selectionState(type, categoryId, kchId, classItem) {
+    if (type === "category") return "inherit";
+    if (type === "course") return selectionStateValue(state.treeSelection.courses[courseSelectionKey(categoryId, kchId)]);
+    return selectionStateValue(state.treeSelection.classes[classSelectionKey(categoryId, kchId, classItem)]);
+  }
+
+  function effectiveSelection(type, categoryId, kchId, classItem) {
+    const current = selectionState(type, categoryId, kchId, classItem);
+    if (current === "include") return true;
+    if (current === "exclude") return false;
+    if (type === "category") return false;
+    if (type === "course") return false;
+    return effectiveSelection("course", categoryId, kchId);
+  }
+
+  function selectionVisualState(type, categoryId, kchId, classItem) {
+    const current = selectionState(type, categoryId, kchId, classItem);
+    if (current === "include") return "include";
+    if (current === "exclude") return "exclude";
+    return effectiveSelection(type, categoryId, kchId, classItem) ? "inherited" : "inherit";
+  }
+
+  function setSelectionState(type, categoryId, kchId, classItem, value) {
+    const normalized = selectionStateValue(value);
+    if (type === "category") return;
+    if (type === "course") {
+      const key = courseSelectionKey(categoryId, kchId);
+      if (normalized === "inherit") delete state.treeSelection.courses[key];
+      else state.treeSelection.courses[key] = normalized;
+      return;
+    }
+    const key = classSelectionKey(categoryId, kchId, classItem);
+    if (normalized === "inherit") delete state.treeSelection.classes[key];
+    else state.treeSelection.classes[key] = normalized;
+  }
+
+  function toggleCategorySelection(categoryId) {
+    const courses = tabBucket(categoryId).courses || [];
+    if (!courses.length) {
+      renderTree();
+      return;
+    }
+    const states = courses.map((course) => selectionState("course", categoryId, course.kchId));
+    const allInclude = states.every((state) => state === "include");
+    const allExclude = states.every((state) => state === "exclude");
+    const next = allInclude ? "exclude" : allExclude ? "inherit" : "include";
+    for (const course of courses) setSelectionState("course", categoryId, course.kchId, null, next);
+    renderTree();
+  }
+
+  function toggleCourseSelection(categoryId, kchId) {
+    const next = selectionCycle(selectionState("course", categoryId, kchId));
+    setSelectionState("course", categoryId, kchId, null, next);
+    renderTree();
+  }
+
+  function toggleClassSelection(categoryId, kchId, classItem) {
+    const next = selectionCycle(selectionState("class", categoryId, kchId, classItem));
+    setSelectionState("class", categoryId, kchId, classItem, next);
+    renderTree();
+  }
+
+  function clearTreeSelection() {
+    state.treeSelection.courses = {};
+    state.treeSelection.classes = {};
+    renderTree();
+  }
+
+  function hasExplicitClassSelection(categoryId, kchId) {
+    const prefix = `${categoryId}:${kchId}:`;
+    return Object.keys(state.treeSelection.classes).some((key) => key.startsWith(prefix));
+  }
+
+  function hasExplicitCourseSelection(categoryId) {
+    const coursePrefix = `${categoryId}:`;
+    if (Object.keys(state.treeSelection.courses).some((key) => key.startsWith(coursePrefix))) return true;
+    return Object.keys(state.treeSelection.classes).some((key) => key.startsWith(coursePrefix));
+  }
+
+  function categorySelectionDisplayState(categoryId) {
+    const courses = tabBucket(categoryId).courses || [];
+    if (!courses.length) return hasExplicitCourseSelection(categoryId) ? "partial" : "inherit";
+    const states = courses.map((course) => selectionState("course", categoryId, course.kchId));
+    const allInclude = states.length > 0 && states.every((state) => state === "include");
+    const allExclude = states.length > 0 && states.every((state) => state === "exclude");
+    const anyExplicit = states.some((state) => state !== "inherit") || hasExplicitCourseSelection(categoryId);
+    if (allInclude) return "include";
+    if (allExclude) return "exclude";
+    return anyExplicit ? "partial" : "inherit";
+  }
+
+  function selectionDisplayState(type, categoryId, kchId, classItem) {
+    if (type === "category") return categorySelectionDisplayState(categoryId);
+    const current = selectionState(type, categoryId, kchId, classItem);
+    if (current === "include") return "include";
+    if (current === "exclude") return "exclude";
+    if (type === "course" && hasExplicitClassSelection(categoryId, kchId)) return "partial";
+    return selectionVisualState(type, categoryId, kchId, classItem);
+  }
+
+  function selectionStats() {
+    const categoryCount = 0;
+    const courseCount = Object.keys(state.treeSelection.courses).length;
+    const classCount = Object.keys(state.treeSelection.classes).length;
+    const includeCount = [
+      ...Object.values(state.treeSelection.courses),
+      ...Object.values(state.treeSelection.classes),
+    ].filter((value) => value === "include").length;
+    const excludeCount = [
+      ...Object.values(state.treeSelection.courses),
+      ...Object.values(state.treeSelection.classes),
+    ].filter((value) => value === "exclude").length;
+    return { categoryCount, courseCount, classCount, includeCount, excludeCount, total: categoryCount + courseCount + classCount };
+  }
+
+  function nearestAncestorExplicitState(type, categoryId, kchId) {
+    if (type === "category" || type === "course") return null;
+    const courseState = selectionState("course", categoryId, kchId);
+    if (courseState !== "inherit") return courseState;
+    return null;
+  }
+
+  function buildSelectionRule() {
+    const includes = [];
+    const excludes = [];
+    for (const [key, value] of Object.entries(state.treeSelection.courses)) {
+      const [categoryId, kchId] = key.split(":");
+      const ancestorState = nearestAncestorExplicitState("course", categoryId, kchId);
+      if (value === "include") {
+        if (ancestorState !== "include") includes.push({ type: "course", categoryId, kchId });
+      } else if (value === "exclude" && ancestorState === "include") {
+        excludes.push({ type: "course", categoryId, kchId });
+      }
+    }
+    for (const [key, value] of Object.entries(state.treeSelection.classes)) {
+      const [categoryId, kchId, classNo] = key.split(":");
+      const ancestorState = nearestAncestorExplicitState("class", categoryId, kchId);
+      if (value === "include") {
+        if (ancestorState !== "include") includes.push({ type: "class", categoryId, kchId, classNo });
+      } else if (value === "exclude" && ancestorState === "include") {
+        excludes.push({ type: "class", categoryId, kchId, classNo });
+      }
+    }
+    return { includes, excludes };
+  }
+
   function defaultSearchFilters(keyword = "") {
     return {
       keyword,
@@ -631,5 +796,14 @@ export function createTreeFeature({ state, getApp, helpers }) {
     renderTree,
     toggleCategory,
     toggleCourse,
+    toggleCategorySelection,
+    toggleCourseSelection,
+    toggleClassSelection,
+    selectionState,
+    selectionDisplayState,
+    effectiveSelection,
+    clearTreeSelection,
+    selectionStats,
+    buildSelectionRule,
   };
 }

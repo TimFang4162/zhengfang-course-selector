@@ -37,9 +37,22 @@ export const grabSymbolDocs = {
 };
 
 export function defaultGrabExpression(context) {
-  if (context.type === "category") return `course.categoryId == ${JSON.stringify(String(context.category.id))} and has_capacity and not conflicts`;
-  if (context.type === "course") return `course.categoryId == ${JSON.stringify(String(context.category.id))} and course.id == ${JSON.stringify(context.course.kchId)} and has_capacity and not conflicts`;
-  return `course.categoryId == ${JSON.stringify(String(context.category.id))} and course.id == ${JSON.stringify(context.course.kchId)} and class.no == ${JSON.stringify(context.classItem.classNo)} and has_capacity`;
+  if (context.type === "selection") return buildSelectionGrabExpression(context.selection);
+  throw new Error("抢课表达式只能从课程树选择规则生成");
+}
+
+function renderRuleItem(item) {
+  if (item.type === "course") return `(course.categoryId == ${JSON.stringify(String(item.categoryId))} and course.id == ${JSON.stringify(String(item.kchId))})`;
+  return `(course.categoryId == ${JSON.stringify(String(item.categoryId))} and course.id == ${JSON.stringify(String(item.kchId))} and class.no == ${JSON.stringify(String(item.classNo))})`;
+}
+
+export function buildSelectionGrabExpression(selection) {
+  const includes = selection?.includes || [];
+  const excludes = selection?.excludes || [];
+  const includeExpr = includes.length ? includes.map(renderRuleItem).join(" or ") : "False";
+  const excludeExpr = excludes.length ? excludes.map(renderRuleItem).join(" or ") : "False";
+  if (excludes.length) return `(${includeExpr}) and not (${excludeExpr}) and has_capacity and not conflicts`;
+  return `(${includeExpr}) and has_capacity and not conflicts`;
 }
 
 export function translateGrabExpression(expression) {

@@ -105,7 +105,6 @@ export function createGrabFeature({ state, getApp }) {
         { label: isClassSelected(context.classItem) ? "退选" : "选课", action: () => app.timetable.chooseOrWithdrawClass(context.category.id, context.course, context.classItem).catch(app.showError) },
       );
     }
-    items.push({ label: "添加抢课任务", action: () => openGrabModal(context) });
     openFloatingMenu(anchor, items, 160);
   }
 
@@ -135,6 +134,7 @@ export function createGrabFeature({ state, getApp }) {
   }
 
   function openGrabModal(context) {
+    if (context?.type !== "selection") throw new Error("抢课任务只能从课程树选择列表创建");
     state.grabDraft = context;
     setGrabExpressionValue(defaultGrabExpression(context));
     state.grabPreviewData = null;
@@ -142,6 +142,15 @@ export function createGrabFeature({ state, getApp }) {
     state.grabStatusClass = "grab-status";
     if (state.grabEditor) state.grabEditor.layout();
     refreshGrabPreview().catch(getApp().showError);
+  }
+
+  function openGrabModalFromSelection() {
+    const selection = getApp().tree.buildSelectionRule();
+    if (!selection.includes.length) {
+      window.alert("请先在课程树中至少显式选中一个大类、课程或教学班。");
+      return;
+    }
+    openGrabModal({ type: "selection", selection });
   }
 
   async function refreshGrabPreview() {
@@ -287,6 +296,7 @@ export function createGrabFeature({ state, getApp }) {
     initGrabMonaco,
     openTreeMoreMenu,
     openGrabModal,
+    openGrabModalFromSelection,
     closeGrabModal,
     refreshGrabPreview,
     scheduleGrabPreview,

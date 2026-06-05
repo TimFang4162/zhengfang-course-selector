@@ -214,6 +214,83 @@ class GrabTaskMixin:
             "has_capacity": bool(class_item and capacity > selected),
         }
 
+    def _normalize_selection_rule(self, selection: dict | None):
+        normalized = {"includes": [], "excludes": []}
+        if not isinstance(selection, dict):
+            return normalized
+        for bucket_name in ("includes", "excludes"):
+            for item in selection.get(bucket_name) or []:
+                if not isinstance(item, dict):
+                    continue
+                item_type = str(item.get("type") or "")
+                if item_type not in {"course", "class"}:
+                    continue
+                normalized_item = {
+                    "type": item_type,
+                    "categoryId": str(item.get("categoryId") or ""),
+                }
+                normalized_item["kchId"] = str(item.get("kchId") or "")
+                if item_type == "class":
+                    normalized_item["classNo"] = str(item.get("classNo") or "")
+                normalized[bucket_name].append(normalized_item)
+        return normalized
+
+    def _selection_item_matches(
+        self, item: dict, category: dict, course: dict, class_item: dict | None
+    ):
+        if str(category.get("id") or "") != item.get("categoryId"):
+            return False
+        item_type = item.get("type")
+        if str(course.get("kchId") or "") != item.get("kchId"):
+            return False
+        if item_type == "course":
+            return True
+        return (
+            str(class_item.get("classNo") or "") == item.get("classNo")
+            if class_item
+            else False
+        )
+
+    def _selection_specificity(self, item: dict):
+        item_type = item.get("type")
+        if item_type == "class":
+            return 3
+        if item_type == "course":
+            return 2
+        return 0
+
+    def _selection_decision(
+        self, selection: dict, category: dict, course: dict, class_item: dict | None
+    ):
+        matches = []
+        for bucket_name in ("includes", "excludes"):
+            for item in selection.get(bucket_name) or []:
+                if self._selection_item_matches(item, category, course, class_item):
+                    matches.append(
+                        (self._selection_specificity(item), bucket_name, item)
+                    )
+        if not matches:
+            return None
+        matches.sort(key=lambda entry: entry[0], reverse=True)
+        return matches[0][1]
+
+    def _selection_allows(
+        self, selection: dict, category: dict, course: dict, class_item: dict | None
+    ):
+        return (
+            self._selection_decision(selection, category, course, class_item)
+            == "includes"
+        )
+
+    def _selection_scope(self, selection: dict):
+        course_targets = set()
+        for item in selection.get("includes") or []:
+            category_id = item.get("categoryId")
+            kch_id = item.get("kchId")
+            if category_id and kch_id:
+                course_targets.add((category_id, kch_id))
+        return course_targets
+
     def _grab_scan_node_can_match(self, node, env: dict) -> bool:
         if isinstance(node, ast.BoolOp):
             results = [
@@ -267,19 +344,27 @@ class GrabTaskMixin:
         with self.lock:
             self._require_auth()
             context = payload.get("context") or {}
+            if context.get("type") != "selection":
+                raise ValueError("抢课预览仅支持课程树选择规则")
             expression = str(payload.get("expression") or "True")
             match_limit = int(payload.get("matchLimit") or 200)
             state = self.tree_state()
             conflict_context = self._build_conflict_context(
                 self.fetch_timetable(refresh=False)
             )
+            selection = self._normalize_selection_rule(context.get("selection"))
+            if not selection.get("includes"):
+                raise ValueError("抢课预览至少需要一条课程或教学班包含规则")
             category_ids, course_ids = self._extract_scan_scope(expression)
+            selection_course_targets = self._selection_scope(selection)
+            selection_category_ids = {
+                category_id for category_id, _kch_id in selection_course_targets
+            }
+            if category_ids:
+                category_ids = category_ids & selection_category_ids
+            else:
+                category_ids = selection_category_ids
             if course_ids and not category_ids:
-                if (
-                    context.get("categoryId") not in (None, "")
-                    and str(context.get("kchId") or "") in course_ids
-                ):
-                    category_ids.add(str(context.get("categoryId")))
                 found_course_ids = set()
                 found_category_ids = set()
                 for category in state["items"]:
@@ -289,11 +374,6 @@ class GrabTaskMixin:
                             found_category_ids.add(str(category["id"]))
                 if found_course_ids == course_ids:
                     category_ids.update(found_category_ids)
-            if not category_ids and not course_ids:
-                if context.get("categoryId") not in (None, ""):
-                    category_ids.add(str(context.get("categoryId")))
-                if context.get("kchId"):
-                    course_ids.add(str(context.get("kchId")))
             needs_classes = True
             missing = {"courseLoads": [], "classLoads": []}
             matches = []
@@ -321,14 +401,19 @@ class GrabTaskMixin:
                     str(course["kchId"]): course
                     for course in category.get("courses", [])
                 }
-                if course_ids:
+                category_targets = sorted(
+                    kch_id
+                    for target_category_id, kch_id in selection_course_targets
+                    if target_category_id == category_id
+                )
+                if category_targets:
                     courses = [
                         courses_by_id.get(kch_id)
                         or self._course_summary(int(category_id), kch_id, [])
-                        for kch_id in sorted(course_ids)
+                        for kch_id in category_targets
                     ]
                 else:
-                    courses = category.get("courses", [])
+                    courses = []
                 for course in courses:
                     if course_ids and str(course["kchId"]) not in course_ids:
                         continue
@@ -344,6 +429,10 @@ class GrabTaskMixin:
                         request_count += 1
                         continue
                     for class_item in course.get("classes") or []:
+                        if not self._selection_allows(
+                            selection, category, course, class_item
+                        ):
+                            continue
                         if self._eval_grab_scan_expression(
                             expression, category, course, class_item, conflict_context
                         ):

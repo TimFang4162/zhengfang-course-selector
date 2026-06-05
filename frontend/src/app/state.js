@@ -33,6 +33,10 @@ export const state = createMutable({
   loadingFilterOptions: new Set(),
   filterPicker: null,
   treeVersion: 0,
+  treeSelection: {
+    courses: {},
+    classes: {},
+  },
   sidebarCollapsed: false,
   activities: [],
   grabTasks: {},

@@ -28,9 +28,20 @@ function TreeRow(props) {
 }
 
 function RowChrome(props) {
+  const selectionState = () => props.selectionState || "inherit";
   return (
     <div class="tree-row-grid">
-      <span class={`tree-check${props.checked ? " is-checked" : ""}`}>{props.checked ? "✓" : ""}</span>
+      <button
+        type="button"
+        class={`tree-check is-${selectionState()}`}
+        aria-label={props.checkLabel || "切换选择"}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onToggleCheck?.(event);
+        }}
+      >
+        {selectionState() === "include" ? "✓" : selectionState() === "exclude" ? "-" : selectionState() === "inherited" ? "✓" : selectionState() === "partial" ? "·" : ""}
+      </button>
       {props.children}
       <button
         type="button"
@@ -71,7 +82,12 @@ function CourseSummary(props) {
   ].filter(Boolean);
 
   return (
-    <RowChrome checked={isSelectedCourse(props.course)} onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category: props.category, course: props.course })}>
+    <RowChrome
+      selectionState={app.tree.selectionDisplayState("course", props.category.id, props.course.kchId)}
+      checkLabel={`切换课程 ${props.course.courseName} 的抢课选择`}
+      onToggleCheck={() => app.tree.toggleCourseSelection(props.category.id, props.course.kchId)}
+      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category: props.category, course: props.course })}
+    >
       <div class="tree-table tree-course-table">
         <Cell className="tree-table-main">{props.course.courseName} <For each={reasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
         <Cell className="tree-table-code">{props.course.kchId}</Cell>
@@ -91,7 +107,12 @@ function ClassSummary(props) {
   ].filter(Boolean);
 
   return (
-    <RowChrome checked={isSelectedClass(props.item)} onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category: props.category, course: props.course, classItem: props.item })}>
+    <RowChrome
+      selectionState={app.tree.selectionDisplayState("class", props.category.id, props.course.kchId, props.item)}
+      checkLabel={`切换教学班 ${props.item.classNo} 的抢课选择`}
+      onToggleCheck={() => app.tree.toggleClassSelection(props.category.id, props.course.kchId, props.item)}
+      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category: props.category, course: props.course, classItem: props.item })}
+    >
       <div class="tree-table tree-class-table">
         <Cell className="tree-table-code">{props.item.index}. {props.item.classNo}</Cell>
         <Cell className="tree-table-teacher">{teacher()}</Cell>
@@ -191,7 +212,12 @@ function CategoryRows(props) {
         expanded={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}
         onClick={() => app.tree.toggleCategory(props.category.id)}
       >
-        <RowChrome onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category: props.category })}>
+        <RowChrome
+          selectionState={app.tree.selectionDisplayState("category", props.category.id)}
+          checkLabel={`切换大类 ${props.category.name} 的抢课选择`}
+          onToggleCheck={() => app.tree.toggleCategorySelection(props.category.id)}
+          onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category: props.category })}
+        >
           {props.category.name}{categoryCountText() && ` (${categoryCountText()})`}
         </RowChrome>
       </TreeRow>
