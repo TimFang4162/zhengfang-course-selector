@@ -57,6 +57,11 @@ function hasReactive(set, value) {
   return set.has(value);
 }
 
+function activeTreeTab(app) {
+  state.treeVersion;
+  return app.tree.activeCourseTab();
+}
+
 function CourseSummary(props) {
   const app = useAppContext();
   const reasons = () => [
@@ -102,16 +107,17 @@ function ClassSummary(props) {
 function ClassRows(props) {
   const app = useAppContext();
   const courseKey = () => `${props.category.id}:${props.course.kchId}`;
-  const classItems = () => state.courseClasses[courseKey()];
+  const classItems = () => app.tree.classBucket(props.category.id, props.course.kchId, activeTreeTab(app));
   const renderClassItems = () => {
     const items = classItems() || [];
+    if (activeTreeTab(app)?.type === "query" && !activeTreeTab(app)?.system) return items;
     if (!normalizedSearchQuery(state)) return items;
     return items.filter((item) => classMatchesSearch(state, item) || textMatchesSearch(state, props.course.courseName, props.course.kchId));
   };
 
   return (
     <div class="tree-children">
-      <Show when={!hasReactive(state.loadingCourses, courseKey())} fallback={<div class="tree-placeholder">加载教学班中...</div>}>
+      <Show when={!hasReactive(app.tree.loadingCourses(activeTreeTab(app)), courseKey())} fallback={<div class="tree-placeholder">加载教学班中...</div>}>
         <Show when={classItems()} fallback={<div class="tree-placeholder">展开后加载教学班</div>}>
           <Show when={classItems().length} fallback={<div class="tree-placeholder">无教学班</div>}>
             <Show when={renderClassItems().length} fallback={<div class="tree-placeholder">无匹配教学班</div>}>
@@ -146,12 +152,12 @@ function CourseRows(props) {
         selected={isSelectedCourse(props.course)}
         muted={courseMuted(props.category.id, props.course)}
         expandable
-        expanded={hasReactive(state.expandedCourses, courseKey())}
+        expanded={hasReactive(app.tree.expandedCourses(activeTreeTab(app)), courseKey())}
         onClick={() => app.tree.toggleCourse(props.category.id, props.course.kchId)}
       >
         <CourseSummary category={props.category} course={props.course} />
       </TreeRow>
-      <Show when={hasReactive(state.expandedCourses, courseKey())}>
+      <Show when={hasReactive(app.tree.expandedCourses(activeTreeTab(app)), courseKey())}>
         <ClassRows category={props.category} course={props.course} />
       </Show>
     </>
@@ -160,9 +166,11 @@ function CourseRows(props) {
 
 function CategoryRows(props) {
   const app = useAppContext();
-  const bucket = () => state.categoryCourses[props.category.id];
+  const activeTab = () => activeTreeTab(app);
+  const bucket = () => app.tree.categoryBucket(props.category.id, activeTab());
   const courses = () => bucket()?.courses || [];
   const renderCourses = () => {
+    if (activeTab()?.type === "query" && !activeTab()?.system) return courses();
     if (!normalizedSearchQuery(state)) return courses();
     return courses().filter((course) => props.shouldRenderCourse(props.category.id, course));
   };
@@ -175,25 +183,29 @@ function CategoryRows(props) {
         level={0}
         muted={categoryMuted()}
         expandable
-        expanded={hasReactive(state.expandedCategories, props.category.id)}
+        expanded={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}
         onClick={() => app.tree.toggleCategory(props.category.id)}
       >
         <RowChrome onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category: props.category })}>
           {props.category.name} ({categoryCountText()})
         </RowChrome>
       </TreeRow>
-      <Show when={hasReactive(state.expandedCategories, props.category.id)}>
+      <Show when={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}>
         <div class="tree-children">
-          <Show when={!(!bucket()?.loaded && hasReactive(state.loadingCategories, props.category.id))} fallback={<div class="tree-placeholder">加载课程中...</div>}>
+          <Show when={!(!bucket()?.loaded && hasReactive(app.tree.loadingCategories(activeTab()), props.category.id))} fallback={<div class="tree-placeholder">加载课程中...</div>}>
             <Show when={bucket()?.loaded} fallback={<div class="tree-placeholder">展开后加载课程</div>}>
               <For each={renderCourses()}>
                 {(course) => <CourseRows category={props.category} course={course} />}
               </For>
-              <Show when={hasReactive(state.loadingCategories, props.category.id)}>
+              <Show when={hasReactive(app.tree.loadingCategories(activeTab()), props.category.id)}>
                 <div class="tree-placeholder">加载更多课程中...</div>
               </Show>
-              <Show when={!hasReactive(state.loadingCategories, props.category.id) && bucket()?.hasMore}>
-                <button type="button" class="tree-more" onClick={() => app.tree.loadCategoryCourses(props.category.id, bucket().nextPage).catch(app.showError)}>加载更多...</button>
+              <Show when={!hasReactive(app.tree.loadingCategories(activeTab()), props.category.id) && bucket()?.hasMore}>
+                <button type="button" class="tree-more" onClick={() => {
+                  const tab = activeTab();
+                  if (tab?.system) app.tree.loadCategoryCourses(props.category.id, bucket().nextPage).catch(app.showError);
+                  else app.tree.loadSearchCategoryCourses(tab, props.category.id, bucket().nextPage).catch(app.showError);
+                }}>加载更多...</button>
               </Show>
             </Show>
           </Show>
@@ -204,13 +216,19 @@ function CategoryRows(props) {
 }
 
 export function TreeView() {
+  const app = useAppContext();
   const shouldRenderCourse = (categoryId, course) => {
     return courseMatchesSearch(state, categoryId, course);
+  };
+  const visibleCategories = () => {
+    const tab = activeTreeTab(app);
+    const scope = tab?.type === "query" ? tab.appliedScope : state.search.scope;
+    return state.categories.filter((category) => categoryInSearchScope({ search: { scope } }, category.id));
   };
 
   return (
     <div id="course-tree" class="tree-view" data-tree-version={state.treeVersion}>
-      <For each={state.categories.filter((category) => categoryInSearchScope(state, category.id))}>
+      <For each={visibleCategories()}>
         {(category) => <CategoryRows category={category} shouldRenderCourse={shouldRenderCourse} />}
       </For>
     </div>

@@ -10,6 +10,15 @@ import { GrabModal, GrabTaskModal } from "./features/grab/GrabView.jsx";
 import { FloatingMenu } from "./components/FloatingMenu.jsx";
 import { formatDebugJson } from "./shared/utils.js";
 
+function filterValue(item) {
+  return item && typeof item === "object" ? item.value : item;
+}
+
+function filterLabel(item) {
+  if (item && typeof item === "object") return item.label || item.value;
+  return item;
+}
+
 function LoginOverlay() {
   const app = useAppContext();
 
@@ -82,6 +91,8 @@ function LoginOverlay() {
 function WorkspaceTabs() {
   const app = useAppContext();
   const academicNodes = () => state.academicStatus?.nodes || [];
+  const activeCourseTab = () => app.tree.activeCourseTab();
+  const activeSearchTab = () => activeCourseTab()?.type === "query" && !activeCourseTab()?.system ? activeCourseTab() : null;
 
   function toggleMenu(menu) {
     state.openMenu = state.openMenu === menu ? null : menu;
@@ -101,19 +112,89 @@ function WorkspaceTabs() {
   });
 
   function runRemoteSearch() {
-    app.tree.applyLocalSearch();
-    const categoryIds = state.search.scope === "all" ? state.categories.map((item) => item.id) : [state.search.scope];
-    for (const categoryId of categoryIds) {
-      if (!state.categoryCourses[categoryId]?.loaded) {
-        state.expandedCategories.add(categoryId);
-        app.tree.loadCategoryCourses(categoryId, 1).catch(app.showError);
-      }
-    }
+    const tab = activeSearchTab();
+    if (!tab) return;
+    app.tree.runSearchTab(tab, true).catch(app.showError);
+  }
+
+  function setFilterList(field, value) {
+    const tab = activeSearchTab();
+    if (!tab) return;
+    tab.draftFilters[field] = value.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  function setSingleFilter(field, value) {
+    const tab = activeSearchTab();
+    if (!tab) return;
+    tab.draftFilters[field] = value ? [value] : [];
+  }
+
+  function filterText(field) {
+    return (activeSearchTab()?.draftFilters[field] || []).map(filterValue).join(",");
+  }
+
+  function optionKey(type, parent = {}, query = "") {
+    return `${type}${parent.collegeId ? `:${parent.collegeId}` : ""}${query ? `:${query}` : ""}`;
+  }
+
+  function selectedLabels(field) {
+    const values = activeSearchTab()?.draftFilters[field] || [];
+    if (!values.length) return "全部";
+    return values.map(filterLabel).join(", ");
+  }
+
+  function openFilterPicker(config) {
+    const tab = activeSearchTab();
+    if (!tab) return;
+    const parent = config.type === "major" ? { collegeId: filterText("collegeIds") } : {};
+    state.filterPicker = {
+      ...config,
+      parent,
+      query: "",
+      page: 1,
+      selected: [...(tab.draftFilters[config.field] || [])],
+    };
+    app.tree.loadFilterOptions(config.type, parent, 1, "").catch(app.showError);
+  }
+
+  function emptySearchFilters() {
+    return {
+      keyword: "",
+      collegeIds: [],
+      majorIds: [],
+      teachingCollegeIds: [],
+      gradeIds: [],
+      courseCategoryIds: [],
+      courseNatureIds: [],
+      courseOwnershipIds: [],
+      teachingModeIds: [],
+      weekdayIds: [],
+      periodIds: [],
+      credits: [],
+      classNames: [],
+      recommended: [],
+      hasCapacity: [],
+      timeConflict: [],
+      retake: [],
+    };
   }
 
   return (
     <>
       <section id="tab-tree" classList={{ "tab-panel": true, "section-panel": true, active: state.activeTab === "tree" }}>
+        <div class="course-tab-strip">
+          <For each={state.courseTabs}>
+            {(tab) => (
+              <span classList={{ "course-tab-shell": true, active: state.activeCourseTabId === tab.id }}>
+                <button type="button" class="course-tab" onClick={() => app.tree.activateCourseTab(tab.id)}>{tab.title}</button>
+                <Show when={!tab.system}>
+                  <button type="button" class="course-tab-close" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</button>
+                </Show>
+              </span>
+            )}
+          </For>
+          <button type="button" class="course-tab-new" onClick={app.tree.createSearchTab}>+ 搜索</button>
+        </div>
         <div class="toolbar toolbar-tight">
           <div class="tree-actions">
             <div class="menu-root">
@@ -133,24 +214,94 @@ function WorkspaceTabs() {
             </div>
           </div>
           <div class="tree-search">
-            <input
-              id="course-search"
-              type="search"
-              placeholder="搜索课程/教师/教学班"
-              value={state.search.query}
-              onInput={(event) => { state.search.query = event.currentTarget.value; }}
-              onKeyDown={(event) => { if (event.key === "Enter") app.tree.applyLocalSearch(); }}
-            />
-            <select id="search-scope" aria-label="搜索范围" value={state.search.scope} onChange={(event) => { state.search.scope = event.currentTarget.value; app.tree.applyLocalSearch(); }}>
-              <option value="all">全部大类</option>
-              <For each={state.categories}>
-                {(category) => <option value={category.id}>{category.name}</option>}
-              </For>
-            </select>
-            <button type="button" id="local-search" onClick={app.tree.applyLocalSearch}>本地搜索</button>
-            <button type="button" id="remote-search" onClick={runRemoteSearch}>远程搜索</button>
+            <Show when={!activeSearchTab()} fallback={
+              <>
+                <input
+                  id="course-search"
+                  type="search"
+                  placeholder="远程搜索关键词"
+                  value={activeSearchTab()?.query || ""}
+                  onInput={(event) => { activeSearchTab().query = event.currentTarget.value; }}
+                  onKeyDown={(event) => { if (event.key === "Enter") runRemoteSearch(); }}
+                />
+                <select id="search-scope" aria-label="搜索范围" value={activeSearchTab()?.scope || "all"} onChange={(event) => { activeSearchTab().scope = event.currentTarget.value; }}>
+                  <option value="all">全部大类</option>
+                  <For each={state.categories}>
+                    {(category) => <option value={category.id}>{category.name}</option>}
+                  </For>
+                </select>
+                <button type="button" id="remote-search" onClick={runRemoteSearch}>应用搜索</button>
+                <button type="button" id="clear-remote-search" onClick={() => {
+                  const tab = activeSearchTab();
+                  tab.query = "";
+                  tab.draftFilters = emptySearchFilters();
+                  tab.appliedFilters = emptySearchFilters();
+                  tab.appliedScope = tab.scope;
+                  tab.results = {};
+                  tab.expandedCategories.clear();
+                  tab.expandedCourses.clear();
+                  tab.title = "搜索";
+                  app.tree.renderTree();
+                }}>清空结果</button>
+                <span class="search-draft-hint">条件修改后需点击应用搜索</span>
+              </>
+            }>
+              <input
+                id="course-search"
+                type="search"
+                placeholder="搜索课程/教师/教学班"
+                value={state.search.query}
+                onInput={(event) => { state.search.query = event.currentTarget.value; }}
+                onKeyDown={(event) => { if (event.key === "Enter") app.tree.applyLocalSearch(); }}
+              />
+              <select id="search-scope" aria-label="搜索范围" value={state.search.scope} onChange={(event) => { state.search.scope = event.currentTarget.value; app.tree.applyLocalSearch(); }}>
+                <option value="all">全部大类</option>
+                <For each={state.categories}>
+                  {(category) => <option value={category.id}>{category.name}</option>}
+                </For>
+              </select>
+              <button type="button" id="local-search" onClick={app.tree.applyLocalSearch}>本地搜索</button>
+            </Show>
           </div>
         </div>
+        <Show when={activeSearchTab()}>
+          <div class="course-search-advanced">
+            <label>学院<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })}>{selectedLabels("collegeIds")}</button></label>
+            <label>专业<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })}>{selectedLabels("majorIds")}</button></label>
+            <label>开课学院<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })}>{selectedLabels("teachingCollegeIds")}</button></label>
+            <label>年级<input type="text" value={filterText("gradeIds")} placeholder="njdm_id_list" onInput={(event) => setFilterList("gradeIds", event.currentTarget.value)} /></label>
+            <label>课程类别<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseCategory", field: "courseCategoryIds", title: "课程类别" })}>{selectedLabels("courseCategoryIds")}</button></label>
+            <label>课程性质<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseNature", field: "courseNatureIds", title: "课程性质" })}>{selectedLabels("courseNatureIds")}</button></label>
+            <label>课程归属<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "courseOwnership", field: "courseOwnershipIds", title: "课程归属" })}>{selectedLabels("courseOwnershipIds")}</button></label>
+            <label>教学模式<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "teachingMode", field: "teachingModeIds", title: "教学模式" })}>{selectedLabels("teachingModeIds")}</button></label>
+            <label>星期
+              <button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "weekday", field: "weekdayIds", title: "星期" })}>{selectedLabels("weekdayIds")}</button>
+            </label>
+            <label>节次<button type="button" class="filter-picker-button" onClick={() => openFilterPicker({ type: "period", field: "periodIds", title: "节次" })}>{selectedLabels("periodIds")}</button></label>
+            <label>学分<input type="text" value={filterText("credits")} placeholder="xf_list" onInput={(event) => setFilterList("credits", event.currentTarget.value)} /></label>
+            <label>教学班<input type="text" value={filterText("classNames")} placeholder="jxbmc_list" onInput={(event) => setFilterList("classNames", event.currentTarget.value)} /></label>
+            <label>推荐
+              <select value={filterText("recommended")} onChange={(event) => setSingleFilter("recommended", event.currentTarget.value)}>
+                <option value="">全部</option><option value="1">是</option>
+              </select>
+            </label>
+            <label>余量
+              <select value={filterText("hasCapacity")} onChange={(event) => setSingleFilter("hasCapacity", event.currentTarget.value)}>
+                <option value="">全部</option><option value="1">有</option><option value="0">无</option>
+              </select>
+            </label>
+            <label>时间冲突
+              <select value={filterText("timeConflict")} onChange={(event) => setSingleFilter("timeConflict", event.currentTarget.value)}>
+                <option value="">全部</option><option value="1">冲突</option><option value="0">不冲突</option>
+              </select>
+            </label>
+            <label>重修
+              <select value={filterText("retake")} onChange={(event) => setSingleFilter("retake", event.currentTarget.value)}>
+                <option value="">全部</option><option value="1">是</option><option value="0">否</option>
+              </select>
+            </label>
+          </div>
+        </Show>
         <TreeView />
       </section>
 
@@ -406,9 +557,123 @@ function ModalLayer() {
     if (!entry) return "日志详情";
     return entry.type === "request" ? `${entry.method || "HTTP"} ${entry.path || ""}` : `${app.logs.logTypeText(entry.type)} #${entry.id}`;
   };
+  const pickerKey = () => {
+    const picker = state.filterPicker;
+    if (!picker) return "";
+    return `${picker.type}${picker.parent?.collegeId ? `:${picker.parent.collegeId}` : ""}${picker.query ? `:${picker.query}` : ""}`;
+  };
+  const pickerOptions = () => state.filterOptions[pickerKey()]?.items || [];
+  const pickerHasMore = () => Boolean(state.filterOptions[pickerKey()]?.hasMore);
+  const pickerPage = () => state.filterOptions[pickerKey()]?.page || 1;
+  const pickerIsMajor = () => state.filterPicker?.type === "major";
+  const pickerSelectedItems = () => {
+    const selected = state.filterPicker?.selected || [];
+    return selected.map((item) => {
+      const value = filterValue(item);
+      const option = pickerOptions().find((option) => option.value === value);
+      return { value, label: filterLabel(item) || option?.displayLabel || option?.label || value };
+    });
+  };
+  const pickerOptionSelected = (value) => (state.filterPicker?.selected || []).some((item) => filterValue(item) === value);
+  const togglePickerValue = (value, label) => {
+    const selected = state.filterPicker.selected;
+    const idx = selected.findIndex((item) => filterValue(item) === value);
+    if (idx >= 0) selected.splice(idx, 1);
+    else selected.push({ value, label: label || value });
+  };
+  const applyPicker = () => {
+    const tab = app.tree.activeCourseTab();
+    if (tab?.type === "query" && state.filterPicker) {
+      tab.draftFilters[state.filterPicker.field] = [...state.filterPicker.selected];
+      if (state.filterPicker.field === "collegeIds") tab.draftFilters.majorIds = [];
+    }
+    state.filterPicker = null;
+    app.tree.renderTree();
+  };
 
   return (
     <>
+      <div id="filter-picker-modal" classList={{ modal: true, hidden: !state.filterPicker }}>
+        <div class="modal-card surface filter-picker-card">
+          <div class="modal-header">
+            <div>
+              <div class="eyebrow">Filter Picker</div>
+              <strong>{state.filterPicker?.title || "筛选项"}</strong>
+            </div>
+            <button type="button" onClick={() => { state.filterPicker = null; }}>关闭</button>
+          </div>
+          <div class="modal-content filter-picker-body">
+            <div class="filter-picker-toolbar">
+              <input type="search" placeholder="搜索选项" value={state.filterPicker?.query || ""} onInput={(event) => { state.filterPicker.query = event.currentTarget.value; }} onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                state.filterPicker.page = 1;
+                app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
+              }} />
+              <button type="button" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError)}>搜索</button>
+            </div>
+            <Show when={pickerSelectedItems().length}>
+              <div class="filter-picker-selected">
+                <span class="dim">已选</span>
+                <For each={pickerSelectedItems()}>
+                  {(item) => (
+                    <button type="button" class="filter-chip" onClick={() => togglePickerValue(item.value)} title={`移除 ${item.label}`}>
+                      <span>{item.label}</span>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <div classList={{ "filter-picker-list": true, "filter-picker-table-wrap": pickerIsMajor() }}>
+              <Show when={pickerIsMajor()} fallback={
+                <For each={pickerOptions()}>
+                  {(item) => (
+                    <label class="filter-picker-option">
+                      <input type="checkbox" checked={pickerOptionSelected(item.value)} onChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} />
+                      <span>{item.displayLabel || item.label}</span>
+                      <span class="dim">{item.value}</span>
+                    </label>
+                  )}
+                </For>
+              }>
+                <table class="filter-picker-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>专业代码</th>
+                      <th>专业名称</th>
+                      <th>学院</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <For each={pickerOptions()}>
+                      {(item) => (
+                        <tr onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)} classList={{ selected: pickerOptionSelected(item.value) }}>
+                          <td><input type="checkbox" checked={pickerOptionSelected(item.value)} onClick={(event) => event.stopPropagation()} onChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} /></td>
+                          <td>{item.raw?.zyh || item.value}</td>
+                          <td>{item.raw?.zymc || item.label}</td>
+                          <td>{item.raw?.jgmc || ""}</td>
+                        </tr>
+                      )}
+                    </For>
+                  </tbody>
+                </table>
+              </Show>
+              <Show when={!pickerOptions().length}>
+                <div class="tree-placeholder">无选项，输入关键词后搜索或稍后重试</div>
+              </Show>
+            </div>
+            <Show when={pickerHasMore()}>
+              <button type="button" class="tree-more" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage() + 1, state.filterPicker.query).catch(app.showError)}>加载更多...</button>
+            </Show>
+          </div>
+          <div class="modal-actions">
+            <button type="button" onClick={() => { state.filterPicker.selected = []; }}>清空</button>
+            <button type="button" onClick={applyPicker}>应用</button>
+          </div>
+        </div>
+      </div>
+
       <div id="class-modal" classList={{ modal: true, hidden: !state.modalClass }}>
         <div class="modal-card surface">
           <div class="modal-header">

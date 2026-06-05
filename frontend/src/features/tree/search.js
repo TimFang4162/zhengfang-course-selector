@@ -14,7 +14,9 @@ export function classMatchesSearch(state, item) {
 
 export function courseMatchesSearch(state, categoryId, course) {
   if (!textMatchesSearch(state, course.courseName, course.kchId, course.creditText, course.classCount)) {
-    const classItems = state.courseClasses[`${categoryId}:${course.kchId}`] || [];
+    const classStore = state.courseEntities.classes[categoryId] || {};
+    const entity = state.courseEntities.courses[categoryId]?.[course.kchId];
+    const classItems = (entity?.classIds || []).map((key) => classStore[key]).filter(Boolean);
     return classItems.some((item) => classMatchesSearch(state, item));
   }
   return true;

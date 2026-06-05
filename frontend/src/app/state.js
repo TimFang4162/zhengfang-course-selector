@@ -18,14 +18,19 @@ export const state = createMutable({
   floatingMenu: null,
   openMenu: null,
   categories: [],
-  categoryCourses: {},
-  courseClasses: {},
-  expandedCategories: new Set(),
-  expandedCourses: new Set(),
-  loadingCategories: new Set(),
-  loadingCourses: new Set(),
+  courseEntities: {
+    categories: {},
+    courses: {},
+    classes: {},
+  },
   filters: { conflict: false, credit: false, completed: false },
   search: { query: "", scope: "all" },
+  courseTabs: [{ id: "default", type: "query", title: "默认课程", system: true, query: "", scope: "all", draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
+  activeCourseTabId: "default",
+  nextCourseTabId: 1,
+  filterOptions: {},
+  loadingFilterOptions: new Set(),
+  filterPicker: null,
   treeVersion: 0,
   sidebarCollapsed: false,
   activities: [],
@@ -142,7 +147,9 @@ export function courseMuted(categoryId, course) {
   if (state.filters.completed && courseCompleted(course)) return true;
   if (state.filters.credit && courseExceedsCredit(course)) return true;
   if (!state.filters.conflict) return false;
-  const classItems = state.courseClasses[`${categoryId}:${course.kchId}`];
+  const classStore = state.courseEntities.classes[categoryId] || {};
+  const entity = state.courseEntities.courses[categoryId]?.[course.kchId];
+  const classItems = (entity?.classIds || []).map((key) => classStore[key]).filter(Boolean);
   if (!classItems || !classItems.length) return false;
   return classItems.every((item) => classMuted(course, item));
 }
