@@ -110,50 +110,70 @@ export function GrabModal() {
           </div>
           <button type="button" id="grab-close" onClick={app.grab.closeGrabModal}>关闭</button>
         </div>
-        <div class="grab-editor">
-          <label for="grab-expression">表达式</label>
-          <div id="grab-monaco" class="grab-monaco"></div>
-          <textarea id="grab-expression" classList={{ "monaco-enabled": Boolean(state.grabEditor) }} spellcheck="false" value={state.grabExpression} onInput={(event) => { state.grabExpression = event.currentTarget.value; app.grab.scheduleGrabPreview(); }}></textarea>
-          <div class="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
-          <div class={state.grabStatusClass} id="grab-status">{state.grabStatusText}</div>
-        </div>
-        <div class="grab-preview">
-          <div class="grab-preview-header">预览：将会查询/匹配的项目</div>
-          <GrabPreview />
-        </div>
-        <div class="grab-settings form-card">
-          <div class="form-section-title">任务配置</div>
-          <div class="settings-grid">
-            <div class="field-group span-2">
-              <label for="grab-start-mode">启动时间</label>
-              <div class="inline-fields">
-                <select id="grab-start-mode" value={state.grabStartMode} onChange={(event) => { state.grabStartMode = event.currentTarget.value; }}>
-                  <option value="now">立即开始</option>
-                  <option value="scheduled">指定时间点</option>
-                </select>
-                <input id="grab-start-at" type="datetime-local" disabled={state.grabStartMode !== "scheduled"} value={state.grabStartAt} onInput={(event) => { state.grabStartAt = event.currentTarget.value; }} />
+        <div class="grab-body">
+          <div class="grab-editor">
+            <label for="grab-expression">表达式</label>
+            <div id="grab-monaco" class="grab-monaco"></div>
+            <textarea id="grab-expression" classList={{ "monaco-enabled": Boolean(state.grabEditor) }} spellcheck="false" value={state.grabExpression} onInput={(event) => { state.grabExpression = event.currentTarget.value; app.grab.scheduleGrabPreview(); }}></textarea>
+            <div class="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
+            <div class={state.grabStatusClass} id="grab-status">{state.grabStatusText}</div>
+          </div>
+          <div class="grab-preview">
+            <div class="grab-preview-header">预览：将会查询/匹配的项目</div>
+            <GrabPreview />
+          </div>
+          <div class="grab-settings form-card">
+            <div class="form-section-title">任务配置</div>
+            <div class="grab-settings-form">
+              <div class="grab-form-row">
+                <label class="grab-form-label" for="grab-start-mode">启动时间</label>
+                <div class="grab-form-control">
+                  <select id="grab-start-mode" value={state.grabStartMode} onChange={(event) => { state.grabStartMode = event.currentTarget.value; }}>
+                    <option value="now">立即开始</option>
+                    <option value="manual">手动启动</option>
+                    <option value="scheduled">指定时间点</option>
+                  </select>
+                  <Show when={state.grabStartMode === "scheduled"}>
+                    <input id="grab-start-at" type="datetime-local" value={state.grabStartAt} onInput={(event) => { state.grabStartAt = event.currentTarget.value; }} />
+                  </Show>
+                  <div class="field-help">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
+                </div>
               </div>
-              <div class="field-help">指定时间点按本机时间提交给后端调度。</div>
-            </div>
-            <div class="field-group">
-              <div>停止条件</div>
-              <label class="toggle-row"><input id="grab-stop-success" type="checkbox" checked={state.grabStopSuccess} onChange={(event) => { state.grabStopSuccess = event.currentTarget.checked; }} /> 成功选到课程后停止</label>
-            </div>
-            <div class="field-group">
-              <label for="grab-error-policy">错误处理</label>
-              <select id="grab-error-policy" value={state.grabErrorPolicy} onChange={(event) => { state.grabErrorPolicy = event.currentTarget.value; }}>
-                <option value="retry_once">重试一次请求</option>
-                <option value="skip">跳过</option>
-                <option value="stop">立即停止</option>
-              </select>
-            </div>
-            <div class="field-group">
-              <label for="grab-tick-interval">Tick 间隔</label>
-              <div class="input-with-unit"><input id="grab-tick-interval" type="number" min="1" value={state.grabTickInterval} onInput={(event) => { state.grabTickInterval = Number(event.currentTarget.value || 3); }} /><span>秒</span></div>
-            </div>
-            <div class="field-group">
-              <label for="grab-timeout">超时时间</label>
-              <div class="input-with-unit"><input id="grab-timeout" type="number" min="1" value={state.grabTimeout} onInput={(event) => { state.grabTimeout = Number(event.currentTarget.value || 600); }} /><span>秒</span></div>
+
+              <div class="grab-form-row">
+                <label class="grab-form-label" for="grab-stop-mode">停止条件</label>
+                <div class="grab-form-control">
+                  <select id="grab-stop-mode" value={state.grabStopSuccess ? "success" : "manual"} onChange={(event) => { state.grabStopSuccess = event.currentTarget.value === "success"; }}>
+                    <option value="success">成功选到课程后停止</option>
+                    <option value="manual">持续运行，直到手动停止或超时</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grab-form-row">
+                <label class="grab-form-label" for="grab-error-policy">错误处理</label>
+                <div class="grab-form-control">
+                  <select id="grab-error-policy" value={state.grabErrorPolicy} onChange={(event) => { state.grabErrorPolicy = event.currentTarget.value; }}>
+                    <option value="retry_once">重试一次请求</option>
+                    <option value="skip">跳过</option>
+                    <option value="stop">立即停止</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grab-form-row">
+                <label class="grab-form-label" for="grab-tick-interval">Tick 间隔</label>
+                <div class="grab-form-control">
+                  <div class="input-with-unit"><input id="grab-tick-interval" type="number" min="1" value={state.grabTickInterval} onInput={(event) => { state.grabTickInterval = Number(event.currentTarget.value || 3); }} /><span>秒</span></div>
+                </div>
+              </div>
+
+              <div class="grab-form-row">
+                <label class="grab-form-label" for="grab-timeout">超时时间</label>
+                <div class="grab-form-control">
+                  <div class="input-with-unit"><input id="grab-timeout" type="number" min="1" value={state.grabTimeout} onInput={(event) => { state.grabTimeout = Number(event.currentTarget.value || 600); }} /><span>秒</span></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

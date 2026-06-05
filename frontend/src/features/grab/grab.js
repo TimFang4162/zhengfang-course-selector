@@ -308,6 +308,10 @@ export function createGrabFeature({ state, getApp }) {
     openFloatingMenu(anchor, items);
   }
 
+  function openActivityAddMenu(anchor) {
+    openFloatingMenu(anchor, [{ label: "添加抢课任务", action: () => openManualGrabModal() }], 180);
+  }
+
   function showGrabTaskDetail(task) {
     state.grabTaskDetail = task;
   }
@@ -330,6 +334,7 @@ export function createGrabFeature({ state, getApp }) {
     pollGrabTasks,
     connectEventStream,
     openActivityTaskMenu,
+    openActivityAddMenu,
     showGrabTaskDetail,
     closeGrabTaskDetail,
     grabStatusLabel,

@@ -1,6 +1,14 @@
 .grab-card {
   width: min(820px, calc(100vw - 32px));
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.grab-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .grab-editor {
@@ -129,24 +137,35 @@
   text-transform: uppercase;
 }
 
-.settings-grid {
+.grab-settings-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.field-group {
+.grab-form-row {
   display: grid;
-  gap: 5px;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
-.field-group.span-2 {
-  grid-column: 1 / -1;
-}
-
-.field-group > label:first-child {
+.grab-form-label {
+  min-height: 24px;
+  padding-top: 4px;
   color: var(--vscode-fg-muted);
   font-size: 12px;
+}
+
+.grab-form-control {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.grab-inline-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .field-help {
@@ -173,7 +192,16 @@
 }
 
 @media (max-width: 960px) {
-  .settings-grid {
+  .grab-form-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .grab-form-label {
+    padding-top: 0;
+  }
+
+  .grab-inline-fields {
     grid-template-columns: 1fr;
   }
 }

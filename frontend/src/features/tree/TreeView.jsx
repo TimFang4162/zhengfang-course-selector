@@ -103,7 +103,6 @@ function ClassSummary(props) {
   const teacher = () => props.item.teacherTitle ? `${props.item.teacherName}/${props.item.teacherTitle}` : props.item.teacherName || "未标注教师";
   const hasCapacity = () => classHasCapacity(props.item);
   const timeReasons = () => [
-    isSelectedClass(props.item) ? "已选" : null,
     state.filters.conflict && classConflicts(props.item) && !isSelectedClass(props.item) ? "时间冲突" : null,
   ].filter(Boolean);
 
@@ -115,12 +114,12 @@ function ClassSummary(props) {
       onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category: props.category, course: props.course, classItem: props.item })}
     >
       <div class="tree-table tree-class-table">
-        <Cell className="tree-table-code">{props.item.index}. {props.item.classNo}</Cell>
+        <Cell className="tree-table-code">{props.item.index}. {props.item.classNo}{isSelectedClass(props.item) ? <TreeChip type="selected">已选</TreeChip> : null}</Cell>
         <Cell className="tree-table-teacher">{teacher()}</Cell>
         <Cell className="tree-table-time">{props.item.sksj} <For each={timeReasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
         <Cell className="tree-table-location">{props.item.location}</Cell>
         <Cell className="tree-table-prop">{props.item.courseProperty}</Cell>
-        <Cell className={`tree-table-count${state.filters.highlightCapacity && hasCapacity() ? " is-has-capacity" : ""}`}>{props.item.selectedCount}/{props.item.capacity} {state.filters.highlightCapacity && hasCapacity() ? <TreeChip type="selected">有余量</TreeChip> : null}</Cell>
+        <Cell className={`tree-table-count${state.filters.highlightCapacity && hasCapacity() ? " is-has-capacity" : ""}`}>{props.item.selectedCount}/{props.item.capacity}</Cell>
       </div>
     </RowChrome>
   );

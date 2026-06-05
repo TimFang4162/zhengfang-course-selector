@@ -508,19 +508,28 @@ class GrabTaskMixin:
             self.next_grab_task_id += 1
             now = time.time()
             start_mode = str(payload.get("startMode") or "now")
-            start_at = (
-                self._parse_timestamp(payload.get("startAt"))
-                if start_mode == "scheduled"
-                else now
-            )
-            status = "running" if start_at <= now else "waiting"
+            if start_mode == "scheduled":
+                start_at = self._parse_timestamp(payload.get("startAt"))
+                status = "running" if start_at <= now else "waiting"
+            elif start_mode == "manual":
+                start_at = None
+                status = "waiting"
+            else:
+                start_at = now
+                status = "running"
             task = {
                 "id": task_id,
                 "name": payload.get("name") or "抢课任务",
                 "expression": expression,
                 "context": context,
                 "status": status,
-                "progress": "等待 tick" if status == "running" else "等待启动时间",
+                "progress": (
+                    "等待 tick"
+                    if status == "running"
+                    else "等待手动启动"
+                    if start_mode == "manual"
+                    else "等待启动时间"
+                ),
                 "tickInterval": float(payload.get("tickInterval") or 3),
                 "timeoutSeconds": float(payload.get("timeoutSeconds") or 600),
                 "stopOnFirstSuccess": bool(payload.get("stopOnFirstSuccess", True)),

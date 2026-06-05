@@ -540,10 +540,7 @@ function RightPane() {
         <div class="log-header">
           <span class="log-title">ACTIVITY</span>
           <div class="log-actions">
-            <button type="button" id="activity-add" onClick={(event) => { event.stopPropagation(); toggleMenu("activity-add-menu"); }}>+</button>
-            <div classList={{ "menu-popover": true, hidden: state.openMenu !== "activity-add-menu" }} id="activity-add-menu">
-              <button type="button" onClick={() => { closeMenus(); app.grab.openManualGrabModal(); }}>添加抢课任务</button>
-            </div>
+            <button type="button" id="activity-add" onClick={(event) => { event.stopPropagation(); app.grab.openActivityAddMenu(event.currentTarget); }}>+</button>
           </div>
         </div>
         <div class="activity-panel">
