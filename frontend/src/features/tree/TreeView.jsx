@@ -175,7 +175,12 @@ function CategoryRows(props) {
     return courses().filter((course) => props.shouldRenderCourse(props.category.id, course, query));
   };
   const categoryMuted = () => renderCourses().length > 0 && renderCourses().every((course) => courseMuted(props.category.id, course));
-  const categoryCountText = () => bucket()?.loaded && !bucket()?.hasMore ? String(renderCourses().length) : "?";
+  const categoryCountText = () => {
+    const b = bucket();
+    if (!b?.loaded) return "";
+    const count = renderCourses().length;
+    return b.hasMore ? `${count}+` : String(count);
+  };
 
   return (
     <>
@@ -187,7 +192,7 @@ function CategoryRows(props) {
         onClick={() => app.tree.toggleCategory(props.category.id)}
       >
         <RowChrome onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category: props.category })}>
-          {props.category.name} ({categoryCountText()})
+          {props.category.name}{categoryCountText() && ` (${categoryCountText()})`}
         </RowChrome>
       </TreeRow>
       <Show when={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}>
