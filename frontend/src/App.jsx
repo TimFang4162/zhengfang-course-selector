@@ -234,7 +234,11 @@ function WorkspaceTabs() {
 
   function treeSelectionText() {
     const stats = app.tree.selectionStats();
-    return stats.total ? `已选 ${stats.total} 项` : "未选择";
+    return stats.total ? `规则 ${stats.total} 项` : "未选择";
+  }
+
+  function hasTreeSelection() {
+    return app.tree.selectionStats().total > 0;
   }
 
   function resetQueryConditions() {
@@ -375,7 +379,9 @@ function WorkspaceTabs() {
             <div class="menu-root">
               <button type="button" class="menu-button" id="display-menu-button" onClick={(event) => { event.stopPropagation(); toggleMenu("display-menu"); }}>显示</button>
               <div classList={{ "menu-popover": true, hidden: state.openMenu !== "display-menu" }} id="display-menu">
-                <button type="button" data-action="toggle-conflict" onClick={() => { app.tree.runDisplayAction("toggle-conflict"); closeMenus(); }}>灰色显示冲突教学班:{state.filters.conflict ? "开" : "关"}</button>
+                <button type="button" data-action="toggle-conflict" onClick={() => { app.tree.runDisplayAction("toggle-conflict"); closeMenus(); }}>淡化时间冲突教学班:{state.filters.conflict ? "开" : "关"}</button>
+                <button type="button" data-action="toggle-no-capacity" onClick={() => { app.tree.runDisplayAction("toggle-no-capacity"); closeMenus(); }}>淡化无余量教学班:{state.filters.noCapacity ? "开" : "关"}</button>
+                <button type="button" data-action="toggle-highlight-capacity" onClick={() => { app.tree.runDisplayAction("toggle-highlight-capacity"); closeMenus(); }}>突出有余量教学班:{state.filters.highlightCapacity ? "开" : "关"}</button>
                 <button type="button" data-action="toggle-credit" onClick={() => { app.tree.runDisplayAction("toggle-credit"); closeMenus(); }}>淡化超学分课程:{state.filters.credit ? "开" : "关"}</button>
                 <button type="button" data-action="toggle-completed" onClick={() => { app.tree.runDisplayAction("toggle-completed"); closeMenus(); }}>淡化已修读课程:{state.filters.completed ? "开" : "关"}</button>
               </div>

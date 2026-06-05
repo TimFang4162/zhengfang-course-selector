@@ -230,6 +230,10 @@
   min-width: 88px;
 }
 
+.tree-selection-button:disabled {
+  opacity: 0.45;
+}
+
 .tree-selection-status {
   color: var(--vscode-fg-muted);
   font-size: 12px;
@@ -497,12 +501,13 @@
 
 .tree-check {
   display: inline-flex;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--vscode-fg-subtle);
+  border-radius: 3px;
   background: transparent;
   color: var(--vscode-fg-strong);
   font-size: 10px;
@@ -618,8 +623,12 @@
   color: var(--vscode-fg-muted);
 }
 
-.tree-row.level-2 .tree-table-count {
-  color: var(--vscode-success);
+.tree-table-count.is-has-capacity {
+  color: var(--vscode-fg);
+}
+
+.tree-table-count .tree-chip {
+  margin-left: 6px;
 }
 
 .tree-row.level-1,

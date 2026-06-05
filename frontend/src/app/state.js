@@ -24,7 +24,7 @@ export const state = createMutable({
     courses: {},
     classes: {},
   },
-  filters: { conflict: false, credit: false, completed: false },
+  filters: { conflict: true, credit: false, completed: true, noCapacity: false, highlightCapacity: true },
   search: { query: "", scope: "all" },
   courseTabs: [{ id: "default", type: "query", title: "默认查询", localFilter: "", queryPanelOpen: true, draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
   activeCourseTabId: "default",
@@ -66,6 +66,7 @@ export const state = createMutable({
   courseDetail: null,
   teacherDetail: null,
   grabDraft: null,
+  grabDraftLabel: "",
   grabExpression: "",
   grabStatusText: "",
   grabStatusClass: "grab-status",
@@ -137,11 +138,16 @@ export function classConflicts(item) {
   return (item.slots || []).some((slot) => occupied.has(slot.join("-")));
 }
 
+export function classHasCapacity(item) {
+  return Number(item?.capacity || 0) > Number(item?.selectedCount || 0);
+}
+
 export function classMuted(course, item) {
   if (isSelectedClass(item)) return false;
   if (state.filters.completed && courseCompleted(course)) return true;
   if (state.filters.credit && courseExceedsCredit(course)) return true;
   if (state.filters.conflict && classConflicts(item)) return true;
+  if (state.filters.noCapacity && !classHasCapacity(item)) return true;
   return false;
 }
 

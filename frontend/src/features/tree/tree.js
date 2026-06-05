@@ -582,6 +582,8 @@ export function createTreeFeature({ state, getApp, helpers }) {
   function runDisplayAction(action) {
     if (action === "toggle-conflict") state.filters.conflict = !state.filters.conflict;
     if (action === "toggle-credit") state.filters.credit = !state.filters.credit;
+    if (action === "toggle-no-capacity") state.filters.noCapacity = !state.filters.noCapacity;
+    if (action === "toggle-highlight-capacity") state.filters.highlightCapacity = !state.filters.highlightCapacity;
     if (action === "toggle-completed") {
       if (!state.academicStatus) {
         window.alert("请先加载学业情况，再淡化已修读课程。");
@@ -598,6 +600,15 @@ export function createTreeFeature({ state, getApp, helpers }) {
   function runFeatureAction(action) {
     if (action === "export-courses") exportAllCourses().catch(getApp().showError);
     if (action === "refresh-categories") refreshCategories(true).catch(getApp().showError);
+  }
+
+  async function refreshCategoryCourses(categoryId) {
+    const tab = activeCourseTab();
+    tab.results[categoryId] = { courseIds: [], hasMore: false, nextPage: 1, loaded: false, loadedPages: [] };
+    tab.expandedCourses.forEach((key) => {
+      if (String(key).startsWith(`${categoryId}:`)) tab.expandedCourses.delete(key);
+    });
+    await loadSearchCategoryCourses(tab, categoryId, 1);
   }
 
   function toggleSidebar() {
@@ -793,6 +804,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
     refreshTimetable,
     loadCourseClasses,
     refreshCourseClasses,
+    refreshCategoryCourses,
     renderTree,
     toggleCategory,
     toggleCourse,

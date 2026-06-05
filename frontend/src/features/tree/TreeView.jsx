@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { useAppContext } from "../../app/app-context.jsx";
-import { classConflicts, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
+import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 
 function TreeRow(props) {
@@ -101,6 +101,7 @@ function CourseSummary(props) {
 function ClassSummary(props) {
   const app = useAppContext();
   const teacher = () => props.item.teacherTitle ? `${props.item.teacherName}/${props.item.teacherTitle}` : props.item.teacherName || "未标注教师";
+  const hasCapacity = () => classHasCapacity(props.item);
   const timeReasons = () => [
     isSelectedClass(props.item) ? "已选" : null,
     state.filters.conflict && classConflicts(props.item) && !isSelectedClass(props.item) ? "时间冲突" : null,
@@ -119,7 +120,7 @@ function ClassSummary(props) {
         <Cell className="tree-table-time">{props.item.sksj} <For each={timeReasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
         <Cell className="tree-table-location">{props.item.location}</Cell>
         <Cell className="tree-table-prop">{props.item.courseProperty}</Cell>
-        <Cell className="tree-table-count">{props.item.selectedCount}/{props.item.capacity}</Cell>
+        <Cell className={`tree-table-count${state.filters.highlightCapacity && hasCapacity() ? " is-has-capacity" : ""}`}>{props.item.selectedCount}/{props.item.capacity} {state.filters.highlightCapacity && hasCapacity() ? <TreeChip type="selected">有余量</TreeChip> : null}</Cell>
       </div>
     </RowChrome>
   );
