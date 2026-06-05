@@ -396,10 +396,10 @@ function WorkspaceTabs() {
             <button type="button" class="menu-button query-toggle-button" onClick={() => { activeSearchTab().queryPanelOpen = !activeSearchTab().queryPanelOpen; app.tree.saveTabsState(); app.tree.renderTree(); }}>
               查询({queryConditionCount()})
             </button>
-            <button type="button" class="menu-button tree-selection-button" onClick={() => app.grab.openGrabModalFromSelection()}>
+            <button type="button" class="menu-button tree-selection-button" disabled={!hasTreeSelection()} onClick={() => app.grab.openGrabModalFromSelection()}>
               添加抢课任务
             </button>
-            <button type="button" class="menu-button tree-selection-button" onClick={() => app.tree.clearTreeSelection()}>
+            <button type="button" class="menu-button tree-selection-button" disabled={!hasTreeSelection()} onClick={() => app.tree.clearTreeSelection()}>
               清空选择
             </button>
             <span class="tree-selection-status">{treeSelectionText()}</span>
@@ -539,6 +539,12 @@ function RightPane() {
       <div class="activity-shell">
         <div class="log-header">
           <span class="log-title">ACTIVITY</span>
+          <div class="log-actions">
+            <button type="button" id="activity-add" onClick={(event) => { event.stopPropagation(); toggleMenu("activity-add-menu"); }}>+</button>
+            <div classList={{ "menu-popover": true, hidden: state.openMenu !== "activity-add-menu" }} id="activity-add-menu">
+              <button type="button" onClick={() => { closeMenus(); app.grab.openManualGrabModal(); }}>添加抢课任务</button>
+            </div>
+          </div>
         </div>
         <div class="activity-panel">
           <table class="activity-table">
