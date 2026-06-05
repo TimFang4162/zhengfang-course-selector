@@ -663,6 +663,7 @@ function ModalLayer() {
       if (state.filterPicker.field === "collegeIds") tab.draftFilters.majorIds = [];
     }
     state.filterPicker = null;
+    app.tree.saveTabsState();
     app.tree.renderTree();
   };
 
