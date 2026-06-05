@@ -123,6 +123,7 @@ function WorkspaceTabs() {
     const tab = activeSearchTab();
     if (!tab) return;
     tab.localFilter = value;
+    app.tree.saveTabsState();
     app.tree.applyLocalSearch();
   }
 
@@ -130,6 +131,7 @@ function WorkspaceTabs() {
     const tab = activeSearchTab();
     if (!tab) return;
     tab.draftFilters[field] = value.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
+    app.tree.saveTabsState();
   }
 
   function filterText(field) {
@@ -191,7 +193,7 @@ function WorkspaceTabs() {
 
   function defaultFiltersForTab(tab) {
     const filters = emptySearchFilters();
-    if (tab?.system) {
+    if (tab?.id === "default") {
       const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
       if (majorId) filters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
     }
@@ -220,7 +222,8 @@ function WorkspaceTabs() {
     tab.results = {};
     tab.expandedCategories.clear();
     tab.expandedCourses.clear();
-    tab.title = tab.system ? "默认查询" : "查询";
+    tab.title = tab.id === "default" ? "默认查询" : "查询";
+    app.tree.saveTabsState();
     app.tree.renderTree();
   }
 
@@ -269,6 +272,7 @@ function WorkspaceTabs() {
       if (idx >= 0) current.splice(idx, 1);
       else current.push({ value: item.value, label: item.displayLabel || item.label });
       t.draftFilters[props.field] = current;
+      app.tree.saveTabsState();
       app.tree.renderTree();
     }
 
@@ -302,9 +306,7 @@ function WorkspaceTabs() {
             {(tab) => (
               <span classList={{ "course-tab-shell": true, active: state.activeCourseTabId === tab.id }}>
                 <button type="button" class="course-tab" onClick={() => app.tree.activateCourseTab(tab.id)}>{tab.title}</button>
-                <Show when={!tab.system}>
-                  <button type="button" class="course-tab-close" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</button>
-                </Show>
+                <button type="button" class="course-tab-close" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</button>
               </span>
             )}
           </For>
@@ -318,11 +320,11 @@ function WorkspaceTabs() {
                 type="search"
                 placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..."
                 value={activeSearchTab()?.query || ""}
-                onInput={(event) => { activeSearchTab().query = event.currentTarget.value; }}
+                onInput={(event) => { activeSearchTab().query = event.currentTarget.value; app.tree.saveTabsState(); }}
                 onKeyDown={(event) => { if (event.key === "Enter") runRemoteSearch(); }}
               />
-              <button type="button" id="remote-search" onClick={runRemoteSearch}>查询</button>
-              <button type="button" id="reset-query" onClick={resetQueryConditions}>{activeSearchTab()?.system ? "恢复默认" : "重置条件"}</button>
+              <button type="button" id="remote-search" classList={{ "is-dirty": hasPendingQueryChanges() }} onClick={runRemoteSearch}>查询</button>
+              <button type="button" id="reset-query" onClick={resetQueryConditions}>{activeSearchTab()?.id === "default" ? "恢复默认" : "重置条件"}</button>
             </div>
             <div class="course-query-grid">
               <FilterButton label="学院" field="collegeIds" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} />
@@ -359,7 +361,7 @@ function WorkspaceTabs() {
                 <button type="button" data-action="export-courses" onClick={() => { app.tree.runFeatureAction("export-courses"); closeMenus(); }}>导出所有课程</button>
               </div>
             </div>
-            <button type="button" class="menu-button query-toggle-button" onClick={() => { activeSearchTab().queryPanelOpen = !activeSearchTab().queryPanelOpen; app.tree.renderTree(); }}>
+            <button type="button" class="menu-button query-toggle-button" onClick={() => { activeSearchTab().queryPanelOpen = !activeSearchTab().queryPanelOpen; app.tree.saveTabsState(); app.tree.renderTree(); }}>
               查询({queryConditionCount()})
             </button>
           </div>

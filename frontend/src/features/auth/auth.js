@@ -58,6 +58,7 @@ export function createAuthFeature({ state, getApp }) {
     state.auth.disableSslVerify = Boolean(state.bootstrap.disableSslVerify);
     state.auth.studentNumber = state.bootstrap.savedCredentials?.studentNumber || "";
     app.tree.syncSearchScopeOptions();
+    app.tree.restoreSavedTabs();
     if (state.bootstrap.authenticated) {
       app.tree.applyTreeState(state.bootstrap.tree);
       state.timetable = state.bootstrap.timetable || state.timetable;
@@ -88,6 +89,7 @@ export function createAuthFeature({ state, getApp }) {
       };
       const result = await apiPost("/api/login", payload);
       if (!result.ok) throw new Error(result.message || "登录失败");
+      app.tree.restoreSavedTabs();
       app.tree.applyTreeState(result.tree);
       state.timetable = result.timetable;
       state.bootstrap.baseUrl = baseUrl;

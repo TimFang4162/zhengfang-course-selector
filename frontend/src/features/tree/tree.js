@@ -6,6 +6,7 @@ import { createTreeRenderer } from "./render.js";
 
 export function createTreeFeature({ state, getApp, helpers }) {
   const emptyBucket = { courseIds: [], courses: [], hasMore: false, nextPage: 1, loaded: false };
+  const COURSE_TABS_KEY = "jwxt:course-tabs:v1";
 
   function defaultSearchFilters(keyword = "") {
     return {
@@ -51,23 +52,113 @@ export function createTreeFeature({ state, getApp, helpers }) {
     return normalized;
   }
 
+  function serializeTab(tab) {
+    return {
+      id: tab.id,
+      title: tab.title,
+      query: tab.query || "",
+      localFilter: tab.localFilter || "",
+      queryPanelOpen: Boolean(tab.queryPanelOpen),
+      draftFilters: cloneSearchFilters(tab.draftFilters || defaultSearchFilters("")),
+      appliedFilters: cloneSearchFilters(tab.appliedFilters || tab.draftFilters || defaultSearchFilters("")),
+      appliedScope: tab.appliedScope || "all",
+    };
+  }
+
+  function hydrateTab(raw) {
+    const base = queryTabDefaults(raw?.id || `search-${state.nextCourseTabId++}`, {
+      title: raw?.title || "查询",
+      query: typeof raw?.query === "string" ? raw.query : "",
+      localFilter: typeof raw?.localFilter === "string" ? raw.localFilter : "",
+      queryPanelOpen: typeof raw?.queryPanelOpen === "boolean" ? raw.queryPanelOpen : true,
+      draftFilters: cloneSearchFilters(raw?.draftFilters || defaultSearchFilters("")),
+      appliedFilters: cloneSearchFilters(raw?.appliedFilters || raw?.draftFilters || defaultSearchFilters("")),
+      appliedScope: raw?.appliedScope || "all",
+    });
+    if (base.id === "default") base.title = "默认查询";
+    return base;
+  }
+
+  function saveTabsState() {
+    const payload = {
+      activeCourseTabId: state.activeCourseTabId,
+      nextCourseTabId: state.nextCourseTabId,
+      courseTabs: state.courseTabs.map(serializeTab),
+    };
+    window.localStorage.setItem(COURSE_TABS_KEY, JSON.stringify(payload));
+  }
+
+  function restoreSavedTabs() {
+    const raw = window.localStorage.getItem(COURSE_TABS_KEY);
+    if (!raw) {
+      ensureDefaultTab();
+      return;
+    }
+    try {
+      const payload = JSON.parse(raw);
+      const tabs = Array.isArray(payload?.courseTabs) ? payload.courseTabs.map(hydrateTab) : [];
+      state.courseTabs = tabs.length ? tabs : state.courseTabs;
+      ensureDefaultTab();
+      state.activeCourseTabId = state.courseTabs.some((tab) => tab.id === payload?.activeCourseTabId)
+        ? payload.activeCourseTabId
+        : "default";
+      const numericIds = state.courseTabs
+        .map((tab) => String(tab.id).match(/^search-(\d+)$/)?.[1])
+        .filter(Boolean)
+        .map((value) => Number(value));
+      const inferredNextId = numericIds.length ? Math.max(...numericIds) + 1 : 1;
+      state.nextCourseTabId = Math.max(Number(payload?.nextCourseTabId) || 1, inferredNextId);
+    } catch {
+      ensureDefaultTab();
+    }
+  }
+
   function ensureDefaultTab() {
     let tab = state.courseTabs.find((item) => item.id === "default");
     if (!tab) {
-      tab = queryTabDefaults("default", { title: "默认查询", system: true, queryPanelOpen: false });
+      const filters = defaultSearchFilters("");
+      const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
+      if (majorId) filters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
+      tab = {
+        id: "default",
+        type: "query",
+        title: "默认查询",
+        localFilter: "",
+        queryPanelOpen: true,
+        draftFilters: cloneSearchFilters(filters),
+        appliedFilters: cloneSearchFilters(filters),
+        results: {},
+        expandedCategories: new Set(),
+        expandedCourses: new Set(),
+        loadingCategories: new Set(),
+        loadingCourses: new Set(),
+      };
       state.courseTabs.unshift(tab);
     }
-    if (!tab.draftFilters) tab.draftFilters = defaultSearchFilters("");
-    if (!tab.appliedFilters) tab.appliedFilters = cloneSearchFilters(tab.draftFilters);
     if (!tab.results) tab.results = {};
+    if (!tab.draftFilters) {
+      const filters = defaultSearchFilters("");
+      const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
+      if (majorId) filters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
+      tab.draftFilters = cloneSearchFilters(filters);
+    }
+    if (!tab.appliedFilters) tab.appliedFilters = cloneSearchFilters(tab.draftFilters);
     if (!tab.expandedCategories) tab.expandedCategories = new Set();
     if (!tab.expandedCourses) tab.expandedCourses = new Set();
     if (!tab.loadingCategories) tab.loadingCategories = new Set();
     if (!tab.loadingCourses) tab.loadingCourses = new Set();
     if (typeof tab.localFilter !== "string") tab.localFilter = "";
-    if (typeof tab.queryPanelOpen !== "boolean") tab.queryPanelOpen = false;
+    if (typeof tab.queryPanelOpen !== "boolean") tab.queryPanelOpen = true;
+    if (tab.id === "default") {
+      const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
+      if (majorId && !tab.draftFilters.majorIds.length) {
+        tab.draftFilters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
+      }
+      if (majorId && !tab.appliedFilters.majorIds.length) {
+        tab.appliedFilters.majorIds = [{ value: majorId, label: `专业 ${majorId}` }];
+      }
+    }
     tab.type = "query";
-    tab.system = true;
     tab.title = "默认查询";
     return tab;
   }
@@ -83,7 +174,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
       id,
       type: "query",
       title: "查询",
-      system: false,
       query: state.search.query,
       scope: "all",
       localFilter: "",
@@ -208,16 +298,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
     }
   }
 
-  function syncDefaultTabMajor() {
-    const tab = ensureDefaultTab();
-    const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
-    if (!majorId) return;
-    const major = { value: majorId, label: `专业 ${majorId}` };
-    if (!tab.draftFilters.majorIds.length) tab.draftFilters.majorIds = [major];
-    if (!tab.appliedFilters.majorIds.length) tab.appliedFilters.majorIds = [major];
-    tab.title = "默认查询";
-  }
-
   function shouldRenderCourse(categoryId, course) {
     if (state.filters.credit && helpers.courseExceedsCredit(course)) return false;
     return courseMatchesSearch(state, categoryId, course);
@@ -242,26 +322,30 @@ export function createTreeFeature({ state, getApp, helpers }) {
     });
     state.courseTabs.push(tab);
     state.activeCourseTabId = id;
+    saveTabsState();
     renderTree();
   }
 
   function closeCourseTab(tabId) {
     const tab = state.courseTabs.find((item) => item.id === tabId);
-    if (!tab || tab.system) return;
+    if (!tab) return;
     const index = state.courseTabs.findIndex((item) => item.id === tabId);
     if (index < 0) return;
     state.courseTabs.splice(index, 1);
     if (state.activeCourseTabId === tabId) state.activeCourseTabId = "default";
+    if (!state.courseTabs.length) ensureDefaultTab();
+    saveTabsState();
     renderTree();
   }
 
   function activateCourseTab(tabId) {
     state.activeCourseTabId = tabId;
+    saveTabsState();
     renderTree();
   }
 
   function updateSearchTabTitle(tab) {
-    if (tab.system) {
+    if (tab.id === "default") {
       tab.title = "默认查询";
       return;
     }
@@ -282,6 +366,7 @@ export function createTreeFeature({ state, getApp, helpers }) {
       tab.expandedCategories.clear();
       tab.expandedCourses.clear();
     }
+    saveTabsState();
     renderTree();
   }
 
@@ -367,7 +452,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
     state.categories = data.items;
     for (const category of data.items || []) state.courseEntities.categories[category.id] = category;
     syncSearchScopeOptions();
-    syncDefaultTabMajor();
     if (force) {
       state.courseEntities.courses = {};
       state.courseEntities.classes = {};
@@ -387,7 +471,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
     state.categories = tree.items.map((item) => ({ id: item.id, name: item.name, kklxdm: item.kklxdm, xkkzId: item.xkkzId, grade: item.grade, zyhId: item.zyhId }));
     const defaultTab = ensureDefaultTab();
     syncSearchScopeOptions();
-    syncDefaultTabMajor();
     for (const category of tree.items) {
       state.courseEntities.categories[category.id] = { id: category.id, name: category.name, kklxdm: category.kklxdm, xkkzId: category.xkkzId, grade: category.grade, zyhId: category.zyhId };
       const ids = mergeCourses(category.id, category.courses || [], "tree-state");
@@ -410,27 +493,13 @@ export function createTreeFeature({ state, getApp, helpers }) {
     renderTree();
   }
 
-  async function loadCategoryCourses(categoryId, page = 1) {
-    const tab = activeCourseTab();
-    tab.loadingCategories.add(categoryId);
-    renderTree();
-    const data = await apiGet(`/api/courses?category_id=${categoryId}&page=${page}`);
-    const bucket = tab.results[categoryId] || { courseIds: [], hasMore: false, nextPage: 2, loaded: false, loadedPages: [] };
-    const newIds = mergeCourses(categoryId, data.courses || [], "default");
-    const courseIds = [...bucket.courseIds];
-    for (const id of newIds) if (!courseIds.includes(id)) courseIds.push(id);
-    tab.results[categoryId] = { courseIds, hasMore: data.hasMore, nextPage: data.nextPage, loaded: true, loadedPages: [...new Set([...(bucket.loadedPages || []), page])], count: data.count };
-    tab.loadingCategories.delete(categoryId);
-    renderTree();
-  }
-
   async function fetchAllCategoryCourses(categoryId) {
     const courses = [];
     let page = 1;
     let hasMore = true;
     let nextPage = 1;
     while (hasMore) {
-      const data = await apiGet(`/api/courses?category_id=${categoryId}&page=${page}`);
+      const data = await apiPost("/api/courses/search", { categoryId, page, filters: {} });
       mergeCourses(categoryId, data.courses || [], "export");
       for (const course of data.courses || []) {
         const idx = courses.findIndex((item) => item.kchId === course.kchId);
@@ -553,9 +622,10 @@ export function createTreeFeature({ state, getApp, helpers }) {
     switchTab,
     refreshCategories,
     applyTreeState,
+    saveTabsState,
+    restoreSavedTabs,
     syncTreeState,
     refreshTimetable,
-    loadCategoryCourses,
     loadCourseClasses,
     refreshCourseClasses,
     renderTree,

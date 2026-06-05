@@ -17,8 +17,6 @@ class JWXTWebService(GrabTaskMixin):
         self.next_log_id = 1
         self.big_list_cache = []
         self.course_info_cache = {}
-        self.course_page_state = {}
-        self.default_course_ids = {}
         self.course_search_cache = {}
         self.class_cache = {}
         self.timetable_cache = None
@@ -311,8 +309,6 @@ class JWXTWebService(GrabTaskMixin):
                     self._log_renderable, self._log_debug
                 )
                 self.course_info_cache = {}
-                self.course_page_state = {}
-                self.default_course_ids = {}
                 self.course_search_cache = {}
                 self.class_cache = {}
                 self.timetable_cache = None
@@ -373,7 +369,6 @@ class JWXTWebService(GrabTaskMixin):
         filters: dict | None,
         log_prefix: str,
         page_state: dict | None = None,
-        record_default: bool = False,
     ):
         target = self._get_target(category_id)
         filter_key, normalized_filters = self._filter_key(filters or {})
@@ -391,11 +386,6 @@ class JWXTWebService(GrabTaskMixin):
             merged = self._merge_course_info(category_id, kch_id, course_info_list)
             course_ids.append(kch_id)
             items.append(self._course_result_item(category_id, kch_id, merged))
-        if record_default:
-            default_ids = self.default_course_ids.setdefault(category_id, [])
-            for kch_id in course_ids:
-                if kch_id not in default_ids:
-                    default_ids.append(kch_id)
         if page_state is not None:
             if page not in page_state["loadedPages"]:
                 page_state["loadedPages"].append(page)
@@ -419,16 +409,10 @@ class JWXTWebService(GrabTaskMixin):
         with self.lock:
             self._require_auth()
             target = self._get_target(category_id)
-            page_state = self.course_page_state.setdefault(
-                category_id, {"loadedPages": [], "hasMore": True, "nextPage": 1}
-            )
-            return self._query_courses(
+            return self.search_courses(
                 category_id,
                 page,
                 {"majorIds": [target[4]]} if target[4] else {},
-                "加载默认课程分页",
-                page_state,
-                record_default=True,
             )
 
     def _filter_key(self, filters: dict):
@@ -624,6 +608,24 @@ class JWXTWebService(GrabTaskMixin):
                 ],
             }
 
+    def fetch_course_detail(self, kch_id: str):
+        with self.lock:
+            self._require_auth()
+            self._log_info(f"查询课程详情: {kch_id}")
+            result = core.fetch_course_detail(kch_id, self._log_debug)
+            if result is None:
+                raise ValueError("查询课程详情失败")
+            return {"kchId": kch_id, "detail": result}
+
+    def fetch_teacher_detail(self, jgh_id: str, kch_id: str):
+        with self.lock:
+            self._require_auth()
+            self._log_info(f"查询教师详情: {jgh_id}")
+            result = core.fetch_teacher_detail(jgh_id, kch_id, self._log_debug)
+            if result is None:
+                raise ValueError("查询教师详情失败")
+            return {"jghId": jgh_id, "kchId": kch_id, "detail": result}
+
     def _ensure_course_info(self, category_id: int, kch_id: str):
         course_bucket = self.course_info_cache.setdefault(category_id, {})
         if course_bucket.get(kch_id):
@@ -647,10 +649,15 @@ class JWXTWebService(GrabTaskMixin):
 
     def load_all_courses(self, category_id: int):
         with self.lock:
-            page = self.course_page_state.get(category_id, {}).get("nextPage", 1)
+            target = self._get_target(category_id)
+            default_filter_key, _ = self._filter_key(
+                {"majorIds": [target[4]]} if target[4] else {}
+            )
+            cache_key = (category_id, default_filter_key)
+            page = self.course_search_cache.get(cache_key, {}).get("nextPage", 1)
             if self.course_info_cache.get(
                 category_id
-            ) and not self.course_page_state.get(category_id, {}).get("hasMore", False):
+            ) and not self.course_search_cache.get(cache_key, {}).get("hasMore", False):
                 self._log_debug(f"课程大类已完整加载: category={category_id}")
                 return self.tree_state()
             self._log_info(f"开始加载大类全部课程: category={category_id}")
