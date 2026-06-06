@@ -1,8 +1,10 @@
+import re
 import ssl
 import threading
 import time
 import queue
 import json
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from jwxt import core
@@ -240,6 +242,114 @@ class JWXTWebService(GrabTaskMixin):
             return {
                 "ok": True,
                 "message": "登录成功",
+                "categories": categories,
+                "tree": tree,
+                "timetable": timetable,
+            }
+
+    _COOKIE_SPLIT_RE = re.compile(r"[\n;]+")
+    _COOKIE_HEADER_RE = re.compile(r"(?im)^\s*cookie\s*:\s*")
+
+    def _parse_cookie_text(self, text):
+        text = self._COOKIE_HEADER_RE.sub("", (text or "").strip())
+        pairs = []
+        for part in self._COOKIE_SPLIT_RE.split(text):
+            part = part.strip()
+            if not part or "=" not in part:
+                continue
+            name, _, value = part.partition("=")
+            name = name.strip()
+            value = value.strip().strip('"').strip("'")
+            if name:
+                pairs.append((name, value))
+        return pairs
+
+    def _assign_cookie_paths(self, pairs):
+        """Same-name cookies (e.g. duplicate JSESSIONID set at different paths by
+        the server) get distinct paths so requests sends them all. Browser order
+        is longer-path first; we mirror that: 1st occurrence -> /jwglxt,
+        2nd -> /, anything beyond -> /jwglxt/<n>.
+        """
+        from collections import Counter
+
+        counts = Counter(name for name, _ in pairs)
+        dup_paths = ["/jwglxt", "/"]
+        result = []
+        occurrence = {}
+        for name, value in pairs:
+            if counts[name] == 1:
+                path = "/"
+            else:
+                idx = occurrence.get(name, 0)
+                occurrence[name] = idx + 1
+                path = dup_paths[idx] if idx < len(dup_paths) else f"/jwglxt/{idx + 1}"
+            result.append((name, value, path))
+        return result
+
+    def login_with_cookie(self, payload: dict):
+        with self.lock:
+            base_url = (
+                str(payload.get("baseUrl") or self.mod.base_url).strip().rstrip("/")
+            )
+            cookie_text = str(payload.get("cookies") or "").strip()
+            if not cookie_text:
+                raise ValueError("Cookie 不能为空")
+            if not base_url:
+                raise ValueError("baseUrl 不能为空")
+            pairs = self._parse_cookie_text(cookie_text)
+            if not pairs:
+                raise ValueError("无法解析出有效 cookie")
+            self.disable_ssl_verify = bool(payload.get("disableSslVerify"))
+            self.mod.sess.verify = not self.disable_ssl_verify
+            setattr(self.mod, "base_url", base_url)
+            self.mod.reset_runtime_state()
+            self.mod.sess.cookies.clear()
+            host = urlsplit(base_url).hostname or ""
+            cookie_items = self._assign_cookie_paths(pairs)
+            for name, value, path in cookie_items:
+                self.mod.sess.cookies.set(name, value, domain=host, path=path)
+            self._log_info(
+                f"Cookie 登录: 注入 {len(pairs)} 个 cookie @ {base_url}，尝试验证会话"
+            )
+            try:
+                text = self.mod.http_get(
+                    base_url
+                    + "/jwglxt/xtgl/index_cxYhxxIndex.html?xt=jw&localeKey=zh_CN&gnmkdm=index",
+                    timeout=10,
+                ).text
+            except Exception as exc:
+                self._log_business(f"Cookie 验证失败: {exc}", level="error")
+                return {"ok": False, "message": f"验证请求失败: {exc}"}
+            is_login_page = 'name="yhm"' in text or 'id="yhm"' in text
+            student_number_match = re.search(r'xh_id=([^&"\s]+)', text)
+            student_number = (
+                student_number_match.group(1) if student_number_match else ""
+            )
+            has_auth_marker = bool(student_number) or 'class="media-heading"' in text
+            if is_login_page or not has_auth_marker:
+                setattr(self.mod, "is_authenticated", False)
+                self._log_business("Cookie 登录失败：会话无效或已过期", level="error")
+                return {"ok": False, "message": "Cookie 无效或会话已过期"}
+            setattr(self.mod, "is_authenticated", True)
+            setattr(self.mod, "STUDENT_NUMBER", student_number)
+            if hasattr(self.mod, "PASSWORD"):
+                setattr(self.mod, "PASSWORD", "")
+            label = (
+                self.mod.mask_student_number(student_number)
+                if student_number
+                else "未知账号"
+            )
+            self._log_info(f"Cookie 登录成功：{label}")
+            try:
+                categories = self.fetch_categories(refresh=True)
+            except Exception:
+                categories = {"items": []}
+            timetable = self.fetch_timetable(refresh=True)
+            tree = self.tree_state()
+            return {
+                "ok": True,
+                "message": "Cookie 登录成功",
+                "studentNumber": student_number,
                 "categories": categories,
                 "tree": tree,
                 "timetable": timetable,

@@ -21,6 +21,14 @@ function filterLabel(item) {
 
 function LoginOverlay() {
   const app = useAppContext();
+  const savedAvailable = () => Boolean(state.bootstrap?.savedCredentials?.available);
+  const activeTab = () => {
+    const tab = state.auth.loginTab;
+    if (tab === "saved" && savedAvailable()) return "saved";
+    if (tab === "password") return "password";
+    if (tab === "cookie") return "cookie";
+    return savedAvailable() ? "saved" : "password";
+  };
 
   return (
     <div id="login-overlay" classList={{ overlay: true, hidden: !state.auth.loginVisible }}>
@@ -34,15 +42,21 @@ function LoginOverlay() {
         </div>
         <div class="form-row address-row">
           <label for="base-url">教务地址</label>
-          <div class="address-controls">
-            <select id="base-url" value={state.auth.baseUrl} onChange={(event) => { state.auth.baseUrl = event.currentTarget.value; app.auth.syncCustomAddressInput(); }}>
-              <For each={state.bootstrap?.addressChoices || []}>
-                {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</option>}
-              </For>
-              <option value="__custom__" selected={state.auth.baseUrl === "__custom__"}>自定义地址...</option>
-            </select>
-            <button type="button" id="test-addresses" onClick={() => app.auth.testLoginAddresses().catch(app.showError)}>测速</button>
-          </div>
+          <select id="base-url" value={state.auth.baseUrl} onChange={(event) => {
+            const value = event.currentTarget.value;
+            if (value === "__test__") {
+              event.currentTarget.value = state.auth.baseUrl;
+              app.auth.testLoginAddresses().catch(app.showError);
+              return;
+            }
+            state.auth.baseUrl = value;
+          }}>
+            <For each={state.bootstrap?.addressChoices || []}>
+              {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</option>}
+            </For>
+            <option value="__test__">测速</option>
+            <option value="__custom__" selected={state.auth.baseUrl === "__custom__"}>{state.auth.customBaseUrl || "自定义地址"}</option>
+          </select>
           <input
             id="custom-base-url"
             classList={{ hidden: state.auth.baseUrl !== "__custom__" }}
@@ -56,33 +70,64 @@ function LoginOverlay() {
           <label><input type="checkbox" id="disable-ssl-verify" checked={state.auth.disableSslVerify} onChange={(event) => { state.auth.disableSslVerify = event.currentTarget.checked; app.auth.updateSslVerifySetting().catch(app.showError); }} /> 禁用 SSL 验证</label>
           <span class="dim">应用于登录、选课请求和测速</span>
         </div>
-        <input type="checkbox" id="use-saved" class="hidden" checked={state.auth.useSaved} onChange={(event) => { state.auth.useSaved = event.currentTarget.checked; }} />
-        <Show when={state.bootstrap?.savedCredentials?.available && state.bootstrap.savedCredentials} fallback={<div class="saved-login-panel"><span id="saved-hint" class="dim">无已保存凭据</span></div>} keyed>
-          {(savedCredentials) => (
-          <div id="saved-login-panel" class="saved-login-panel">
-            <span id="saved-hint" class="dim">已保存账号 {savedCredentials.masked}</span>
-            <button type="button" id="saved-login-button" onClick={() => app.auth.doLogin(true).catch(app.showError)}>以 {savedCredentials.masked} 登录</button>
+        <div class="login-tabs">
+          <button type="button" classList={{ "login-tab": true, active: activeTab() === "saved" }} disabled={!savedAvailable()} onClick={() => { state.auth.loginTab = "saved"; }}>一键登录</button>
+          <button type="button" classList={{ "login-tab": true, active: activeTab() === "password" }} onClick={() => { state.auth.loginTab = "password"; }}>账号密码</button>
+          <button type="button" classList={{ "login-tab": true, active: activeTab() === "cookie" }} onClick={() => { state.auth.loginTab = "cookie"; }}>Cookie</button>
+        </div>
+
+        <Show when={activeTab() === "saved"}>
+          <div class="login-tab-panel">
+            <Show when={savedAvailable() && state.bootstrap?.savedCredentials} keyed>
+              {(savedCredentials) => (
+                <div class="saved-login-panel">
+                  <span class="dim">已保存账号 {savedCredentials.masked}</span>
+                  <button type="button" id="saved-login-button" onClick={() => app.auth.doLogin(true).catch(app.showError)}>以 {savedCredentials.masked} 登录</button>
+                </div>
+              )}
+            </Show>
           </div>
-          )}
         </Show>
-        <div class="form-row login-separator">
-          <span>账号密码登录</span>
-        </div>
-        <div class="form-row">
-          <label for="student-number">学号</label>
-          <input id="student-number" type="text" autocomplete="username" value={state.auth.studentNumber} onInput={(event) => { state.auth.studentNumber = event.currentTarget.value; }} />
-        </div>
-        <div class="form-row">
-          <label for="password">密码</label>
-          <input id="password" type="password" autocomplete="current-password" value={state.auth.password} onInput={(event) => { state.auth.password = event.currentTarget.value; }} />
-        </div>
-        <div class="form-row checkbox-row">
-          <label><input type="checkbox" id="save-creds" checked={state.auth.saveCredentials} onChange={(event) => { state.auth.saveCredentials = event.currentTarget.checked; }} /> 保存本次凭据</label>
-        </div>
-        <div class="form-actions">
-          <button type="button" id="login-button" onClick={() => app.auth.doLogin().catch(app.showError)}>账号密码登录</button>
-          <span id="login-status" class="dim">{state.auth.loginStatus}</span>
-        </div>
+
+        <Show when={activeTab() === "password"}>
+          <div class="login-tab-panel">
+            <div class="form-row">
+              <label for="student-number">学号</label>
+              <input id="student-number" type="text" autocomplete="username" value={state.auth.studentNumber} onInput={(event) => { state.auth.studentNumber = event.currentTarget.value; }} />
+            </div>
+            <div class="form-row">
+              <label for="password">密码</label>
+              <input id="password" type="password" autocomplete="current-password" value={state.auth.password} onInput={(event) => { state.auth.password = event.currentTarget.value; }} />
+            </div>
+            <div class="form-row checkbox-row">
+              <label><input type="checkbox" id="save-creds" checked={state.auth.saveCredentials} onChange={(event) => { state.auth.saveCredentials = event.currentTarget.checked; }} /> 保存本次凭据</label>
+            </div>
+            <div class="form-actions">
+              <button type="button" id="login-button" onClick={() => app.auth.doLogin().catch(app.showError)}>账号密码登录</button>
+              <span id="login-status" class="dim">{state.auth.loginStatus}</span>
+            </div>
+          </div>
+        </Show>
+
+        <Show when={activeTab() === "cookie"}>
+          <div class="login-tab-panel">
+            <div class="form-row">
+              <label for="cookie-input">Cookie</label>
+              <textarea
+                id="cookie-input"
+                placeholder={`从浏览器 DevTools → Application → Cookies 复制，或粘贴 document.cookie 的值，或直接粘贴请求头里的 Cookie 行。\n支持格式：name=value; name2=value2，或多行 name=value，或带 Cookie: 前缀。\n同名 cookie（如双 JSESSIONID）会按 path=/jwglxt 和 path=/ 自动拆分注入。`}
+                value={state.auth.cookieInput}
+                onInput={(event) => { state.auth.cookieInput = event.currentTarget.value; }}
+                spellcheck={false}
+              />
+            </div>
+            <div class="cookie-hint dim">提示：教务系统的 JSESSIONID 是必需的；WebVPN 地址还需 wpsvn 系列 cookie。同名 cookie 会自动按 path 区分。Cookie 仅保存在本进程内存中。</div>
+            <div class="form-actions">
+              <button type="button" id="cookie-login-button" onClick={() => app.auth.doLoginWithCookie().catch(app.showError)}>Cookie 登录</button>
+              <span id="login-status" class="dim">{state.auth.loginStatus}</span>
+            </div>
+          </div>
+        </Show>
       </div>
     </div>
   );
@@ -615,7 +660,7 @@ function AppShell() {
             <div class="workspace-controls">
               <select id="workspace-base-url" aria-label="教务地址" value={state.auth.baseUrl} onChange={runAddressAction}>
                 <For each={state.bootstrap?.addressChoices || []}>
-                  {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url}</option>}
+                  {(item) => <option value={item.url} selected={item.url === state.auth.baseUrl}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</option>}
                 </For>
                 <option value="__test__">测速</option>
                 <option value="__custom__" selected={state.auth.baseUrl === "__custom__"}>{state.auth.customBaseUrl || "自定义地址"}</option>

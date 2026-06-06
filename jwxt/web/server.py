@@ -128,6 +128,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/login":
                 self._write_json(SERVICE.login(payload))
                 return
+            if parsed.path == "/api/login/cookie":
+                self._write_json(SERVICE.login_with_cookie(payload))
+                return
             if parsed.path == "/api/addresses/test":
                 self._write_json(SERVICE.test_addresses(payload))
                 return

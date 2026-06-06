@@ -163,6 +163,8 @@ button:disabled {
 }
 
 #login-button,
+#saved-login-button,
+#cookie-login-button,
 #modal-action {
   border-color: var(--vscode-accent);
   background: var(--vscode-accent);
@@ -170,6 +172,8 @@ button:disabled {
 }
 
 #login-button:hover,
+#saved-login-button:hover,
+#cookie-login-button:hover,
 #modal-action:hover {
   border-color: var(--vscode-accent-hover);
   background: var(--vscode-accent-hover);
@@ -271,7 +275,6 @@ label {
   margin-bottom: 12px;
 }
 
-.address-controls,
 .inline-fields,
 .input-with-unit,
 .saved-login-panel {
@@ -280,7 +283,6 @@ label {
   gap: 6px;
 }
 
-.address-controls select,
 .inline-fields select,
 .inline-fields input,
 .input-with-unit input {
@@ -315,11 +317,76 @@ label {
   background: var(--vscode-border);
 }
 
+.login-tabs {
+  display: flex;
+  margin: 4px 0 12px;
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.login-tab {
+  flex: 1;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--vscode-fg-muted);
+  font-size: 13px;
+}
+
+.login-tab:hover:not(:disabled):not(.active) {
+  color: var(--vscode-fg);
+  background: var(--vscode-list-hover-bg);
+}
+
+.login-tab.active {
+  color: var(--vscode-fg-strong);
+  border-bottom-color: var(--vscode-focus-border);
+}
+
+.login-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-tab-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+#cookie-input {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cookie-hint {
+  margin: -4px 0 12px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.checkbox-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox-row input[type="checkbox"] {
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--vscode-accent);
 }
 
 .form-actions,

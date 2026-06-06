@@ -20,7 +20,6 @@ export function createAuthFeature({ state, getApp }) {
     const studentNumber = document.getElementById("student-number");
     const password = document.getElementById("password");
     const saveCredentials = document.getElementById("save-creds");
-    const useSaved = document.getElementById("use-saved");
     const disableSslVerify = document.getElementById("disable-ssl-verify");
 
     if (baseSelect) state.auth.baseUrl = baseSelect.value;
@@ -28,7 +27,6 @@ export function createAuthFeature({ state, getApp }) {
     if (studentNumber) state.auth.studentNumber = studentNumber.value;
     if (password) state.auth.password = password.value;
     if (saveCredentials) state.auth.saveCredentials = saveCredentials.checked;
-    if (useSaved) state.auth.useSaved = useSaved.checked;
     if (disableSslVerify) state.auth.disableSslVerify = disableSslVerify.checked;
   }
 
@@ -81,7 +79,7 @@ export function createAuthFeature({ state, getApp }) {
       const baseUrl = getLoginBaseUrl();
       const payload = {
         baseUrl,
-        useSaved: Boolean(useSavedOverride || state.auth.useSaved),
+        useSaved: Boolean(useSavedOverride),
         studentNumber: state.auth.studentNumber.trim(),
         password: state.auth.password,
         saveCredentials: state.auth.saveCredentials,
@@ -96,6 +94,43 @@ export function createAuthFeature({ state, getApp }) {
       state.bootstrap.savedCredentials.studentNumber = payload.studentNumber;
       state.bootstrap.savedCredentials.masked = payload.studentNumber;
       state.bootstrap.disableSslVerify = state.auth.disableSslVerify;
+      state.auth.loginVisible = false;
+      document.getElementById("login-overlay")?.classList.add("hidden");
+      updateAuthStatus();
+      app.tree.syncSearchScopeOptions();
+      app.tree.setFilterStatus();
+      app.tree.renderTree();
+      app.timetable.renderTimetable();
+      app.timetable.renderTimetableDetailAll();
+      setLoginStatus("");
+    } catch (error) {
+      setLoginStatus(error.message);
+    }
+  }
+
+  async function doLoginWithCookie() {
+    const app = getApp();
+    setLoginStatus("Cookie 登录中...");
+    try {
+      syncLoginFormFromDom();
+      const baseUrl = getLoginBaseUrl();
+      const cookies = state.auth.cookieInput.trim();
+      if (!cookies) throw new Error("请粘贴 Cookie");
+      const result = await apiPost("/api/login/cookie", {
+        baseUrl,
+        cookies,
+        disableSslVerify: state.auth.disableSslVerify,
+      });
+      if (!result.ok) throw new Error(result.message || "Cookie 登录失败");
+      app.tree.restoreSavedTabs();
+      app.tree.applyTreeState(result.tree);
+      state.timetable = result.timetable;
+      state.bootstrap.baseUrl = baseUrl;
+      state.bootstrap.disableSslVerify = state.auth.disableSslVerify;
+      if (result.studentNumber) {
+        state.bootstrap.savedCredentials.studentNumber = result.studentNumber;
+        state.bootstrap.savedCredentials.masked = result.studentNumber;
+      }
       state.auth.loginVisible = false;
       document.getElementById("login-overlay")?.classList.add("hidden");
       updateAuthStatus();
@@ -160,6 +195,7 @@ export function createAuthFeature({ state, getApp }) {
     updateSslVerifySetting,
     loadBootstrap,
     doLogin,
+    doLoginWithCookie,
     testLoginAddresses,
     closeSpeedModal,
     setLoginBaseUrl,
