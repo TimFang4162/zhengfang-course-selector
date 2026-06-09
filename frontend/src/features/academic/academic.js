@@ -47,6 +47,17 @@ export function createAcademicFeature({ state }) {
     }
   }
 
+  function collectLeafCourses(nodes) {
+    const map = {};
+    (function walk(list) {
+      for (const n of list) {
+        if (n.courses && n.courses.length) map[n.id] = n.courses;
+        if (n.children) walk(n.children);
+      }
+    })(nodes || []);
+    return map;
+  }
+
   async function refreshAcademicStatus(force = false, full = false) {
     state.academicLoading = true;
     state.academicNodeCourses = {};
@@ -55,6 +66,7 @@ export function createAcademicFeature({ state }) {
       const q = force ? "?refresh=1" : "";
       const treeOnly = full ? "&tree_only=0" : "";
       state.academicStatus = await apiGet(`/api/academic-status${q}${treeOnly}`);
+      state.academicNodeCourses = collectLeafCourses(state.academicStatus?.nodes);
       syncAcademicFilterOptions();
     } finally {
       state.academicLoading = false;
@@ -62,12 +74,13 @@ export function createAcademicFeature({ state }) {
     renderAcademicStatus();
   }
 
-  async function loadAcademicNodeCourses(nodeId) {
-    if (state.academicNodeCourses[nodeId]?.__loading) return;
+  async function loadAcademicNodeCourses(nodeId, force = false) {
+    if (!force && state.academicNodeCourses[nodeId]?.__loading) return;
     state.academicNodeCourses[nodeId] = { __loading: true };
     renderAcademicStatus();
     try {
-      const courses = await apiGet(`/api/academic-node-courses?node_id=${encodeURIComponent(nodeId)}`);
+      const refresh = force ? "&refresh=1" : "";
+      const courses = await apiGet(`/api/academic-node-courses?node_id=${encodeURIComponent(nodeId)}${refresh}`);
       state.academicNodeCourses[nodeId] = courses;
     } catch {
       state.academicNodeCourses[nodeId] = { __error: true };
@@ -123,10 +136,17 @@ export function createAcademicFeature({ state }) {
     state.academicCourseDetail = null;
   }
 
+  async function reloadAcademicNodeCourses(nodeId) {
+    delete state.academicNodeCourses[nodeId];
+    renderAcademicStatus();
+    await loadAcademicNodeCourses(nodeId, true);
+  }
+
   return {
     renderAcademicStatus,
     refreshAcademicStatus,
     loadAcademicNodeCourses,
+    reloadAcademicNodeCourses,
     showAcademicRawPage,
     showAcademicDetailJson,
     exportAcademicDataJson,

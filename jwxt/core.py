@@ -1273,6 +1273,8 @@ def parse_academic_page(text: str) -> dict:
 
 
 def normalize_academic_course(item: dict) -> dict:
+    if not isinstance(item, dict):
+        return {}
     credit_text = format_credit_text(item.get("XF"))
     try:
         credit_value = float(credit_text) if credit_text else None
@@ -1350,9 +1352,9 @@ def fetch_academic_node_courses(
             data=payload,
             timeout=REQ_TIMEOUT["academic_detail"],
         ).json()
+        return [normalize_academic_course(item) for item in courses or []]
     except Exception:
-        courses = []
-    return [normalize_academic_course(item) for item in courses or []]
+        return []
 
 
 def fetch_academic_status(tree_only=False, log_func=None, debug_func=None):
@@ -1381,20 +1383,20 @@ def fetch_academic_status(tree_only=False, log_func=None, debug_func=None):
                         data=payload,
                         timeout=REQ_TIMEOUT["academic_detail"],
                     ).json()
+                    node["courses"] = [
+                        normalize_academic_course(item) for item in courses or []
+                    ]
+                    parsed["rawDetailJson"].append(
+                        {
+                            "nodeId": node["id"],
+                            "nodeName": node["name"],
+                            "endpoint": endpoint,
+                            "payload": payload,
+                            "response": courses or [],
+                        }
+                    )
                 except Exception:
-                    courses = []
-                node["courses"] = [
-                    normalize_academic_course(item) for item in courses or []
-                ]
-                parsed["rawDetailJson"].append(
-                    {
-                        "nodeId": node["id"],
-                        "nodeName": node["name"],
-                        "endpoint": endpoint,
-                        "payload": payload,
-                        "response": courses or [],
-                    }
-                )
+                    node["courses"] = []
         parsed.pop("flatNodes", None)
         return parsed
     except Exception as exc:

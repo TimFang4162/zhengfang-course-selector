@@ -495,6 +495,7 @@ function WorkspaceTabs() {
             <button type="button" className="menu-button" id="academic-more-button" onClick={(e) => { e.stopPropagation(); toggleMenu("academic-more-menu"); }}>功能</button>
             <div className={cx("menu-popover", { hidden: snap.openMenu !== "academic-more-menu" })} id="academic-more-menu">
               <button type="button" id="academic-refresh" onClick={() => { closeMenus(); app.academic.refreshAcademicStatus(true).catch(app.showError); }}>刷新学业情况</button>
+              <button type="button" id="academic-load-all" onClick={() => { closeMenus(); app.academic.refreshAcademicStatus(true, true).catch(app.showError); }}>递归加载全部课程</button>
               <button type="button" id="academic-show-raw" onClick={() => { closeMenus(); app.academic.showAcademicRawPage(); }}>查看教务原始网页</button>
               <button type="button" id="academic-show-detail-json" onClick={() => { closeMenus(); app.academic.showAcademicDetailJson(); }}>查看学业明细原始 JSON</button>
               <button type="button" id="academic-export-json" onClick={() => { closeMenus(); app.academic.exportAcademicDataJson(); }}>导出当前学业数据 JSON</button>

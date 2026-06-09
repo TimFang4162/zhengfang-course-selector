@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSnapshot } from "valtio";
 import { state } from "../../app/state.js";
 import { useAppContext } from "../../app/app-context.jsx";
+import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 import { cx } from "../../shared/utils.js";
 
@@ -114,6 +115,14 @@ function AcademicNode({ node, level }) {
     app.academic.loadAcademicNodeCourses(node.id);
   }
 
+  function openNodeMenu(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    openFloatingMenu(e.currentTarget, [
+      { label: "刷新此节点", action: () => app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError) },
+    ]);
+  }
+
   return (
     <details className={`academic-node level-${level}`} open={isOpen} onToggle={handleToggle}>
       <summary>
@@ -129,6 +138,7 @@ function AcademicNode({ node, level }) {
         <span className="academic-node-count">
           {children.length ? `${children.length} 子项` : (nodeLoading ? "加载中..." : nodeError ? "加载失败" : `${passedCount}/${courses.length || "-"} 课程`)}
         </span>
+        <button type="button" className="academic-node-more" onClick={openNodeMenu}>⋯</button>
       </summary>
       <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
       <div className="academic-children">
@@ -172,7 +182,7 @@ export function AcademicStatusView() {
       </div>
       <div className="academic-tree">
         <div className="academic-tree-head">
-          <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span>
+          <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span><span></span>
         </div>
         {visibleNodes.length ? (
           visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)

@@ -102,6 +102,7 @@ export function createAuthFeature({ state, getApp }) {
       app.tree.renderTree();
       app.timetable.renderTimetable();
       app.timetable.renderTimetableDetailAll();
+      app.academic.refreshAcademicStatus().catch(() => {});
       setLoginStatus("");
     } catch (error) {
       setLoginStatus(error.message);
@@ -139,6 +140,7 @@ export function createAuthFeature({ state, getApp }) {
       app.tree.renderTree();
       app.timetable.renderTimetable();
       app.timetable.renderTimetableDetailAll();
+      app.academic.refreshAcademicStatus().catch(() => {});
       setLoginStatus("");
     } catch (error) {
       setLoginStatus(error.message);

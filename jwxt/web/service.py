@@ -23,6 +23,7 @@ class JWXTWebService(GrabTaskMixin):
         self.class_cache = {}
         self.timetable_cache = None
         self.academic_status_cache = None
+        self.academic_node_courses_cache = {}
         self.grab_tasks = {}
         self.next_grab_task_id = 1
         self.scheduler_started = False
@@ -436,7 +437,9 @@ class JWXTWebService(GrabTaskMixin):
                 self.course_search_cache = {}
                 self.class_cache = {}
                 self.timetable_cache = None
-                self.academic_status_cache = None
+                if refresh:
+                    self.academic_status_cache = None
+                    self.academic_node_courses_cache = {}
                 self._log_info(f"课程大类列表已加载: {len(self.big_list_cache)} 个")
             return {
                 "items": [
@@ -885,6 +888,7 @@ class JWXTWebService(GrabTaskMixin):
                 self._log_debug(
                     "学业情况缓存刷新" if refresh else "学业情况缓存未命中，开始拉取"
                 )
+                self.academic_node_courses_cache = {}
                 data = self.mod.fetch_academic_status(
                     tree_only=tree_only,
                     log_func=self._log_renderable,
@@ -903,12 +907,16 @@ class JWXTWebService(GrabTaskMixin):
                 "cacheStatus": cache_status,
             }
 
-    def fetch_academic_node_courses(self, node_id: str):
+    def fetch_academic_node_courses(self, node_id: str, refresh: bool = False):
         with self.lock:
             self._require_auth()
             cached = self.academic_status_cache
             if cached is None:
                 raise ValueError("请先加载学业情况")
+
+            if not refresh and node_id in self.academic_node_courses_cache:
+                return self.academic_node_courses_cache[node_id]
+
             params = cached.get("params", {})
             nodes = cached.get("nodes", [])
             flat = []
@@ -925,6 +933,7 @@ class JWXTWebService(GrabTaskMixin):
             courses = self.mod.fetch_academic_node_courses(
                 node_id, node.get("courseSource", ""), params, self._log_debug
             )
+            self.academic_node_courses_cache[node_id] = courses
             return courses
 
     def choose_class(self, payload: dict):
