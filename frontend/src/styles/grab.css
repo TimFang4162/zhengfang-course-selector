@@ -5,12 +5,6 @@
   flex-direction: column;
 }
 
-.grab-body {
-  min-height: 0;
-  overflow: auto;
-  padding-right: 2px;
-}
-
 .grab-editor {
   display: grid;
   gap: 6px;
@@ -105,12 +99,6 @@
   background: var(--vscode-list-hover-bg);
 }
 
-.grab-load-missing {
-  margin: 6px 8px;
-  min-height: 24px;
-  font-size: 12px;
-}
-
 .grab-preview-tree-row span:last-child {
   min-width: 0;
   overflow: hidden;
@@ -162,22 +150,9 @@
   min-width: 0;
 }
 
-.grab-inline-fields {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-}
-
 .field-help {
   color: var(--vscode-fg-muted);
   font-size: 12px;
-}
-
-.toggle-row {
-  display: flex;
-  min-height: 26px;
-  align-items: center;
-  gap: 6px;
 }
 
 .input-with-unit span {

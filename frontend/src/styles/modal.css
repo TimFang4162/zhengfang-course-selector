@@ -1,32 +1,9 @@
-.modal-card {
-  display: flex;
-  max-height: calc(100vh - 32px);
-  flex-direction: column;
-  width: min(620px, calc(100vw - 32px));
-  min-height: 0;
-}
-
-.modal-header {
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.modal-header strong {
-  color: var(--vscode-fg-strong);
-  font-weight: 600;
-}
-
 .modal-content {
   min-height: 0;
   padding: 10px;
   overflow-y: auto;
   background: var(--vscode-editor-bg);
   border: 1px solid var(--vscode-border);
-}
-
-.modal-actions {
-  justify-content: flex-end;
-  margin-top: 12px;
 }
 
 .class-meta {
@@ -39,19 +16,6 @@
 
 .class-meta > div:first-child {
   color: var(--vscode-fg-muted);
-}
-
-.debug-details {
-  margin-top: 10px;
-  padding: 8px;
-  border: 1px solid var(--vscode-border);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.debug-details summary {
-  cursor: pointer;
-  color: var(--vscode-fg-strong);
-  font-size: 12px;
 }
 
 .debug-grid {

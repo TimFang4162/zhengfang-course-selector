@@ -4,6 +4,8 @@ import { state } from "../../app/state.js";
 import { maxJieci, maxWeek, weekdayNames } from "../../shared/constants.js";
 import { formatWeekRanges } from "../../shared/utils.js";
 import { cx } from "../../shared/utils.js";
+import { Button } from "../../components/ui/button";
+import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuCheckboxItem } from "../../components/ui/menu";
 
 const days = [1, 2, 3, 4, 5, 6, 7];
 const jieciRows = Array.from({ length: maxJieci }, (_, i) => i + 1);
@@ -106,7 +108,15 @@ function TimetableDetail() {
               <td>{entry.teacherName || ""}<br /><span className="dim">{entry.teacherTitle || ""}</span></td>
               <td>{entry.sksj || ""}</td>
               <td>{entry.location || ""}</td>
-              <td><button type="button" className="detail-more" onClick={(e) => { e.stopPropagation(); app.timetable.openSelectedCourseMenu(index, e.currentTarget); }}>⋯</button></td>
+              <td>
+                <Menu>
+                  <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+                  <MenuPopup>
+                    <MenuItem onClick={() => { state.modalClass = { entry }; }}>详细信息</MenuItem>
+                    <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}>退课</MenuItem>
+                  </MenuPopup>
+                </Menu>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -162,16 +172,6 @@ export function TimetableView() {
   const snap = useSnapshot(state);
   void snap.timetableVersion;
 
-  function toggleMenu(e) {
-    e.stopPropagation();
-    state.openMenu = state.openMenu === "timetable-feature-menu" ? null : "timetable-feature-menu";
-  }
-
-  function toggleDisplayMenu(e) {
-    e.stopPropagation();
-    state.openMenu = state.openMenu === "timetable-display-menu" ? null : "timetable-display-menu";
-  }
-
   function toggleDisplayField(field) {
     state.timetableDisplay[field] = !state.timetableDisplay[field];
     state.openMenu = null;
@@ -190,27 +190,27 @@ export function TimetableView() {
   return (
     <>
       <div className="week-toolbar toolbar-tight">
-        <button type="button" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</button>
+        <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</Button>
         <span id="week-label">第 {snap.displayWeek}/{maxWeek} 周</span>
-        <button type="button" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周</button>
+        <Button variant="outline" size="sm" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周</Button>
         <span id="week-selected">已选{selectedCourseCount(snap)}门课程</span>
         <span id="week-credit">学分{(snap.timetable.currentCredit || 0).toFixed(1)}/{snap.timetable.maxCredit || 32}</span>
-        <div className="menu-root">
-          <button type="button" className="menu-button" id="week-display-button" onClick={toggleDisplayMenu}>显示</button>
-          <div className={cx("menu-popover", { hidden: snap.openMenu !== "timetable-display-menu" })} id="timetable-display-menu">
+        <Menu open={snap.openMenu === "timetable-display-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-display-menu" : null; }}>
+          <MenuTrigger><Button variant="ghost" size="sm">显示</Button></MenuTrigger>
+          <MenuPopup>
             {displayFields.map(([field, label]) => (
-              <button key={field} type="button" onClick={() => toggleDisplayField(field)}>
-                {label}:{snap.timetableDisplay[field] ? "开" : "关"}
-              </button>
+              <MenuCheckboxItem key={field} checked={snap.timetableDisplay[field]} onCheckedChange={() => toggleDisplayField(field)}>
+                {label}
+              </MenuCheckboxItem>
             ))}
-          </div>
-        </div>
-        <div className="menu-root">
-          <button type="button" className="menu-button" id="week-feature-button" onClick={toggleMenu}>功能</button>
-          <div className={cx("menu-popover", { hidden: snap.openMenu !== "timetable-feature-menu" })} id="timetable-feature-menu">
-            <button type="button" id="week-refresh" onClick={() => { state.openMenu = null; app.tree.refreshTimetable().catch(app.showError); }}>刷新已选课程</button>
-          </div>
-        </div>
+          </MenuPopup>
+        </Menu>
+        <Menu open={snap.openMenu === "timetable-feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-feature-menu" : null; }}>
+          <MenuTrigger><Button variant="ghost" size="sm">功能</Button></MenuTrigger>
+          <MenuPopup>
+            <MenuItem onClick={() => { app.tree.refreshTimetable().catch(app.showError); }}>刷新已选课程</MenuItem>
+          </MenuPopup>
+        </Menu>
       </div>
       <div className="timetable-wrap">
         <table id="timetable-table">

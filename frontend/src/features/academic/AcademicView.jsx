@@ -1,10 +1,13 @@
-import { useState } from "react";
 import { useSnapshot } from "valtio";
 import { state } from "../../app/state.js";
 import { useAppContext } from "../../app/app-context.jsx";
-import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 import { cx } from "../../shared/utils.js";
+import { Button } from "../../components/ui/button";
+import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
+import { Badge } from "../../components/ui/badge";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "../../components/ui/accordion";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
 
 export function academicCreditSummary(nodes) {
   const root = (nodes || [])[0];
@@ -59,7 +62,8 @@ function academicNodeHasVisibleContent(node, filters, nodeCoursesMap) {
 }
 
 function AcademicBadge({ type, children }) {
-  return <span className={`academic-badge is-${type || "unknown"}`}>{children || "未知"}</span>;
+  const typeMap = { passed: "success", substituted: "info", studying: "warning", failed: "destructive" };
+  return <Badge variant={typeMap[type] || "secondary"}>{children || "未知"}</Badge>;
 }
 
 function AcademicCourses({ courses, filters }) {
@@ -68,26 +72,37 @@ function AcademicCourses({ courses, filters }) {
   if (!filtered.length) return <div className="academic-empty dim">当前筛选下暂无课程明细</div>;
 
   return (
-    <table className="academic-course-table">
-      <thead><tr><th>课程</th><th>学分</th><th>状态</th><th>成绩</th><th>学时</th><th>课程性质</th><th>建议修读</th><th>课程类别</th></tr></thead>
-      <tbody>
+    <Table className="academic-course-table">
+      <TableHeader>
+        <TableRow>
+          <TableHead>课程</TableHead>
+          <TableHead>学分</TableHead>
+          <TableHead>状态</TableHead>
+          <TableHead>成绩</TableHead>
+          <TableHead>学时</TableHead>
+          <TableHead>课程性质</TableHead>
+          <TableHead>建议修读</TableHead>
+          <TableHead>课程类别</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {filtered.map((course) => (
-          <tr key={course.kchId || course.kch} className={` is-${course.statusType || "unknown"}`}>
-            <td>
-              <button type="button" className="link-button" onClick={() => app.academic.loadAcademicCourseDetail(course.kchId)}>{course.name}</button>
+          <TableRow key={course.kchId || course.kch} className={`is-${course.statusType || "unknown"}`}>
+            <TableCell>
+              <Button variant="link" size="sm" className="px-0" onClick={() => app.academic.loadAcademicCourseDetail(course.kchId)}>{course.name}</Button>
               <br /><span className="dim">{course.kch || course.kchId}</span>
-            </td>
-            <td>{course.creditText || "-"}</td>
-            <td><AcademicBadge type={course.statusType}>{course.status || "-"}</AcademicBadge></td>
-            <td>{course.score || course.maxScore || "-"}</td>
-            <td>{course.hoursText || "-"}</td>
-            <td>{course.courseNature || "-"}</td>
-            <td>{[course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ") || "-"}</td>
-            <td>{course.courseCategory || "-"}</td>
-          </tr>
+            </TableCell>
+            <TableCell>{course.creditText || "-"}</TableCell>
+            <TableCell><AcademicBadge type={course.statusType}>{course.status || "-"}</AcademicBadge></TableCell>
+            <TableCell>{course.score || course.maxScore || "-"}</TableCell>
+            <TableCell>{course.hoursText || "-"}</TableCell>
+            <TableCell>{course.courseNature || "-"}</TableCell>
+            <TableCell>{[course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ") || "-"}</TableCell>
+            <TableCell>{course.courseCategory || "-"}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
@@ -95,7 +110,6 @@ function AcademicNode({ node, level }) {
   const app = useAppContext();
   const snap = useSnapshot(state);
   void snap.academicVersion;
-  const [isOpen, setIsOpen] = useState(level <= 1);
   const filters = snap.academicFilters;
   const nodeCoursesMap = snap.academicNodeCourses;
   const children = (node.children || []).filter((child) => academicNodeHasVisibleContent(child, filters, nodeCoursesMap));
@@ -107,26 +121,13 @@ function AcademicNode({ node, level }) {
   const nodeLoading = nodeCoursesMap[node.id]?.__loading;
   const nodeError = nodeCoursesMap[node.id]?.__error;
 
-  function handleToggle(e) {
-    setIsOpen(e.target.open);
-    if (!e.target.open) return;
-    if (!academicNodeIsUnloadedLeaf(node, nodeCoursesMap)) return;
-    if (nodeLoading) return;
-    app.academic.loadAcademicNodeCourses(node.id);
-  }
-
-  function openNodeMenu(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    openFloatingMenu(e.currentTarget, [
-      { label: "刷新此节点", action: () => app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError) },
-    ]);
-  }
-
   return (
-    <details className={`academic-node level-${level}`} open={isOpen} onToggle={handleToggle}>
-      <summary>
-        <span className="tree-arrow">▸</span>
+    <AccordionItem value={node.id} className={`academic-node level-${level}`} onOpenChange={(open) => {
+      if (open && academicNodeIsUnloadedLeaf(node, nodeCoursesMap)) {
+        app.academic.loadAcademicNodeCourses(node.id);
+      }
+    }}>
+      <AccordionTrigger className="academic-node-trigger">
         <span className="academic-node-title">{node.name}</span>
         <span className="academic-node-credit">{node.earnedCredit || "0.0"}/{node.requiredCredit || "-"} 学分</span>
         <span className="academic-node-state">
@@ -138,22 +139,29 @@ function AcademicNode({ node, level }) {
         <span className="academic-node-count">
           {children.length ? `${children.length} 子项` : (nodeLoading ? "加载中..." : nodeError ? "加载失败" : `${passedCount}/${courses.length || "-"} 课程`)}
         </span>
-        <button type="button" className="academic-node-more" onClick={openNodeMenu}>⋯</button>
-      </summary>
-      <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
-      <div className="academic-children">
-        {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
-        {!children.length && (
-          nodeLoading ? (
-            <div className="academic-empty dim">加载课程明细中...</div>
-          ) : nodeError ? (
-            <div className="academic-empty dim">加载失败，点击刷新按钮重新获取。</div>
-          ) : (
-            <AcademicCourses courses={courses} filters={filters} />
-          )
-        )}
-      </div>
-    </details>
+        <Menu>
+          <MenuTrigger><Button variant="ghost" size="icon-xs" className="academic-node-more" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+          <MenuPopup>
+            <MenuItem onClick={() => { app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError); }}>刷新此节点</MenuItem>
+          </MenuPopup>
+        </Menu>
+      </AccordionTrigger>
+      <AccordionPanel>
+        <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
+        <div className="academic-children">
+          {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
+          {!children.length && (
+            nodeLoading ? (
+              <div className="academic-empty dim">加载课程明细中...</div>
+            ) : nodeError ? (
+              <div className="academic-empty dim">加载失败，点击刷新按钮重新获取。</div>
+            ) : (
+              <AcademicCourses courses={courses} filters={filters} />
+            )
+          )}
+        </div>
+      </AccordionPanel>
+    </AccordionItem>
   );
 }
 
@@ -185,7 +193,9 @@ export function AcademicStatusView() {
           <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span><span></span>
         </div>
         {visibleNodes.length ? (
-          visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)
+          <Accordion>
+            {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
+          </Accordion>
         ) : (
           <div className="academic-empty dim">当前筛选下没有匹配课程。</div>
         )}

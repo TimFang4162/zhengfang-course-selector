@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs";
 import { build } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 const outdir = "jwxt/web/static";
 const isCheck = Bun.argv.includes("--check");
@@ -14,7 +15,7 @@ await build({
   base: "./",
   configFile: false,
   publicDir: false,
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   build: {
     outDir: viteOutDir,
     emptyOutDir: false,

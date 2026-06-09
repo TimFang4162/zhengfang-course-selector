@@ -74,11 +74,6 @@
   background: color-mix(in srgb, var(--vscode-focus-border) 22%, transparent);
 }
 
-.cell-dim {
-  color: var(--vscode-fg-muted);
-  font-size: 12px;
-}
-
 .detail-panel {
   flex: 0 0 var(--detail-height);
   min-height: 110px;
@@ -105,18 +100,6 @@
 .detail-table td:last-child {
   width: 34px;
   text-align: center;
-}
-
-.detail-more {
-  min-width: 24px;
-  min-height: 22px;
-  padding: 0 6px;
-  border-color: transparent;
-  background: transparent;
-}
-
-.detail-more:hover {
-  background: var(--vscode-list-hover-bg);
 }
 
 .detail-table th {

@@ -1,27 +1,25 @@
-import { serve } from "bun";
-import index from "./index.html";
+import { createServer } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 const PYTHON_API = process.env.JWXT_API_ORIGIN ?? "http://127.0.0.1:8765";
 const PORT = Number(process.env.JWXT_FRONTEND_PORT ?? 5173);
 
-const server = serve({
-  port: PORT,
-  routes: {
-    "/": index,
-  },
-  development: {
-    hmr: true,
-    console: true,
-  },
-  async fetch(req) {
-    const url = new URL(req.url);
-    if (url.pathname.startsWith("/api/")) {
-      const target = new URL(url.pathname + url.search, PYTHON_API);
-      return fetch(target, req);
-    }
-    return new Response("Not Found", { status: 404 });
+const server = await createServer({
+  root: "frontend",
+  configFile: false,
+  plugins: [tailwindcss(), react()],
+  server: {
+    port: PORT,
+    proxy: {
+      "/api": {
+        target: PYTHON_API,
+        changeOrigin: true,
+      },
+    },
   },
 });
 
-console.log(`Frontend dev server: ${server.url}`);
+await server.listen();
+console.log(`Frontend dev server: http://localhost:${PORT}`);
 console.log(`Proxying /api/* to ${PYTHON_API}`);

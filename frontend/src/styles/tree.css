@@ -63,72 +63,6 @@
   margin-right: 14px;
 }
 
-.menu-root {
-  position: relative;
-}
-
-.menu-button {
-  min-height: 24px;
-  border-color: transparent;
-  background: transparent;
-  font-size: 12px;
-}
-
-.menu-button:hover {
-  background: var(--vscode-list-hover-bg);
-}
-
-.menu-popover,
-.floating-menu {
-  min-width: 190px;
-  padding: 4px 0;
-  border: 1px solid var(--vscode-border);
-  background: var(--vscode-side-bg);
-  box-shadow: var(--vscode-shadow-menu);
-}
-
-.menu-popover {
-  position: absolute;
-  z-index: 30;
-  top: 26px;
-  left: 0;
-}
-
-.floating-menu {
-  position: fixed;
-  z-index: 40;
-}
-
-.menu-popover button,
-.floating-menu button {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-height: 24px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--vscode-fg);
-  text-align: left;
-  font-size: 12px;
-}
-
-.menu-popover button:hover,
-.floating-menu button:hover {
-  background: var(--vscode-list-selection-hover-bg);
-}
-
-.menu-popover button:hover::before,
-.floating-menu button:hover::before {
-  content: "";
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 0;
-  width: 2px;
-  background: var(--vscode-focus-border);
-}
-
 .course-query-panel {
   flex: 0 0 auto;
   padding: 7px 8px;
@@ -587,25 +521,6 @@
   text-overflow: ellipsis;
 }
 
-.tree-chip {
-  display: inline-flex;
-  max-width: 72px;
-  margin-left: 4px;
-  padding: 0 5px;
-  border: 1px solid var(--vscode-badge-border);
-  border-radius: 999px;
-  color: var(--vscode-fg-muted);
-  font-size: 11px;
-  line-height: 16px;
-  vertical-align: 1px;
-  white-space: nowrap;
-}
-
-.tree-chip.is-selected {
-  border-color: var(--vscode-success-border);
-  color: var(--vscode-success);
-}
-
 .tree-table-main {
   color: inherit;
 }
@@ -656,11 +571,6 @@
 
 .tree-row.muted .tree-table > span {
   color: var(--vscode-fg-subtle);
-}
-
-.tree-row.muted .tree-chip {
-  border-color: color-mix(in srgb, var(--vscode-fg-subtle) 45%, transparent);
-  color: var(--vscode-fg-muted);
 }
 
 .tree-row.muted .tree-check {

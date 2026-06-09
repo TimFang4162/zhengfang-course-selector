@@ -1,6 +1,5 @@
 import { apiGet, apiPost } from "../../api/client.js";
 import { isSelectedClass } from "../../app/state.js";
-import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { maxWeek } from "../../shared/constants.js";
 
 export function createTimetableFeature({ state, getApp }) {
@@ -30,16 +29,6 @@ export function createTimetableFeature({ state, getApp }) {
 
   function showCourseDetail(entry) {
     state.modalClass = { entry };
-  }
-
-  function openSelectedCourseMenu(index, anchor) {
-    const app = getApp();
-    const entry = state.timetable.entries[index];
-    if (!entry) return;
-    openFloatingMenu(anchor, [
-      { label: "详细信息", action: () => showCourseDetail(entry) },
-      { label: "退课", action: () => withdrawSelectedEntry(entry).catch(app.showError) },
-    ]);
   }
 
   async function withdrawSelectedEntry(entry) {
@@ -130,7 +119,6 @@ export function createTimetableFeature({ state, getApp }) {
     renderTimetableCellDetail,
     entriesForCell,
     showCourseDetail,
-    openSelectedCourseMenu,
     withdrawSelectedEntry,
     chooseOrWithdrawClass,
     openClassModal,

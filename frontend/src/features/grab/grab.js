@@ -1,7 +1,6 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { ref } from "valtio";
 import { apiGet, apiPost } from "../../api/client.js";
-import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { defaultGrabExpression, grabSymbolDocs, grabSymbols, validateGrabExpression } from "./expression.js";
 import { grabContextPayload } from "./preview.js";
 
@@ -90,27 +89,6 @@ export function createGrabFeature({ state, getApp }) {
   function closeGrabModal() {
     state.grabDraft = null;
     state.grabDraftLabel = "";
-  }
-
-  function openTreeMoreMenu(anchor, context) {
-    const app = getApp();
-    const items = [];
-    if (context.type === "category") {
-      items.push({ label: "刷新课程", action: () => app.tree.refreshCategoryCourses(context.category.id).catch(app.showError) });
-    }
-    if (context.type === "course") {
-      items.push(
-        { label: "显示详情", action: () => app.timetable.openCourseModal(context.category.id, context.course) },
-        { label: "刷新教学班", action: () => app.tree.refreshCourseClasses(context.category.id, context.course.kchId).catch(app.showError) },
-      );
-    }
-    if (context.type === "class") {
-      items.push(
-        { label: "显示详情", action: () => app.timetable.openClassModal(context.category.id, context.course, context.classItem) },
-        { label: isClassSelected(context.classItem) ? "退选" : "选课", action: () => app.timetable.chooseOrWithdrawClass(context.category.id, context.course, context.classItem).catch(app.showError) },
-      );
-    }
-    openFloatingMenu(anchor, items, 160);
   }
 
   function isClassSelected(item) {
@@ -298,20 +276,7 @@ export function createGrabFeature({ state, getApp }) {
     state.eventSource = ref(source);
   }
 
-  function openActivityTaskMenu(taskId, anchor) {
-    const app = getApp();
-    const task = state.grabTasks[taskId];
-    const items = [
-      { label: "启动", action: () => apiPost("/api/grab/tasks/start", { id: taskId }).then(pollGrabTasks).catch(app.showError) },
-      { label: "停止", action: () => apiPost("/api/grab/tasks/stop", { id: taskId }).then(pollGrabTasks).catch(app.showError) },
-    ];
-    if (task) items.unshift({ label: "详情", action: () => showGrabTaskDetail(task) });
-    openFloatingMenu(anchor, items);
-  }
 
-  function openActivityAddMenu(anchor) {
-    openFloatingMenu(anchor, [{ label: "添加抢课任务", action: () => openManualGrabModal() }], 180);
-  }
 
   function showGrabTaskDetail(task) {
     state.grabTaskDetail = task;
@@ -323,7 +288,6 @@ export function createGrabFeature({ state, getApp }) {
 
   return {
     initGrabMonaco,
-    openTreeMoreMenu,
     openGrabModal,
     openGrabModalFromSelection,
     openManualGrabModal,
@@ -334,8 +298,6 @@ export function createGrabFeature({ state, getApp }) {
     confirmGrabExpression,
     pollGrabTasks,
     connectEventStream,
-    openActivityTaskMenu,
-    openActivityAddMenu,
     showGrabTaskDetail,
     closeGrabTaskDetail,
     grabStatusLabel,

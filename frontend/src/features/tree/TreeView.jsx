@@ -3,6 +3,9 @@ import { useAppContext } from "../../app/app-context.jsx";
 import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 import { cx } from "../../shared/utils.js";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
 
 function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyDown, children }) {
   return (
@@ -23,7 +26,7 @@ function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyD
   );
 }
 
-function RowChrome({ selectionState, checkLabel, onToggleCheck, onMore, children }) {
+function RowChrome({ selectionState, checkLabel, onToggleCheck, children }) {
   const sel = selectionState || "inherit";
   const checkChar = sel === "include" ? "✓" : sel === "exclude" ? "-" : sel === "inherited" ? "✓" : sel === "partial" ? "·" : "";
   return (
@@ -37,12 +40,16 @@ function RowChrome({ selectionState, checkLabel, onToggleCheck, onMore, children
         {checkChar}
       </button>
       {children}
-      <button
-        type="button"
-        className="tree-more-dot"
-        onClick={(e) => { e.stopPropagation(); onMore?.(e.currentTarget); }}
-      >⋯</button>
     </div>
+  );
+}
+
+function RowMoreMenu({ children }) {
+  return (
+    <Menu>
+      <MenuTrigger><button type="button" className="tree-more-dot" onClick={(e) => e.stopPropagation()}>⋯</button></MenuTrigger>
+      <MenuPopup align="end">{children}</MenuPopup>
+    </Menu>
   );
 }
 
@@ -51,7 +58,7 @@ function Cell({ className, children }) {
 }
 
 function TreeChip({ type, children }) {
-  return <span className={`tree-chip${type ? ` is-${type}` : ""}`}>{children}</span>;
+  return <Badge variant={type === "selected" ? "info" : "secondary"}>{children}</Badge>;
 }
 
 function CourseSummary({ category, course }) {
@@ -68,7 +75,6 @@ function CourseSummary({ category, course }) {
       selectionState={app.tree.selectionDisplayState("course", category.id, course.kchId)}
       checkLabel={`切换课程 ${course.courseName} 的抢课选择`}
       onToggleCheck={() => app.tree.toggleCourseSelection(category.id, course.kchId)}
-      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category, course })}
     >
       <div className="tree-table tree-course-table">
         <Cell className="tree-table-main">{course.courseName} {reasons.map((r) => <TreeChip key={r} type={r === "已选" ? "selected" : ""}>{r}</TreeChip>)}</Cell>
@@ -76,6 +82,10 @@ function CourseSummary({ category, course }) {
         <Cell className="tree-table-credit">{course.creditText ? `${course.creditText}学分` : "-"}</Cell>
         <Cell className="tree-table-count">{course.classCount}教学班</Cell>
       </div>
+      <RowMoreMenu>
+        <MenuItem onClick={() => app.timetable.openCourseModal(category.id, course)}>显示详情</MenuItem>
+        <MenuItem onClick={() => app.tree.refreshCourseClasses(category.id, course.kchId).catch(app.showError)}>刷新教学班</MenuItem>
+      </RowMoreMenu>
     </RowChrome>
   );
 }
@@ -94,7 +104,6 @@ function ClassSummary({ category, course, item }) {
       selectionState={app.tree.selectionDisplayState("class", category.id, course.kchId, item)}
       checkLabel={`切换教学班 ${item.classNo} 的抢课选择`}
       onToggleCheck={() => app.tree.toggleClassSelection(category.id, course.kchId, item)}
-      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category, course, classItem: item })}
     >
       <div className="tree-table tree-class-table">
         <Cell className="tree-table-code">{item.index}. {item.classNo}{isSelectedClass(item) ? <TreeChip type="selected">已选</TreeChip> : null}</Cell>
@@ -104,6 +113,10 @@ function ClassSummary({ category, course, item }) {
         <Cell className="tree-table-prop">{item.courseProperty}</Cell>
         <Cell className={`tree-table-count${snap.filters.highlightCapacity && hasCap ? " is-has-capacity" : ""}`}>{item.selectedCount}/{item.capacity}</Cell>
       </div>
+      <RowMoreMenu>
+        <MenuItem onClick={() => app.timetable.openClassModal(category.id, course, item)}>显示详情</MenuItem>
+        <MenuItem onClick={() => app.timetable.chooseOrWithdrawClass(category.id, course, item).catch(app.showError)}>{isSelectedClass(item) ? "退选" : "选课"}</MenuItem>
+      </RowMoreMenu>
     </RowChrome>
   );
 }
@@ -203,9 +216,11 @@ function CategoryRows({ category, shouldRenderCourse }) {
           selectionState={app.tree.selectionDisplayState("category", category.id)}
           checkLabel={`切换大类 ${category.name} 的抢课选择`}
           onToggleCheck={() => app.tree.toggleCategorySelection(category.id)}
-          onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category })}
         >
           {category.name}{countText && ` (${countText})`}
+          <RowMoreMenu>
+            <MenuItem onClick={() => app.tree.refreshCategoryCourses(category.id).catch(app.showError)}>刷新课程</MenuItem>
+          </RowMoreMenu>
         </RowChrome>
       </TreeRow>
       {expanded && (
@@ -219,9 +234,9 @@ function CategoryRows({ category, shouldRenderCourse }) {
               {renderCourses.map((course) => <CourseRows key={course.kchId} category={category} course={course} />)}
               {loading && <div className="tree-placeholder">加载更多课程中...</div>}
               {!loading && bucket?.hasMore && (
-                <button type="button" className="tree-more" onClick={() => {
+                <Button variant="ghost" size="sm" onClick={() => {
                   app.tree.loadSearchCategoryCourses(tab, category.id, bucket.nextPage).catch(app.showError);
-                }}>加载更多...</button>
+                }}>加载更多...</Button>
               )}
             </>
           )}

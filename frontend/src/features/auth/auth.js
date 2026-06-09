@@ -15,14 +15,12 @@ export function createAuthFeature({ state, getApp }) {
   }
 
   function syncLoginFormFromDom() {
-    const baseSelect = document.getElementById("base-url");
     const customBaseUrl = document.getElementById("custom-base-url");
     const studentNumber = document.getElementById("student-number");
     const password = document.getElementById("password");
     const saveCredentials = document.getElementById("save-creds");
     const disableSslVerify = document.getElementById("disable-ssl-verify");
 
-    if (baseSelect) state.auth.baseUrl = baseSelect.value;
     if (customBaseUrl) state.auth.customBaseUrl = customBaseUrl.value;
     if (studentNumber) state.auth.studentNumber = studentNumber.value;
     if (password) state.auth.password = password.value;
