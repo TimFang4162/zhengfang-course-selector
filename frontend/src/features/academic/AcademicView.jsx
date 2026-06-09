@@ -69,7 +69,7 @@ function AcademicBadge({ type, children }) {
 function AcademicCourses({ courses, filters }) {
   const app = useAppContext();
   const filtered = filteredAcademicCourses(courses, filters);
-  if (!filtered.length) return <div className="academic-empty dim">当前筛选下暂无课程明细</div>;
+  if (!filtered.length) return <div className="academic-empty text-muted-foreground">当前筛选下暂无课程明细</div>;
 
   return (
     <Table className="academic-course-table">
@@ -90,7 +90,7 @@ function AcademicCourses({ courses, filters }) {
           <TableRow key={course.kchId || course.kch} className={`is-${course.statusType || "unknown"}`}>
             <TableCell>
               <Button variant="link" size="sm" className="px-0" onClick={() => app.academic.loadAcademicCourseDetail(course.kchId)}>{course.name}</Button>
-              <br /><span className="dim">{course.kch || course.kchId}</span>
+              <br /><span className="text-muted-foreground">{course.kch || course.kchId}</span>
             </TableCell>
             <TableCell>{course.creditText || "-"}</TableCell>
             <TableCell><AcademicBadge type={course.statusType}>{course.status || "-"}</AcademicBadge></TableCell>
@@ -152,9 +152,9 @@ function AcademicNode({ node, level }) {
           {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
           {!children.length && (
             nodeLoading ? (
-              <div className="academic-empty dim">加载课程明细中...</div>
+              <div className="academic-empty text-muted-foreground">加载课程明细中...</div>
             ) : nodeError ? (
-              <div className="academic-empty dim">加载失败，点击刷新按钮重新获取。</div>
+              <div className="academic-empty text-muted-foreground">加载失败，点击刷新按钮重新获取。</div>
             ) : (
               <AcademicCourses courses={courses} filters={filters} />
             )
@@ -175,18 +175,18 @@ export function AcademicStatusView() {
   const summary = academicCreditSummary(nodes);
   const serverSummary = snap.academicStatus?.summary || {};
 
-  if (snap.academicLoading) return <div id="academic-status" className="academic-view"><div className="academic-empty dim">正在拉取学业情况和课程明细...</div></div>;
-  if (!nodes.length) return <div id="academic-status" className="academic-view"><div className="academic-empty dim">暂无学业情况数据，点击刷新重新获取。</div></div>;
+  if (snap.academicLoading) return <div id="academic-status" className="academic-view"><div className="academic-empty text-muted-foreground">正在拉取学业情况和课程明细...</div></div>;
+  if (!nodes.length) return <div id="academic-status" className="academic-view"><div className="academic-empty text-muted-foreground">暂无学业情况数据，点击刷新重新获取。</div></div>;
 
   return (
     <div id="academic-status" className="academic-view">
       <div className="academic-overview">
-        <div><span className="dim">方案</span><strong>{summary.plan}</strong></div>
-        <div><span className="dim">学分</span><strong>{summary.earned}/{summary.required}</strong></div>
-        <div><span className="dim">未获</span><strong>{summary.remaining}</strong></div>
-        <div><span className="dim">GPA</span><strong>{serverSummary.serverGpa || "-"}</strong></div>
-        <div><span className="dim">计划课程</span><strong>{serverSummary.planPassedCourses ?? 0}/{serverSummary.planTotalCourses ?? 0}</strong></div>
-        <div><span className="dim">未修/在读</span><strong>{serverSummary.planUnstartedCourses ?? 0}/{serverSummary.planStudyingCourses ?? 0}</strong></div>
+        <div><span className="text-muted-foreground">方案</span><strong>{summary.plan}</strong></div>
+        <div><span className="text-muted-foreground">学分</span><strong>{summary.earned}/{summary.required}</strong></div>
+        <div><span className="text-muted-foreground">未获</span><strong>{summary.remaining}</strong></div>
+        <div><span className="text-muted-foreground">GPA</span><strong>{serverSummary.serverGpa || "-"}</strong></div>
+        <div><span className="text-muted-foreground">计划课程</span><strong>{serverSummary.planPassedCourses ?? 0}/{serverSummary.planTotalCourses ?? 0}</strong></div>
+        <div><span className="text-muted-foreground">未修/在读</span><strong>{serverSummary.planUnstartedCourses ?? 0}/{serverSummary.planStudyingCourses ?? 0}</strong></div>
       </div>
       <div className="academic-tree">
         <div className="academic-tree-head">
@@ -197,7 +197,7 @@ export function AcademicStatusView() {
             {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
           </Accordion>
         ) : (
-          <div className="academic-empty dim">当前筛选下没有匹配课程。</div>
+          <div className="academic-empty text-muted-foreground">当前筛选下没有匹配课程。</div>
         )}
       </div>
     </div>

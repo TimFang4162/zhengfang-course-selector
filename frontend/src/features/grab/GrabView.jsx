@@ -45,16 +45,16 @@ export function GrabPreview() {
   const missingClassGroups = groupMissingClasses(data?.missing?.classLoads || []);
   const matchGroups = groupMatches(data?.matches || []);
 
-  if (!data) return <div id="grab-preview-list" className="grab-preview-list"><div className="dim grab-preview-empty">没有匹配项。</div></div>;
+  if (!data)     return <div id="grab-preview-list" className="grab-preview-list max-h-[260px] overflow-auto"><div className="dim grab-preview-empty p-2">没有匹配项。</div></div>;
 
   return (
-    <div id="grab-preview-list" className="grab-preview-list">
+    <div id="grab-preview-list" className="grab-preview-list max-h-[260px] overflow-auto">
       {!data.ready && (
         <Button variant="outline" size="sm" id="grab-load-missing" onClick={() => app.grab.loadGrabMissing(data.missing).catch(app.showError)}>加载缺失数据</Button>
       )}
       {(missingCourseLoads.length > 0 || missingClassGroups.length > 0) && (
         <>
-          <div className="grab-preview-section">缺失数据</div>
+          <div className="grab-preview-section pt-1.5 px-2 pb-1 text-muted-foreground text-xs uppercase">缺失数据</div>
           {missingCourseLoads.map((item) => (
             <div key={item.name || item.categoryId}>
               <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▸</span><span>大类 {item.name}</span></div>
@@ -64,24 +64,24 @@ export function GrabPreview() {
           {missingClassGroups.map((group) => (
             <div key={group.categoryId}>
               <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▾</span><span>大类 {group.categoryId}</span></div>
-              {group.rows.map((item) => <div key={item.kchId} className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>{item.courseName} <span className="dim">{item.kchId}</span> 需要加载教学班</span></div>)}
+              {group.rows.map((item) => <div key={item.kchId} className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>{item.courseName} <span className="text-muted-foreground">{item.kchId}</span> 需要加载教学班</span></div>)}
             </div>
           ))}
         </>
       )}
       {matchGroups.length > 0 ? (
         <>
-          <div className="grab-preview-section">匹配结果</div>
+          <div className="grab-preview-section pt-1.5 px-2 pb-1 text-muted-foreground text-xs uppercase">匹配结果</div>
           {matchGroups.map((categoryBucket) => (
             <div key={categoryBucket.category.id}>
               <div className="grab-preview-tree-row level-0"><span className="tree-arrow">▾</span><span>{categoryBucket.category.name}</span></div>
               {categoryBucket.courses.map((courseBucket) => (
                 <div key={courseBucket.course.kchId}>
-                  <div className="grab-preview-tree-row level-1"><span className="tree-arrow">▾</span><span>{courseBucket.course.courseName} <span className="dim">{courseBucket.course.kchId}</span></span></div>
+                  <div className="grab-preview-tree-row level-1"><span className="tree-arrow">▾</span><span>{courseBucket.course.courseName} <span className="text-muted-foreground">{courseBucket.course.kchId}</span></span></div>
                   {courseBucket.classes.map((classItem) => (
                     <div key={classItem.classKey || classItem.doJxbId} className="grab-preview-tree-row level-2">
                       <span className="tree-arrow">·</span>
-                      <span>{classItem.classNo} <span className="dim">{classItem.teacherName || "-"} · {classItem.location || "-"} · {classItem.selectedCount}/{classItem.capacity}</span></span>
+                      <span>{classItem.classNo} <span className="text-muted-foreground">{classItem.teacherName || "-"} · {classItem.location || "-"} · {classItem.selectedCount}/{classItem.capacity}</span></span>
                     </div>
                   ))}
                 </div>
@@ -90,7 +90,7 @@ export function GrabPreview() {
           ))}
         </>
       ) : (!missingCourseLoads.length && !missingClassGroups.length) && (
-        <div className="dim grab-preview-empty">没有匹配项。</div>
+        <div className="dim grab-preview-empty p-2">没有匹配项。</div>
       )}
     </div>
   );
@@ -112,18 +112,18 @@ export function GrabModal() {
             <Label htmlFor="grab-expression">表达式</Label>
             <div id="grab-monaco" className="grab-monaco"></div>
             <Textarea id="grab-expression" className={cx({ "monaco-enabled": Boolean(snap.grabEditor) })} spellCheck="false" value={snap.grabExpression} onInput={(e) => { state.grabExpression = e.currentTarget.value; app.grab.scheduleGrabPreview(); }}></Textarea>
-            <div className="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
-            <div className={snap.grabStatusClass} id="grab-status">{snap.grabStatusText}</div>
+            <div className="grab-hints text-muted-foreground text-xs" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
+            <div className={snap.grabStatusClass + " min-h-5 text-xs"} id="grab-status">{snap.grabStatusText}</div>
           </div>
-          <div className="grab-preview">
-            <div className="grab-preview-header">预览：将会查询/匹配的项目</div>
+          <div className="grab-preview mt-2.5 border border-border bg-background">
+            <div className="grab-preview-header py-1.5 px-2 border-b border-border-subtle text-muted-foreground text-xs">预览：将会查询/匹配的项目</div>
             <GrabPreview />
           </div>
-          <div className="grab-settings form-card">
-            <div className="form-section-title">任务配置</div>
+          <div className="grab-settings form-card mt-2.5 p-2.5 border border-border bg-background">
+            <div className="form-section-title mb-2 text-muted-foreground text-[11px] tracking-[0.08em] uppercase">任务配置</div>
             <div className="grab-settings-form">
-              <div className="grab-form-row">
-                <label className="grab-form-label" htmlFor="grab-start-mode">启动时间</label>
+              <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
+                <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-start-mode">启动时间</label>
                 <div className="grab-form-control">
                   <Select id="grab-start-mode" value={snap.grabStartMode} onValueChange={(v) => { state.grabStartMode = v; }}>
                     <SelectTrigger id="grab-start-mode"><SelectValue /></SelectTrigger>
@@ -136,12 +136,12 @@ export function GrabModal() {
                   {snap.grabStartMode === "scheduled" && (
                     <Input id="grab-start-at" type="datetime-local" value={snap.grabStartAt} onInput={(e) => { state.grabStartAt = e.currentTarget.value; }} />
                   )}
-                  <div className="field-help">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
+                  <div className="field-help text-muted-foreground text-xs">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
                 </div>
               </div>
 
-              <div className="grab-form-row">
-                <label className="grab-form-label" htmlFor="grab-stop-mode">停止条件</label>
+              <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
+                <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-stop-mode">停止条件</label>
                 <div className="grab-form-control">
                   <Select id="grab-stop-mode" value={snap.grabStopSuccess ? "success" : "manual"} onValueChange={(v) => { state.grabStopSuccess = v === "success"; }}>
                     <SelectTrigger id="grab-stop-mode"><SelectValue /></SelectTrigger>
@@ -153,8 +153,8 @@ export function GrabModal() {
                 </div>
               </div>
 
-              <div className="grab-form-row">
-                <label className="grab-form-label" htmlFor="grab-error-policy">错误处理</label>
+              <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
+                <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-error-policy">错误处理</label>
                 <div className="grab-form-control">
                   <Select id="grab-error-policy" value={snap.grabErrorPolicy} onValueChange={(v) => { state.grabErrorPolicy = v; }}>
                     <SelectTrigger id="grab-error-policy"><SelectValue /></SelectTrigger>
@@ -167,17 +167,17 @@ export function GrabModal() {
                 </div>
               </div>
 
-              <div className="grab-form-row">
-                <label className="grab-form-label" htmlFor="grab-tick-interval">Tick 间隔</label>
+              <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
+                <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-tick-interval">Tick 间隔</label>
                 <div className="grab-form-control">
-                  <div className="input-with-unit"><Input id="grab-tick-interval" type="number" min="1" value={snap.grabTickInterval} onInput={(e) => { state.grabTickInterval = Number(e.currentTarget.value || 3); }} /><span>秒</span></div>
+                  <div className="flex items-center gap-1.5"><Input id="grab-tick-interval" className="min-w-0 flex-1" type="number" min="1" value={snap.grabTickInterval} onInput={(e) => { state.grabTickInterval = Number(e.currentTarget.value || 3); }} /><span className="text-muted-foreground text-xs">秒</span></div>
                 </div>
               </div>
 
-              <div className="grab-form-row">
-                <label className="grab-form-label" htmlFor="grab-timeout">超时时间</label>
+              <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
+                <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-timeout">超时时间</label>
                 <div className="grab-form-control">
-                  <div className="input-with-unit"><Input id="grab-timeout" type="number" min="1" value={snap.grabTimeout} onInput={(e) => { state.grabTimeout = Number(e.currentTarget.value || 600); }} /><span>秒</span></div>
+                  <div className="flex items-center gap-1.5"><Input id="grab-timeout" className="min-w-0 flex-1" type="number" min="1" value={snap.grabTimeout} onInput={(e) => { state.grabTimeout = Number(e.currentTarget.value || 600); }} /><span className="text-muted-foreground text-xs">秒</span></div>
                 </div>
               </div>
             </div>
@@ -238,17 +238,17 @@ export function GrabTaskModal() {
                     <AccordionTrigger>候选课程 / 教学班号</AccordionTrigger>
                     <AccordionPanel>
                     {(task.candidateCourses || []).length ? (task.candidateCourses || []).map((course) => (
-                      <div key={course.kchId} className="debug-course">
-                        <div><strong>{course.courseName || course.kchId}</strong> <span className="dim">category={course.categoryId} kch={course.kchId}</span></div>
-                        <pre className="debug-pre">{formatDebugJson(course.classIds || [])}</pre>
+                       <div key={course.kchId} className="mt-2 text-xs">
+                        <div><strong>{course.courseName || course.kchId}</strong> <span className="text-muted-foreground">category={course.categoryId} kch={course.kchId}</span></div>
+                         <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(course.classIds || [])}</pre>
                       </div>
-                    )) : <div className="dim debug-empty">无候选</div>}
+                     )) : <div className="dim mt-2">无候选</div>}
                     </AccordionPanel>
                   </AccordionItem>
                   <AccordionItem value="raw-task-data">
                     <AccordionTrigger>任务原始数据</AccordionTrigger>
                     <AccordionPanel>
-                    <pre className="debug-pre">{formatDebugJson(task)}</pre>
+                     <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(task)}</pre>
                     </AccordionPanel>
                   </AccordionItem>
                 </Accordion>

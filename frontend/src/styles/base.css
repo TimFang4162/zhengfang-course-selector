@@ -1,77 +1,50 @@
 :root {
   color-scheme: dark;
-  --vscode-editor-bg: #1e1e1e;
-  --vscode-side-bg: #252526;
-  --vscode-panel-bg: #181818;
-  --vscode-panel-header-bg: #2d2d30;
-  --vscode-input-bg: #313131;
-  --vscode-input-border: #3c3c3c;
-  --vscode-button-bg: #3a3d41;
-  --vscode-button-hover-bg: #45494e;
-  --vscode-button-active-bg: #50565c;
-  --vscode-list-hover-bg: #2a2d2e;
-  --vscode-list-active-bg: #37373d;
-  --vscode-list-selection-bg: #04395e;
-  --vscode-list-selection-hover-bg: #094771;
-  --vscode-focus-border: #007fd4;
-  --vscode-border: #3c3c3c;
-  --vscode-border-subtle: #2b2b2b;
-  --vscode-fg: #cccccc;
-  --vscode-fg-strong: #ffffff;
-  --vscode-fg-muted: #969696;
-  --vscode-fg-subtle: #6a6a6a;
-  --vscode-accent: #0e639c;
-  --vscode-accent-hover: #1177bb;
-  --vscode-warning: #d7ba7d;
-  --vscode-info: #4fc1ff;
-  --vscode-success: #89d185;
-  --vscode-error: #f14c4c;
-  --vscode-error-soft: #f48771;
-  --vscode-purple: #c586c0;
-  --vscode-gray: #777777;
-  --vscode-overlay-bg: rgba(0, 0, 0, 0.52);
-  --vscode-shadow: 0 12px 38px rgba(0, 0, 0, 0.45);
-  --vscode-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --vscode-hover-alpha: rgba(255, 255, 255, 0.035);
-  --vscode-hover-alpha-strong: rgba(255, 255, 255, 0.08);
-  --vscode-row-border: rgba(255, 255, 255, 0.025);
-  --vscode-badge-border: rgba(150, 150, 150, 0.26);
-  --vscode-success-border: rgba(137, 209, 133, 0.36);
-  --vscode-info-border: rgba(79, 193, 255, 0.36);
-  --vscode-warning-border: rgba(215, 186, 125, 0.36);
-  --vscode-error-border: rgba(241, 76, 76, 0.36);
-  --vscode-purple-border: rgba(197, 134, 192, 0.42);
+  --vscode-editor-bg: var(--background);
+  --vscode-side-bg: var(--card);
+  --vscode-panel-bg: var(--background);
+  --vscode-panel-header-bg: var(--muted);
+  --vscode-input-bg: var(--input);
+  --vscode-input-border: var(--border);
+  --vscode-button-bg: var(--secondary);
+  --vscode-button-hover-bg: hsl(var(--secondary) / 0.9);
+  --vscode-button-active-bg: hsl(var(--secondary) / 0.8);
+  --vscode-list-hover-bg: var(--accent);
+  --vscode-list-active-bg: var(--accent);
+  --vscode-list-selection-bg: hsl(var(--accent) / 0.5);
+  --vscode-list-selection-hover-bg: hsl(var(--accent) / 0.7);
+  --vscode-focus-border: var(--ring);
+  --vscode-border: var(--border);
+  --vscode-border-subtle: hsl(var(--border) / 0.6);
+  --vscode-fg: var(--foreground);
+  --vscode-fg-strong: var(--foreground);
+  --vscode-fg-muted: var(--muted-foreground);
+  --vscode-fg-subtle: hsl(var(--muted-foreground) / 0.7);
+  --vscode-accent: var(--primary);
+  --vscode-accent-hover: hsl(var(--primary) / 0.9);
+  --vscode-warning: var(--warning);
+  --vscode-info: var(--info);
+  --vscode-success: var(--success);
+  --vscode-error: var(--destructive);
+  --vscode-error-soft: hsl(var(--destructive) / 0.85);
+  --vscode-purple: hsl(280deg 50% 60%);
+  --vscode-gray: var(--muted-foreground);
+  --vscode-overlay-bg: hsl(0deg 0% 0% / 0.52);
+  --vscode-shadow: 0 12px 38px hsl(0deg 0% 0% / 0.45);
+  --vscode-shadow-menu: 0 8px 24px hsl(0deg 0% 0% / 0.35);
+  --vscode-hover-alpha: hsl(0deg 0% 100% / 0.035);
+  --vscode-hover-alpha-strong: hsl(0deg 0% 100% / 0.08);
+  --vscode-row-border: hsl(0deg 0% 100% / 0.025);
+  --vscode-badge-border: hsl(0deg 0% 60% / 0.26);
+  --vscode-success-border: hsl(var(--success) / 0.36);
+  --vscode-info-border: hsl(var(--info) / 0.36);
+  --vscode-warning-border: hsl(var(--warning) / 0.36);
+  --vscode-error-border: hsl(var(--destructive) / 0.36);
+  --vscode-purple-border: hsl(280deg 50% 60% / 0.42);
 
-  --editor: var(--vscode-editor-bg);
-  --side-bar: var(--vscode-side-bg);
-  --panel: var(--vscode-panel-bg);
-  --panel-header: var(--vscode-panel-header-bg);
-  --input: var(--vscode-input-bg);
-  --input-border: var(--vscode-input-border);
-  --hover: var(--vscode-list-hover-bg);
-  --active: var(--vscode-list-active-bg);
-  --selection: var(--vscode-list-selection-bg);
-  --selection-strong: var(--vscode-list-selection-hover-bg);
-  --focus: var(--vscode-focus-border);
-  --border: var(--vscode-border);
-  --border-subtle: var(--vscode-border-subtle);
-  --text: var(--vscode-fg);
-  --muted: var(--vscode-fg-muted);
-  --muted-2: var(--vscode-fg-subtle);
-  --accent: var(--vscode-accent);
-  --accent-hover: var(--vscode-accent-hover);
-  --yellow: var(--vscode-warning);
-  --blue: var(--vscode-info);
-  --green: var(--vscode-success);
-  --gray: var(--vscode-gray);
-  --danger: var(--vscode-error);
   --left-pane-width: 65vw;
   --detail-height: 150px;
   --activity-height: 220px;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html,
@@ -109,109 +82,6 @@ body {
   overflow: hidden;
   background: var(--vscode-editor-bg);
   color: var(--vscode-fg);
-  font-family: "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-button,
-input,
-select {
-  font: inherit;
-}
-
-button,
-select,
-input {
-  min-height: 28px;
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
-  background: var(--vscode-input-bg);
-  color: var(--vscode-fg);
-  padding: 3px 8px;
-}
-
-input,
-select {
-  transition: background-color 80ms linear, border-color 80ms linear;
-}
-
-input:hover,
-select:hover {
-  border-color: var(--vscode-fg-subtle);
-}
-
-button {
-  cursor: pointer;
-  user-select: none;
-  background: var(--vscode-button-bg);
-  transition: background-color 80ms linear, border-color 80ms linear;
-}
-
-button:hover {
-  background: var(--vscode-button-hover-bg);
-  border-color: var(--vscode-fg-subtle);
-}
-
-button:active {
-  background: var(--vscode-button-active-bg);
-}
-
-button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-#login-button,
-#saved-login-button,
-#cookie-login-button,
-#modal-action {
-  border-color: var(--vscode-accent);
-  background: var(--vscode-accent);
-  color: var(--vscode-fg-strong);
-}
-
-#login-button:hover,
-#saved-login-button:hover,
-#cookie-login-button:hover,
-#modal-action:hover {
-  border-color: var(--vscode-accent-hover);
-  background: var(--vscode-accent-hover);
-}
-
-input:focus,
-select:focus,
-button:focus-visible {
-  outline: 1px solid var(--vscode-focus-border);
-  outline-offset: -1px;
-  border-color: var(--vscode-focus-border);
-}
-
-select {
-  appearance: none;
-  padding-right: 24px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--vscode-fg-muted) 50%),
-    linear-gradient(135deg, var(--vscode-fg-muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 11px, calc(100% - 8px) 11px;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-}
-
-label {
-  color: var(--vscode-fg-muted);
-  font-size: 12px;
-}
-
-.hidden {
-  display: none !important;
-}
-
-.dim {
-  color: var(--vscode-fg-muted);
-}
-
-.compact-surface {
-  padding: 0;
 }
 
 .overlay {
@@ -230,62 +100,4 @@ label {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.form-row {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.input-with-unit,
-.saved-login-panel {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.input-with-unit input {
-  min-width: 0;
-  flex: 1;
-}
-
-.saved-login-panel {
-  justify-content: space-between;
-  margin: 0 0 12px;
-  padding: 10px;
-  border: 1px solid var(--vscode-border);
-  background: var(--vscode-editor-bg);
-}
-
-.login-tab-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.cookie-hint {
-  margin: -4px 0 12px;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.checkbox-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.checkbox-row label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.form-actions,
-.toolbar,
-.week-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }

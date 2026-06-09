@@ -54,11 +54,6 @@
   cursor: pointer;
 }
 
-.timetable-cell-location {
-  font-size: 12px;
-  color: var(--vscode-fg-muted);
-}
-
 .timetable-cell-dim,
 .timetable-cell-dim .timetable-cell-location {
   color: var(--vscode-fg-muted);

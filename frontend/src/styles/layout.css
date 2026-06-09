@@ -1,10 +1,4 @@
 
-.app-shell,
-.main-layout {
-  height: 100vh;
-  overflow: hidden;
-}
-
 .main-layout {
   display: grid;
   grid-template-columns: minmax(360px, var(--left-pane-width)) 6px minmax(280px, 1fr);
@@ -23,90 +17,9 @@
   border-right: 0;
 }
 
-.left-pane,
-.right-pane {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.left-pane {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 0;
-  padding: 0;
-  background: var(--vscode-side-bg);
-  border-right: 1px solid var(--vscode-border);
-}
-
-.right-pane {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--vscode-panel-bg);
-}
-
-.section-panel {
-  padding: 0;
-}
-
 .workspace-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  min-height: 35px;
-  background: var(--vscode-panel-header-bg);
-  border-bottom: 1px solid var(--vscode-border);
-}
-
-.workspace-header select,
-.workspace-header button {
-  background: var(--vscode-editor-bg);
-}
-
-.workspace-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-}
-
-#workspace-base-url,
-#account-action {
-  max-width: 220px;
-  min-height: 26px;
-  font-size: 13px;
-}
-
-#toggle-sidebar {
-  min-width: 28px;
-  min-height: 26px;
-  padding: 2px 7px;
-}
-
-.toolbar-tight,
-.week-toolbar {
-  min-height: 34px;
-  flex-wrap: wrap;
-  padding: 3px 6px;
-  background: var(--vscode-side-bg);
-  border-bottom: 1px solid var(--vscode-border-subtle);
-}
-
-.toolbar-tight button,
-.week-toolbar button,
-.log-header button {
-  min-height: 24px;
-  padding: 2px 7px;
-  font-size: 12px;
-}
-
-.splitter {
-  position: relative;
-  z-index: 2;
-  user-select: none;
-  touch-action: none;
-  background: var(--vscode-editor-bg);
 }
 
 .splitter::before {
@@ -122,19 +35,10 @@
   inset: -4px;
 }
 
-.splitter-vertical {
-  cursor: col-resize;
-}
-
 .splitter-vertical::before {
   left: 2px;
   width: 1px;
   background: var(--vscode-border);
-}
-
-.splitter-horizontal {
-  flex: 0 0 6px;
-  cursor: row-resize;
 }
 
 .splitter-horizontal::before {
@@ -153,20 +57,7 @@
     grid-template-columns: 1fr;
   }
 
-  #main-splitter {
-    display: none;
-  }
-
-  .right-pane {
-    min-height: 320px;
-    border-top: 1px solid var(--vscode-border);
-  }
-
   .workspace-header {
     grid-template-columns: 1fr;
-  }
-
-  .workspace-controls {
-    flex-wrap: wrap;
   }
 }

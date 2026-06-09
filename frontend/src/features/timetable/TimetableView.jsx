@@ -47,7 +47,7 @@ function DetailCourseName({ entry }) {
   return (
     <>
       {entry.name}<br />
-      <span className="dim">{[entry.kchId, entry.classNo].filter(Boolean).join("/")}</span>
+      <span className="text-muted-foreground">{[entry.kchId, entry.classNo].filter(Boolean).join("/")}</span>
     </>
   );
 }
@@ -80,7 +80,7 @@ function TimetableDetail() {
               <tr key={i}>
                 <td><DetailCourseName entry={entry} /></td>
                 <td>{entry.creditText || ""}</td>
-                <td>{entry.teacherName || ""}<br /><span className="dim">{entry.teacherTitle || ""}</span></td>
+                <td>{entry.teacherName || ""}<br /><span className="text-muted-foreground">{entry.teacherTitle || ""}</span></td>
                 <td>{formatWeekRanges(weeks)}</td>
                 <td>{entry.sksj || ""}</td>
                 <td>{entry.location || ""}</td>
@@ -93,7 +93,7 @@ function TimetableDetail() {
   }
 
   if (!entries.length) {
-    return <div id="timetable-detail" className="detail-panel"><div className="dim">暂无已选课程</div></div>;
+    return <div id="timetable-detail" className="detail-panel"><div className="text-muted-foreground">暂无已选课程</div></div>;
   }
 
   return (
@@ -105,7 +105,7 @@ function TimetableDetail() {
             <tr key={entry.doJxbId || index}>
               <td><DetailCourseName entry={entry} /></td>
               <td>{entry.creditText || ""}</td>
-              <td>{entry.teacherName || ""}<br /><span className="dim">{entry.teacherTitle || ""}</span></td>
+              <td>{entry.teacherName || ""}<br /><span className="text-muted-foreground">{entry.teacherTitle || ""}</span></td>
               <td>{entry.sksj || ""}</td>
               <td>{entry.location || ""}</td>
               <td>
@@ -142,11 +142,11 @@ function TimetableCell({ day, jieci }) {
     return (
       <div key={item.jxbId || index}>
         {display.courseName && <div>{item.name}</div>}
-        {display.location && item.location && <div className="timetable-cell-location">{item.location}</div>}
-        {display.credit && item.credit && <div className="timetable-cell-location">{item.credit}</div>}
-        {display.teacher && item.teacher && <div className="timetable-cell-location">{item.teacher}</div>}
-        {display.weeks && item.weeks.length ? <div className="timetable-cell-location">{formatWeekRanges(item.weeks)}</div> : null}
-        {display.time && item.time && <div className="timetable-cell-location">{item.time}</div>}
+        {display.location && item.location && <div className="timetable-cell-location text-xs text-muted-foreground">{item.location}</div>}
+        {display.credit && item.credit && <div className="timetable-cell-location text-xs text-muted-foreground">{item.credit}</div>}
+        {display.teacher && item.teacher && <div className="timetable-cell-location text-xs text-muted-foreground">{item.teacher}</div>}
+        {display.weeks && item.weeks.length ? <div className="timetable-cell-location text-xs text-muted-foreground">{formatWeekRanges(item.weeks)}</div> : null}
+        {display.time && item.time && <div className="timetable-cell-location text-xs text-muted-foreground">{item.time}</div>}
       </div>
     );
   }
@@ -158,7 +158,7 @@ function TimetableCell({ day, jieci }) {
     <td className={cx({ "active-cell": Boolean(active) })}>
       <button type="button" className="timetable-cell-button" onClick={selectCell}>
         {hasContent && (
-          <div className={cx({ "timetable-cell-dim": !data.currentWeek.length })}>
+          <div className={cx({ "timetable-cell-dim opacity-45 text-[11px]": !data.currentWeek.length })}>
             {showItems.map(renderItem)}
           </div>
         )}
@@ -189,7 +189,7 @@ export function TimetableView() {
 
   return (
     <>
-      <div className="week-toolbar toolbar-tight">
+      <div className="flex items-center gap-1 toolbar-tight min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
         <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</Button>
         <span id="week-label">第 {snap.displayWeek}/{maxWeek} 周</span>
         <Button variant="outline" size="sm" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周</Button>
@@ -230,7 +230,7 @@ export function TimetableView() {
           </tbody>
         </table>
       </div>
-      <div id="detail-splitter" className="splitter splitter-horizontal" aria-hidden="true"></div>
+      <div id="detail-splitter" className="splitter splitter-horizontal relative z-[2] select-none touch-none bg-background flex-none w-1.5 cursor-row-resize" aria-hidden="true"></div>
       <TimetableDetail />
     </>
   );

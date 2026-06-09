@@ -33,35 +33,7 @@
   font-size: 12px;
 }
 
-.course-tab {
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.course-tab-close {
-  width: 24px;
-  color: var(--vscode-fg-muted);
-}
-
-.course-tab-shell:hover,
-.course-tab-new:hover {
-  background: var(--vscode-list-hover-bg);
-}
-
-.course-tab-new {
-  border-radius: 4px;
-  color: var(--vscode-fg-muted);
-}
-
-.tree-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
-  margin-right: 14px;
-}
 
 .course-query-panel {
   flex: 0 0 auto;
@@ -156,24 +128,6 @@
   gap: 8px;
 }
 
-.query-toggle-button {
-  min-width: 72px;
-}
-
-.tree-selection-button {
-  min-width: 88px;
-}
-
-.tree-selection-button:disabled {
-  opacity: 0.45;
-}
-
-.tree-selection-status {
-  color: var(--vscode-fg-muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .tree-result-filter {
   display: grid;
   grid-template-columns: minmax(150px, 240px) 24px;
@@ -257,23 +211,6 @@
   gap: 8px;
 }
 
-.filter-picker-toolbar {
-  display: flex;
-  gap: 6px;
-}
-
-.filter-picker-toolbar input {
-  flex: 1;
-}
-
-.filter-picker-selected {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 0;
-}
-
 .filter-chip {
   display: inline-flex;
   max-width: 220px;
@@ -300,58 +237,9 @@
   overflow: auto;
 }
 
-.filter-picker-option {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.filter-picker-option:hover {
-  background: var(--vscode-list-hover-bg);
-}
-
 .filter-picker-table-wrap {
   display: block;
   overflow: auto;
-}
-
-.filter-picker-table {
-  width: 100%;
-  min-width: max-content;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.filter-picker-table th,
-.filter-picker-table td {
-  padding: 6px 8px;
-  border: 1px solid var(--vscode-row-border);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.filter-picker-table th {
-  background: var(--vscode-side-bg);
-  color: var(--vscode-fg-muted);
-  font-weight: 600;
-}
-
-.filter-picker-table tr:hover {
-  background: var(--vscode-list-hover-bg);
-}
-
-.filter-picker-table tr.selected {
-  background: var(--vscode-list-selection-bg);
-}
-
-.filter-picker-table th:first-child,
-.filter-picker-table td:first-child {
-  width: 34px;
-  text-align: center;
 }
 
 #course-query-keyword {
@@ -359,11 +247,6 @@
   min-height: 24px;
   padding: 2px 7px;
   font-size: 12px;
-}
-
-#remote-search,
-#reset-query {
-  white-space: nowrap;
 }
 
 #remote-search.is-dirty {
@@ -386,26 +269,6 @@
   background: var(--vscode-panel-bg);
 }
 
-.tree-view {
-  flex: 1;
-  padding: 4px 0 8px;
-  background: var(--vscode-panel-bg);
-}
-
-.tree-row {
-  display: flex;
-  align-items: center;
-  min-height: 26px;
-  gap: 4px;
-  padding: 1px 8px;
-  border: 1px solid transparent;
-  color: var(--vscode-fg);
-}
-
-.tree-row:hover {
-  background: var(--vscode-list-hover-bg);
-}
-
 .tree-row.selected {
   background: color-mix(in srgb, var(--vscode-success) 12%, transparent);
   border-color: transparent;
@@ -413,15 +276,6 @@
 
 .tree-row.selected:hover {
   background: color-mix(in srgb, var(--vscode-success) 18%, var(--vscode-list-hover-bg));
-}
-
-.tree-label {
-  flex: 1;
-  min-width: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .tree-row-grid {
@@ -475,29 +329,6 @@
   color: var(--vscode-error);
 }
 
-.tree-more-dot {
-  display: inline-flex;
-  width: 20px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 2px;
-  color: var(--vscode-fg-subtle);
-  font-size: 16px;
-  line-height: 1;
-  opacity: 0;
-}
-
-.tree-row:hover .tree-more-dot,
-.tree-row.selected .tree-more-dot {
-  opacity: 1;
-}
-
-.tree-more-dot:hover {
-  background: var(--vscode-hover-alpha-strong);
-  color: var(--vscode-fg);
-}
-
 .tree-table {
   display: grid;
   width: 100%;
@@ -515,81 +346,9 @@
   grid-template-columns: minmax(72px, 0.55fr) minmax(104px, 0.75fr) minmax(138px, 1.2fr) minmax(88px, 0.75fr) 64px 64px;
 }
 
-.tree-table > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tree-table-main {
-  color: inherit;
-}
-
-.tree-table-code,
-.tree-table-credit,
-.tree-table-teacher,
-.tree-table-time,
-.tree-table-location,
-.tree-table-prop {
-  color: var(--vscode-fg-muted);
-}
-
-.tree-table-credit {
-  color: var(--vscode-fg);
-}
-
-.tree-table-count {
-  color: var(--vscode-fg-muted);
-}
-
-.tree-table-count.is-has-capacity {
-  color: var(--vscode-success);
-}
-
 .tree-row.level-1,
 .tree-row.level-2 {
   border-bottom-color: var(--vscode-row-border);
-}
-
-.tree-row.level-0 .tree-label {
-  color: var(--vscode-fg-strong);
-  font-weight: 500;
-}
-
-.tree-row.level-1 .tree-label {
-  color: var(--vscode-fg);
-}
-
-.tree-row.selected .tree-label,
-.tree-row.level-2.selected .tree-label {
-  color: var(--vscode-success);
-}
-
-.tree-row.muted .tree-label {
-  color: var(--vscode-fg-subtle);
-}
-
-.tree-row.muted .tree-table > span {
-  color: var(--vscode-fg-subtle);
-}
-
-.tree-row.muted .tree-check {
-  opacity: 0.55;
-}
-
-.tree-arrow {
-  display: inline-flex;
-  flex: 0 0 16px;
-  width: 16px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  color: var(--vscode-fg-subtle);
-  font-size: 11px;
-}
-
-.tree-arrow.is-expandable:hover {
-  color: var(--vscode-fg);
 }
 
 .tree-children {
@@ -608,41 +367,9 @@
   background: var(--vscode-hover-alpha);
 }
 
-.tree-placeholder {
-  padding: 5px 8px 5px 24px;
-  color: var(--vscode-fg-subtle);
-  font-size: 12px;
-}
-
-.tree-more {
-  display: block;
-  width: calc(100% - 16px);
-  min-height: 24px;
-  margin: 2px 8px;
-  padding: 2px 8px 2px 24px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--vscode-info);
-  text-align: left;
-  font-size: 13px;
-}
-
-.tree-more:hover {
-  background: var(--vscode-list-hover-bg);
-  border-color: transparent;
-}
-
 @media (max-width: 960px) {
   .course-query-main {
     grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
-  #course-query-keyword {
-    grid-column: 1 / -1;
-  }
-
-  .tree-result-toolbar {
-    align-items: stretch;
   }
 
   .tree-actions {
@@ -659,9 +386,5 @@
 @media (max-width: 560px) {
   .course-query-main {
     grid-template-columns: 1fr 1fr;
-  }
-
-  #course-query-keyword {
-    grid-column: 1 / -1;
   }
 }

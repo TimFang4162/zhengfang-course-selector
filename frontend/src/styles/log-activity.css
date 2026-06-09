@@ -28,36 +28,6 @@
   border-bottom: 1px solid var(--vscode-border);
 }
 
-.log-header button {
-  border-color: transparent;
-  background: transparent;
-  color: var(--vscode-fg-muted);
-}
-
-.log-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.log-actions select {
-  min-height: 24px;
-  max-width: 86px;
-  padding-top: 1px;
-  padding-bottom: 1px;
-  background-color: var(--vscode-editor-bg);
-  font-size: 12px;
-}
-
-.log-header button:hover {
-  background: var(--vscode-list-hover-bg);
-  color: var(--vscode-fg);
-}
-
-.log-title {
-  color: var(--vscode-fg-strong);
-}
-
 .log-list {
   flex: 1;
   padding: 3px 0 8px;
@@ -66,52 +36,11 @@
   line-height: 1.45;
 }
 
-.activity-panel {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
 .activity-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 13px;
-}
-
-.activity-table th,
-.activity-table td {
-  border-bottom: 1px solid var(--vscode-border-subtle);
-  padding: 5px 8px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.activity-table th {
-  position: sticky;
-  top: 0;
-  background: var(--vscode-side-bg);
-  color: var(--vscode-fg-muted);
-  font-weight: 500;
-}
-
-.activity-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activity-more {
-  float: right;
-  min-width: 22px;
-  min-height: 20px;
-  padding: 0 5px;
-  border-color: transparent;
-  background: transparent;
-}
-
-.activity-row.is-clickable {
-  cursor: pointer;
 }
 
 .log-line {
@@ -130,25 +59,6 @@
   text-align: left;
   align-items: start;
   min-width: 0;
-}
-
-.log-time {
-  color: var(--vscode-fg-subtle);
-  white-space: nowrap;
-}
-
-.log-type {
-  color: var(--vscode-fg-subtle);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.log-message {
-  min-width: 0;
-  color: var(--vscode-fg-muted);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-all;
 }
 
 .log-line:hover {
@@ -215,20 +125,6 @@
 
 .log-line.level-error:not(.is-pending) {
   border-left-color: var(--vscode-error);
-}
-
-.log-detail-pre {
-  max-height: 220px;
-  margin: 0;
-  padding: 8px;
-  overflow: auto;
-  border: 1px solid var(--vscode-border-subtle);
-  background: var(--vscode-editor-bg);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-all;
-  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--vscode-fg);
 }
 
 #log-detail-content .class-meta {
