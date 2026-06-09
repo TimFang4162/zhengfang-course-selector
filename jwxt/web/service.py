@@ -183,6 +183,7 @@ class JWXTWebService(GrabTaskMixin):
                 "sessionManagedByBackend": True,
                 "baseUrl": self.mod.base_url,
                 "disableSslVerify": self.disable_ssl_verify,
+                "timeout": dict(self.mod.REQ_TIMEOUT),
                 "categories": categories,
                 "tree": tree,
                 "timetable": timetable,
@@ -315,7 +316,7 @@ class JWXTWebService(GrabTaskMixin):
                 text = self.mod.http_get(
                     base_url
                     + "/jwglxt/xtgl/index_cxYhxxIndex.html?xt=jw&localeKey=zh_CN&gnmkdm=index",
-                    timeout=10,
+                    timeout=self.mod.REQ_TIMEOUT["cookie_verify"],
                 ).text
             except Exception as exc:
                 self._log_business(f"Cookie 验证失败: {exc}", level="error")
@@ -406,7 +407,20 @@ class JWXTWebService(GrabTaskMixin):
                 self._log_info(
                     f"SSL 验证设置: {'禁用' if self.disable_ssl_verify else '启用'}"
                 )
+            if "timeout" in payload:
+                overrides = payload["timeout"]
+                if isinstance(overrides, dict):
+                    for key, value in overrides.items():
+                        if key in self.mod.REQ_TIMEOUT:
+                            self.mod.REQ_TIMEOUT[key] = int(value)
+                    self._log_info(f"请求超时已更新: {overrides}")
             return {"ok": True, "disableSslVerify": self.disable_ssl_verify}
+
+    def get_settings(self):
+        return {
+            "disableSslVerify": self.disable_ssl_verify,
+            "timeout": dict(self.mod.REQ_TIMEOUT),
+        }
 
     def fetch_categories(self, refresh: bool = False):
         with self.lock:

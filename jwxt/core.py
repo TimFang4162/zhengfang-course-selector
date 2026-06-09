@@ -45,6 +45,22 @@ header = {
 sess.headers = header
 sess.verify = False
 
+REQ_TIMEOUT = {
+    "login": 50,
+    "filter": 50,
+    "big_list": 50,
+    "small_list": 50,
+    "class_detail": 50,
+    "choose": 50,
+    "withdraw": 50,
+    "course_detail": 50,
+    "teacher_detail": 50,
+    "choosed_list": 50,
+    "academic_status": 50,
+    "academic_detail": 50,
+    "cookie_verify": 50,
+}
+
 bh_id = ""
 xsbj = ""
 njdm_id = ""
@@ -199,7 +215,7 @@ def _fetch_major_grid_options(page: int, show_count: int, query: str, extra: dic
     return http_post(
         url=base_url + "/jwglxt/grid/grid_cxCommonSelectList.html?gnmkdm=N253512",
         data=data,
-        timeout=8,
+        timeout=REQ_TIMEOUT["filter"],
     ).json()
 
 
@@ -227,7 +243,9 @@ def fetch_filter_options(option_type, page=1, show_count=20, query="", extra=Non
         if query_field:
             path = _with_query_param(path, query_field, query)
     data.update(extra)
-    return http_post(url=base_url + path, data=data, timeout=8).json()
+    return http_post(
+        url=base_url + path, data=data, timeout=REQ_TIMEOUT["filter"]
+    ).json()
 
 
 def _format_request_path(url: str) -> str:
@@ -558,9 +576,9 @@ def do_login(log_func, debug_func):
     login_url = base_url + "/jwglxt/xtgl/login_slogin.html"
     try:
         debug_func("正在获取公钥...")
-        res = http_get(public_key, headers=header, timeout=5)
+        res = http_get(public_key, headers=header, timeout=REQ_TIMEOUT["login"])
         if res.status_code != 200:
-            res = http_get(public_key, headers=header, timeout=5)
+            res = http_get(public_key, headers=header, timeout=REQ_TIMEOUT["login"])
         key = res.json()
         mm = base64.b64encode(
             rsa_encryption(key["modulus"], key["exponent"], PASSWORD)
@@ -571,7 +589,7 @@ def do_login(log_func, debug_func):
             headers=header,
             data={"language": "zh_CN", "yhm": STUDENT_NUMBER, "mm": mm},
             allow_redirects=False,
-            timeout=5,
+            timeout=REQ_TIMEOUT["login"],
         )
         if req.status_code == 302:
             log_func("登录成功！")
@@ -593,7 +611,7 @@ def fetch_big_list(log_func, debug_func):
         debug_func("GET zzxkyzb_cxZzxkYzbIndex.html")
         text = http_get(
             base_url + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512",
-            timeout=8,
+            timeout=REQ_TIMEOUT["big_list"],
         ).text
         if "您不在可选课名单中" in text:
             log_func("错误：当前不在选课名单中")
@@ -697,7 +715,7 @@ def fetch_small_list(target, log_func, debug_func, page=1, remote_filters=None):
             url=base_url
             + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512",
             data=data,
-            timeout=10,
+            timeout=REQ_TIMEOUT["small_list"],
         ).json()
         ret_data = {}
         for clz in req.get("tmpList", []):
@@ -777,7 +795,7 @@ def fetch_class_detail_and_plan(
             url=base_url
             + "/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512",
             data=data,
-            timeout=8,
+            timeout=REQ_TIMEOUT["class_detail"],
         ).json()
     except requests.Timeout:
         debug_func(f"!!! TIMEOUT (KCH={kch_id}) - 可能被Ban或网络卡顿 !!!")
@@ -814,7 +832,7 @@ def execute_choose(
         return http_post(
             url=base_url + "/jwglxt/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512",
             data=data,
-            timeout=5,
+            timeout=REQ_TIMEOUT["choose"],
         )
     except Exception as exc:
         debug_func(f"选课请求异常: {exc}")
@@ -834,7 +852,7 @@ def execute_withdraw(jxb_id, kch_id, debug_func):
         return http_post(
             url=base_url + "/jwglxt/xsxk/zzxkyzb_tuikBcZzxkYzb.html?gnmkdm=N253512",
             data=data,
-            timeout=5,
+            timeout=REQ_TIMEOUT["withdraw"],
         )
     except Exception as exc:
         debug_func(f"退课请求异常: {exc}")
@@ -903,7 +921,7 @@ def fetch_course_detail(kch_id, debug_func=print):
         resp = http_post(
             url=base_url + "/jwglxt/xkgl/common_cxKcxxModel.html?gnmkdm=N253512",
             data={"kch_id": kch_id},
-            timeout=8,
+            timeout=REQ_TIMEOUT["course_detail"],
         )
         text = resp.text
         result = {}
@@ -927,7 +945,7 @@ def fetch_teacher_detail(jgh_id, kch_id, debug_func=print):
         resp = http_post(
             url=base_url + "/jwglxt/xkgl/common_cxJsxxModel.html?gnmkdm=N253512",
             data={"jgh_id": jgh_id, "kch_id": kch_id},
-            timeout=8,
+            timeout=REQ_TIMEOUT["teacher_detail"],
         )
         text = resp.text
         result = {}
@@ -978,7 +996,7 @@ def fetch_choosed_list(log_func=None, debug_func=None):
             url=base_url
             + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512",
             data=data,
-            timeout=10,
+            timeout=REQ_TIMEOUT["choosed_list"],
         ).json()
     except Exception as exc:
         if log_func:
@@ -1217,7 +1235,7 @@ def fetch_academic_status(log_func=None, debug_func=None):
         page = http_get(
             base_url
             + "/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html?gnmkdm=N105515&layout=default",
-            timeout=12,
+            timeout=REQ_TIMEOUT["academic_status"],
         ).text
         parsed = parse_academic_page(page)
         params = parsed["params"]
@@ -1254,7 +1272,7 @@ def fetch_academic_status(log_func=None, debug_func=None):
                 courses = http_post(
                     base_url + f"/jwglxt/xsxy/{endpoint}?gnmkdm=N105515",
                     data=payload,
-                    timeout=10,
+                    timeout=REQ_TIMEOUT["academic_detail"],
                 ).json()
             except Exception:
                 courses = []

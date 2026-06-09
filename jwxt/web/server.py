@@ -113,6 +113,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/events":
                 self._stream_events()
                 return
+            if parsed.path == "/api/settings":
+                self._write_json(SERVICE.get_settings())
+                return
             if parsed.path == "/api/grab/tasks":
                 self._write_json(SERVICE.list_grab_tasks())
                 return
