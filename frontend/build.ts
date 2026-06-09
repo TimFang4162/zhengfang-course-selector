@@ -1,6 +1,6 @@
 import { rmSync } from "node:fs";
 import { build } from "vite";
-import solid from "vite-plugin-solid";
+import react from "@vitejs/plugin-react";
 
 const outdir = "jwxt/web/static";
 const isCheck = Bun.argv.includes("--check");
@@ -14,7 +14,7 @@ await build({
   base: "./",
   configFile: false,
   publicDir: false,
-  plugins: [solid()],
+  plugins: [react()],
   build: {
     outDir: viteOutDir,
     emptyOutDir: false,

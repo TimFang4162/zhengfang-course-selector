@@ -1,3 +1,4 @@
+import { ref } from "valtio";
 import { apiPostEmpty } from "../../api/client.js";
 
 export function createLogsFeature({ state }) {
@@ -101,7 +102,7 @@ function connectLogStream() {
       window.setTimeout(connectLogStream, 1000);
     }
   });
-  state.logSource = source;
+  state.logSource = ref(source);
 }
 
 function clearLogs() {

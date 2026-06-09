@@ -1,262 +1,247 @@
-import { For, Show } from "solid-js";
+import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
+import { cx } from "../../shared/utils.js";
 
-function TreeRow(props) {
-  function activate(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      props.onClick?.(event);
-    }
-  }
-
+function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyDown, children }) {
   return (
     <div
-      class={`tree-row level-${props.level}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}`}
+      className={`tree-row level-${level}${selected ? " selected" : ""}${muted ? " muted" : ""}`}
       role="treeitem"
       tabIndex="0"
-      onClick={props.onClick}
-      onKeyDown={activate}
+      onClick={onClick}
+      onKeyDown={onKeyDown || ((e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(e); }
+      })}
     >
-      <span class={`tree-arrow${props.expandable ? " is-expandable" : ""}${props.expanded ? " is-expanded" : ""}`}>
-        {props.expandable ? (props.expanded ? "▾" : "▸") : "·"}
+      <span className={`tree-arrow${expandable ? " is-expandable" : ""}${expanded ? " is-expanded" : ""}`}>
+        {expandable ? (expanded ? "▾" : "▸") : "·"}
       </span>
-      <div class="tree-label">{props.children}</div>
+      <div className="tree-label">{children}</div>
     </div>
   );
 }
 
-function RowChrome(props) {
-  const selectionState = () => props.selectionState || "inherit";
+function RowChrome({ selectionState, checkLabel, onToggleCheck, onMore, children }) {
+  const sel = selectionState || "inherit";
+  const checkChar = sel === "include" ? "✓" : sel === "exclude" ? "-" : sel === "inherited" ? "✓" : sel === "partial" ? "·" : "";
   return (
-    <div class="tree-row-grid">
+    <div className="tree-row-grid">
       <button
         type="button"
-        class={`tree-check is-${selectionState()}`}
-        aria-label={props.checkLabel || "切换选择"}
-        onClick={(event) => {
-          event.stopPropagation();
-          props.onToggleCheck?.(event);
-        }}
+        className={`tree-check is-${sel}`}
+        aria-label={checkLabel || "切换选择"}
+        onClick={(e) => { e.stopPropagation(); onToggleCheck?.(e); }}
       >
-        {selectionState() === "include" ? "✓" : selectionState() === "exclude" ? "-" : selectionState() === "inherited" ? "✓" : selectionState() === "partial" ? "·" : ""}
+        {checkChar}
       </button>
-      {props.children}
+      {children}
       <button
         type="button"
-        class="tree-more-dot"
-        onClick={(event) => {
-          event.stopPropagation();
-          props.onMore?.(event.currentTarget);
-        }}
+        className="tree-more-dot"
+        onClick={(e) => { e.stopPropagation(); onMore?.(e.currentTarget); }}
       >⋯</button>
     </div>
   );
 }
 
-function Cell(props) {
-  return <span class={props.className || ""}>{props.children || "-"}</span>;
+function Cell({ className, children }) {
+  return <span className={className || ""}>{children || "-"}</span>;
 }
 
-function TreeChip(props) {
-  return <span class={`tree-chip${props.type ? ` is-${props.type}` : ""}`}>{props.children}</span>;
+function TreeChip({ type, children }) {
+  return <span className={`tree-chip${type ? ` is-${type}` : ""}`}>{children}</span>;
 }
 
-function hasReactive(set, value) {
-  state.treeVersion;
-  return set.has(value);
-}
-
-function activeTreeTab(app) {
-  state.treeVersion;
-  return app.tree.activeCourseTab();
-}
-
-function CourseSummary(props) {
+function CourseSummary({ category, course }) {
   const app = useAppContext();
-  const reasons = () => [
-    isSelectedCourse(props.course) ? "已选" : null,
-    state.filters.credit && courseExceedsCredit(props.course) ? "超学分" : null,
-    state.filters.completed && courseCompleted(props.course) ? "已修读" : null,
+  const snap = useSnapshot(state);
+  const reasons = [
+    isSelectedCourse(course) ? "已选" : null,
+    snap.filters.credit && courseExceedsCredit(course) ? "超学分" : null,
+    snap.filters.completed && courseCompleted(course) ? "已修读" : null,
   ].filter(Boolean);
 
   return (
     <RowChrome
-      selectionState={app.tree.selectionDisplayState("course", props.category.id, props.course.kchId)}
-      checkLabel={`切换课程 ${props.course.courseName} 的抢课选择`}
-      onToggleCheck={() => app.tree.toggleCourseSelection(props.category.id, props.course.kchId)}
-      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category: props.category, course: props.course })}
+      selectionState={app.tree.selectionDisplayState("course", category.id, course.kchId)}
+      checkLabel={`切换课程 ${course.courseName} 的抢课选择`}
+      onToggleCheck={() => app.tree.toggleCourseSelection(category.id, course.kchId)}
+      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "course", category, course })}
     >
-      <div class="tree-table tree-course-table">
-        <Cell className="tree-table-main">{props.course.courseName} <For each={reasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
-        <Cell className="tree-table-code">{props.course.kchId}</Cell>
-        <Cell className="tree-table-credit">{props.course.creditText ? `${props.course.creditText}学分` : "-"}</Cell>
-        <Cell className="tree-table-count">{props.course.classCount}教学班</Cell>
+      <div className="tree-table tree-course-table">
+        <Cell className="tree-table-main">{course.courseName} {reasons.map((r) => <TreeChip key={r} type={r === "已选" ? "selected" : ""}>{r}</TreeChip>)}</Cell>
+        <Cell className="tree-table-code">{course.kchId}</Cell>
+        <Cell className="tree-table-credit">{course.creditText ? `${course.creditText}学分` : "-"}</Cell>
+        <Cell className="tree-table-count">{course.classCount}教学班</Cell>
       </div>
     </RowChrome>
   );
 }
 
-function ClassSummary(props) {
+function ClassSummary({ category, course, item }) {
   const app = useAppContext();
-  const teacher = () => props.item.teacherTitle ? `${props.item.teacherName}/${props.item.teacherTitle}` : props.item.teacherName || "未标注教师";
-  const hasCapacity = () => classHasCapacity(props.item);
-  const timeReasons = () => [
-    state.filters.conflict && classConflicts(props.item) && !isSelectedClass(props.item) ? "时间冲突" : null,
+  const snap = useSnapshot(state);
+  const teacher = item.teacherTitle ? `${item.teacherName}/${item.teacherTitle}` : item.teacherName || "未标注教师";
+  const hasCap = classHasCapacity(item);
+  const timeReasons = [
+    snap.filters.conflict && classConflicts(item) && !isSelectedClass(item) ? "时间冲突" : null,
   ].filter(Boolean);
 
   return (
     <RowChrome
-      selectionState={app.tree.selectionDisplayState("class", props.category.id, props.course.kchId, props.item)}
-      checkLabel={`切换教学班 ${props.item.classNo} 的抢课选择`}
-      onToggleCheck={() => app.tree.toggleClassSelection(props.category.id, props.course.kchId, props.item)}
-      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category: props.category, course: props.course, classItem: props.item })}
+      selectionState={app.tree.selectionDisplayState("class", category.id, course.kchId, item)}
+      checkLabel={`切换教学班 ${item.classNo} 的抢课选择`}
+      onToggleCheck={() => app.tree.toggleClassSelection(category.id, course.kchId, item)}
+      onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "class", category, course, classItem: item })}
     >
-      <div class="tree-table tree-class-table">
-        <Cell className="tree-table-code">{props.item.index}. {props.item.classNo}{isSelectedClass(props.item) ? <TreeChip type="selected">已选</TreeChip> : null}</Cell>
-        <Cell className="tree-table-teacher">{teacher()}</Cell>
-        <Cell className="tree-table-time">{props.item.sksj} <For each={timeReasons()}>{(reason) => <TreeChip type={reason === "已选" ? "selected" : ""}>{reason}</TreeChip>}</For></Cell>
-        <Cell className="tree-table-location">{props.item.location}</Cell>
-        <Cell className="tree-table-prop">{props.item.courseProperty}</Cell>
-        <Cell className={`tree-table-count${state.filters.highlightCapacity && hasCapacity() ? " is-has-capacity" : ""}`}>{props.item.selectedCount}/{props.item.capacity}</Cell>
+      <div className="tree-table tree-class-table">
+        <Cell className="tree-table-code">{item.index}. {item.classNo}{isSelectedClass(item) ? <TreeChip type="selected">已选</TreeChip> : null}</Cell>
+        <Cell className="tree-table-teacher">{teacher}</Cell>
+        <Cell className="tree-table-time">{item.sksj} {timeReasons.map((r) => <TreeChip key={r}>{r}</TreeChip>)}</Cell>
+        <Cell className="tree-table-location">{item.location}</Cell>
+        <Cell className="tree-table-prop">{item.courseProperty}</Cell>
+        <Cell className={`tree-table-count${snap.filters.highlightCapacity && hasCap ? " is-has-capacity" : ""}`}>{item.selectedCount}/{item.capacity}</Cell>
       </div>
     </RowChrome>
   );
 }
 
-function ClassRows(props) {
+function ClassRows({ category, course }) {
   const app = useAppContext();
-  const courseKey = () => `${props.category.id}:${props.course.kchId}`;
-  const classItems = () => app.tree.classBucket(props.category.id, props.course.kchId, activeTreeTab(app));
-  const renderClassItems = () => {
-    const items = classItems() || [];
-    const query = activeTreeTab(app)?.localFilter || "";
-    if (!normalizedSearchQuery(state, query)) return items;
-    return items.filter((item) => classMatchesSearch(state, item, query) || textMatchesSearch(state, query, props.course.courseName, props.course.kchId));
-  };
+  const snap = useSnapshot(state);
+  void snap.treeVersion;
+  const tab = app.tree.activeCourseTab();
+  const courseKey = `${category.id}:${course.kchId}`;
+  const classItems = app.tree.classBucket(category.id, course.kchId, tab) || [];
+  const query = tab?.localFilter || "";
+  let renderItems = classItems;
+  if (normalizedSearchQuery(state, query)) {
+    renderItems = classItems.filter((item) => classMatchesSearch(state, item, query) || textMatchesSearch(state, query, course.courseName, course.kchId));
+  }
+  const loading = app.tree.loadingCourses(tab)?.has(courseKey);
+
+  if (loading) return <div className="tree-children"><div className="tree-placeholder">加载教学班中...</div></div>;
+  if (!classItems.length) return <div className="tree-children"><div className="tree-placeholder">展开后加载教学班</div></div>;
+  if (!classItems.length) return <div className="tree-children"><div className="tree-placeholder">无教学班</div></div>;
+  if (!renderItems.length) return <div className="tree-children"><div className="tree-placeholder">无匹配教学班</div></div>;
 
   return (
-    <div class="tree-children">
-      <Show when={!hasReactive(app.tree.loadingCourses(activeTreeTab(app)), courseKey())} fallback={<div class="tree-placeholder">加载教学班中...</div>}>
-        <Show when={classItems()} fallback={<div class="tree-placeholder">展开后加载教学班</div>}>
-          <Show when={classItems().length} fallback={<div class="tree-placeholder">无教学班</div>}>
-            <Show when={renderClassItems().length} fallback={<div class="tree-placeholder">无匹配教学班</div>}>
-              <For each={renderClassItems()}>
-                {(item) => (
-                  <TreeRow
-                    level={2}
-                    selected={isSelectedClass(item)}
-                    muted={classMuted(props.course, item)}
-                    onClick={() => app.timetable.openClassModal(props.category.id, props.course, item)}
-                  >
-                    <ClassSummary category={props.category} course={props.course} item={item} />
-                  </TreeRow>
-                )}
-              </For>
-            </Show>
-          </Show>
-        </Show>
-      </Show>
+    <div className="tree-children">
+      {renderItems.map((item) => (
+        <TreeRow
+          key={`${item.classKey || item.jxbId}`}
+          level={2}
+          selected={isSelectedClass(item)}
+          muted={classMuted(course, item)}
+          onClick={() => app.timetable.openClassModal(category.id, course, item)}
+        >
+          <ClassSummary category={category} course={course} item={item} />
+        </TreeRow>
+      ))}
     </div>
   );
 }
 
-function CourseRows(props) {
+function CourseRows({ category, course }) {
   const app = useAppContext();
-  const courseKey = () => `${props.category.id}:${props.course.kchId}`;
+  const snap = useSnapshot(state);
+  void snap.treeVersion;
+  const tab = app.tree.activeCourseTab();
+  const courseKey = `${category.id}:${course.kchId}`;
+  const expanded = app.tree.expandedCourses(tab)?.has(courseKey);
 
   return (
     <>
       <TreeRow
         level={1}
-        selected={isSelectedCourse(props.course)}
-        muted={courseMuted(props.category.id, props.course)}
+        selected={isSelectedCourse(course)}
+        muted={courseMuted(category.id, course)}
         expandable
-        expanded={hasReactive(app.tree.expandedCourses(activeTreeTab(app)), courseKey())}
-        onClick={() => app.tree.toggleCourse(props.category.id, props.course.kchId)}
+        expanded={expanded}
+        onClick={() => app.tree.toggleCourse(category.id, course.kchId)}
       >
-        <CourseSummary category={props.category} course={props.course} />
+        <CourseSummary category={category} course={course} />
       </TreeRow>
-      <Show when={hasReactive(app.tree.expandedCourses(activeTreeTab(app)), courseKey())}>
-        <ClassRows category={props.category} course={props.course} />
-      </Show>
+      {expanded && <ClassRows category={category} course={course} />}
     </>
   );
 }
 
-function CategoryRows(props) {
+function CategoryRows({ category, shouldRenderCourse }) {
   const app = useAppContext();
-  const activeTab = () => activeTreeTab(app);
-  const bucket = () => app.tree.categoryBucket(props.category.id, activeTab());
-  const courses = () => bucket()?.courses || [];
-  const renderCourses = () => {
-    const query = activeTab()?.localFilter || "";
-    if (!normalizedSearchQuery(state, query)) return courses();
-    return courses().filter((course) => props.shouldRenderCourse(props.category.id, course, query));
-  };
-  const categoryMuted = () => renderCourses().length > 0 && renderCourses().every((course) => courseMuted(props.category.id, course));
-  const categoryCountText = () => {
-    const b = bucket();
-    if (!b?.loaded) return "";
-    const count = renderCourses().length;
-    return b.hasMore ? `${count}+` : String(count);
-  };
+  const snap = useSnapshot(state);
+  void snap.treeVersion;
+  const tab = app.tree.activeCourseTab();
+  const bucket = app.tree.categoryBucket(category.id, tab);
+  const courses = bucket?.courses || [];
+  const query = tab?.localFilter || "";
+  let renderCourses = courses;
+  if (normalizedSearchQuery(state, query)) {
+    renderCourses = courses.filter((course) => shouldRenderCourse(category.id, course, query));
+  }
+  const categoryMuted = renderCourses.length > 0 && renderCourses.every((course) => courseMuted(category.id, course));
+  const expanded = app.tree.expandedCategories(tab)?.has(category.id);
+  const loading = app.tree.loadingCategories(tab)?.has(category.id);
+  const countText = (() => {
+    if (!bucket?.loaded) return "";
+    const count = renderCourses.length;
+    return bucket.hasMore ? `${count}+` : String(count);
+  })();
 
   return (
     <>
       <TreeRow
         level={0}
-        muted={categoryMuted()}
+        muted={categoryMuted}
         expandable
-        expanded={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}
-        onClick={() => app.tree.toggleCategory(props.category.id)}
+        expanded={expanded}
+        onClick={() => app.tree.toggleCategory(category.id)}
       >
         <RowChrome
-          selectionState={app.tree.selectionDisplayState("category", props.category.id)}
-          checkLabel={`切换大类 ${props.category.name} 的抢课选择`}
-          onToggleCheck={() => app.tree.toggleCategorySelection(props.category.id)}
-          onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category: props.category })}
+          selectionState={app.tree.selectionDisplayState("category", category.id)}
+          checkLabel={`切换大类 ${category.name} 的抢课选择`}
+          onToggleCheck={() => app.tree.toggleCategorySelection(category.id)}
+          onMore={(anchor) => app.grab.openTreeMoreMenu(anchor, { type: "category", category })}
         >
-          {props.category.name}{categoryCountText() && ` (${categoryCountText()})`}
+          {category.name}{countText && ` (${countText})`}
         </RowChrome>
       </TreeRow>
-      <Show when={hasReactive(app.tree.expandedCategories(activeTab()), props.category.id)}>
-        <div class="tree-children">
-          <Show when={!(!bucket()?.loaded && hasReactive(app.tree.loadingCategories(activeTab()), props.category.id))} fallback={<div class="tree-placeholder">加载课程中...</div>}>
-            <Show when={bucket()?.loaded} fallback={<div class="tree-placeholder">展开后加载课程</div>}>
-              <For each={renderCourses()}>
-                {(course) => <CourseRows category={props.category} course={course} />}
-              </For>
-              <Show when={hasReactive(app.tree.loadingCategories(activeTab()), props.category.id)}>
-                <div class="tree-placeholder">加载更多课程中...</div>
-              </Show>
-              <Show when={!hasReactive(app.tree.loadingCategories(activeTab()), props.category.id) && bucket()?.hasMore}>
-                <button type="button" class="tree-more" onClick={() => {
-                  const tab = activeTab();
-                  app.tree.loadSearchCategoryCourses(tab, props.category.id, bucket().nextPage).catch(app.showError);
+      {expanded && (
+        <div className="tree-children">
+          {(!bucket?.loaded && loading) ? (
+            <div className="tree-placeholder">加载课程中...</div>
+          ) : !bucket?.loaded ? (
+            <div className="tree-placeholder">展开后加载课程</div>
+          ) : (
+            <>
+              {renderCourses.map((course) => <CourseRows key={course.kchId} category={category} course={course} />)}
+              {loading && <div className="tree-placeholder">加载更多课程中...</div>}
+              {!loading && bucket?.hasMore && (
+                <button type="button" className="tree-more" onClick={() => {
+                  app.tree.loadSearchCategoryCourses(tab, category.id, bucket.nextPage).catch(app.showError);
                 }}>加载更多...</button>
-              </Show>
-            </Show>
-          </Show>
+              )}
+            </>
+          )}
         </div>
-      </Show>
+      )}
     </>
   );
 }
 
 export function TreeView() {
   const app = useAppContext();
+  const snap = useSnapshot(state);
+  void snap.treeVersion;
   const shouldRenderCourse = (categoryId, course) => {
-    return courseMatchesSearch(state, categoryId, course, activeTreeTab(app)?.localFilter || "");
+    return courseMatchesSearch(state, categoryId, course, app.tree.activeCourseTab()?.localFilter || "");
   };
-  const visibleCategories = () => state.categories;
 
   return (
-    <div id="course-tree" class="tree-view" data-tree-version={state.treeVersion}>
-      <For each={visibleCategories()}>
-        {(category) => <CategoryRows category={category} shouldRenderCourse={shouldRenderCourse} />}
-      </For>
+    <div id="course-tree" className="tree-view" data-tree-version={snap.treeVersion}>
+      {snap.categories.map((category) => <CategoryRows key={category.id} category={category} shouldRenderCourse={shouldRenderCourse} />)}
     </div>
   );
 }

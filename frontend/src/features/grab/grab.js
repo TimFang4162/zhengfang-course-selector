@@ -1,4 +1,5 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import { ref } from "valtio";
 import { apiGet, apiPost } from "../../api/client.js";
 import { openFloatingMenu } from "../../components/FloatingMenu.jsx";
 import { defaultGrabExpression, grabSymbolDocs, grabSymbols, validateGrabExpression } from "./expression.js";
@@ -67,7 +68,7 @@ export function createGrabFeature({ state, getApp }) {
         return { contents: [{ value: `\`${key}\`` }, { value: doc }] };
       },
     });
-    state.grabEditor = monaco.editor.create(monacoRoot, {
+    state.grabEditor = ref(monaco.editor.create(monacoRoot, {
       value: textarea.value,
       language: "grabexpr",
       theme: "vs-dark",
@@ -78,7 +79,7 @@ export function createGrabFeature({ state, getApp }) {
       automaticLayout: true,
       fontSize: 13,
       tabSize: 2,
-    });
+    }));
     state.grabEditor.onDidChangeModelContent(() => {
       state.grabExpression = state.grabEditor.getValue();
       scheduleGrabPreview();
@@ -294,7 +295,7 @@ export function createGrabFeature({ state, getApp }) {
         window.setTimeout(connectEventStream, 1000);
       }
     });
-    state.eventSource = source;
+    state.eventSource = ref(source);
   }
 
   function openActivityTaskMenu(taskId, anchor) {

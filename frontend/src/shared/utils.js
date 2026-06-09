@@ -2,6 +2,20 @@ export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+export function cx(...args) {
+  let result = "";
+  for (const arg of args) {
+    if (typeof arg === "string") {
+      if (arg) { if (result) result += " "; result += arg; }
+    } else if (arg) {
+      for (const [cls, cond] of Object.entries(arg)) {
+        if (cond) { if (result) result += " "; result += cls; }
+      }
+    }
+  }
+  return result;
+}
+
 export function escapeHtml(text) {
   return String(text || "")
     .replaceAll("&", "&amp;")

@@ -1,4 +1,5 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import { ref } from "valtio";
 import { apiGet } from "../../api/client.js";
 import { downloadJson } from "../../shared/utils.js";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
@@ -7,7 +8,7 @@ export function createAcademicFeature({ state }) {
   function initRawContentMonaco() {
     const root = document.getElementById("academic-raw-content");
     if (!root || state.rawContentEditor) return;
-    state.rawContentEditor = monaco.editor.create(root, {
+    state.rawContentEditor = ref(monaco.editor.create(root, {
       value: "",
       language: "html",
       theme: "vs-dark",
@@ -17,7 +18,7 @@ export function createAcademicFeature({ state }) {
       readOnly: true,
       fontSize: 13,
       wordWrap: "on",
-    });
+    }));
   }
 
   function setRawContentValue(value, language) {

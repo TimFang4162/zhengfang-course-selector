@@ -1,6 +1,6 @@
-import { createMutable } from "solid-js/store";
+import { proxy } from "valtio";
 
-export const state = createMutable({
+export const state = proxy({
   bootstrap: null,
   auth: {
     loginVisible: true,

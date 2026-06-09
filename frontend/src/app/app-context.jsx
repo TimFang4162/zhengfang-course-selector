@@ -1,9 +1,9 @@
-import { createContext, useContext } from "solid-js";
+import { createContext, useContext } from "react";
 
 const AppContext = createContext(null);
 
-export function AppProvider(props) {
-  return <AppContext.Provider value={props.value}>{props.children}</AppContext.Provider>;
+export function AppProvider({ value, children }) {
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useAppContext() {

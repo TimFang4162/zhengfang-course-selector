@@ -1,5 +1,7 @@
-import { For, onCleanup, onMount } from "solid-js";
+import { useEffect } from "react";
+import { useSnapshot } from "valtio";
 import { state } from "../app/state.js";
+import { cx } from "../shared/utils.js";
 
 let openedAt = 0;
 
@@ -20,23 +22,25 @@ export function closeFloatingMenu() {
 }
 
 export function FloatingMenu() {
-  onMount(() => {
+  const snap = useSnapshot(state);
+
+  useEffect(() => {
     const close = () => {
       if (Date.now() - openedAt < 50) return;
       closeFloatingMenu();
     };
     document.addEventListener("click", close);
-    onCleanup(() => document.removeEventListener("click", close));
-  });
+    return () => document.removeEventListener("click", close);
+  }, []);
+
+  const menu = snap.floatingMenu;
 
   return (
     <div
-      classList={{ "floating-menu": true, hidden: !state.floatingMenu }}
-      style={{ left: `${state.floatingMenu?.left || 0}px`, top: `${state.floatingMenu?.top || 0}px`, width: `${state.floatingMenu?.width || 132}px` }}
+      className={cx("floating-menu", { hidden: !menu })}
+      style={{ left: `${menu?.left || 0}px`, top: `${menu?.top || 0}px`, width: `${menu?.width || 132}px` }}
     >
-      <For each={state.floatingMenu?.items || []}>
-        {(item) => <button type="button" onClick={() => { closeFloatingMenu(); item.action(); }}>{item.label}</button>}
-      </For>
+      {(menu?.items || []).map((item, i) => <button key={i} type="button" onClick={() => { closeFloatingMenu(); item.action(); }}>{item.label}</button>)}
     </div>
   );
 }

@@ -1,7 +1,7 @@
-import { For, Show } from "solid-js";
+import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
-import { formatDebugJson } from "../../shared/utils.js";
+import { formatDebugJson, cx } from "../../shared/utils.js";
 import { grabSymbols } from "./expression.js";
 
 function groupMatches(matches) {
@@ -10,7 +10,7 @@ function groupMatches(matches) {
     const categoryId = String(item.category.id);
     if (!byCategory.has(categoryId)) byCategory.set(categoryId, { category: item.category, courses: [] });
     const categoryBucket = byCategory.get(categoryId);
-    let courseBucket = categoryBucket.courses.find((bucket) => String(bucket.course.kchId) === String(item.course.kchId));
+    let courseBucket = categoryBucket.courses.find((b) => String(b.course.kchId) === String(item.course.kchId));
     if (!courseBucket) {
       courseBucket = { course: item.course, classes: [] };
       categoryBucket.courses.push(courseBucket);
@@ -32,128 +32,121 @@ function groupMissingClasses(items) {
 
 export function GrabPreview() {
   const app = useAppContext();
-  const data = () => state.grabPreviewData;
-  const missingCourseLoads = () => data()?.missing?.courseLoads || [];
-  const missingClassGroups = () => groupMissingClasses(data()?.missing?.classLoads || []);
-  const matchGroups = () => groupMatches(data()?.matches || []);
+  const snap = useSnapshot(state);
+  const data = snap.grabPreviewData;
+  const missingCourseLoads = data?.missing?.courseLoads || [];
+  const missingClassGroups = groupMissingClasses(data?.missing?.classLoads || []);
+  const matchGroups = groupMatches(data?.matches || []);
+
+  if (!data) return <div id="grab-preview-list" className="grab-preview-list"><div className="dim grab-preview-empty">没有匹配项。</div></div>;
 
   return (
-    <div id="grab-preview-list" class="grab-preview-list">
-      <Show when={data()} fallback={<div class="dim grab-preview-empty">没有匹配项。</div>} keyed>
-        {(preview) => (
+    <div id="grab-preview-list" className="grab-preview-list">
+      {!data.ready && (
+        <button type="button" id="grab-load-missing" className="grab-load-missing" onClick={() => app.grab.loadGrabMissing(data.missing).catch(app.showError)}>加载缺失数据</button>
+      )}
+      {(missingCourseLoads.length > 0 || missingClassGroups.length > 0) && (
         <>
-        <Show when={!preview.ready}>
-          <button type="button" id="grab-load-missing" class="grab-load-missing" onClick={() => app.grab.loadGrabMissing(preview.missing).catch(app.showError)}>加载缺失数据</button>
-        </Show>
-        <Show when={missingCourseLoads().length || missingClassGroups().length}>
-          <div class="grab-preview-section">缺失数据</div>
-          <For each={missingCourseLoads()}>
-            {(item) => (
-              <>
-                <div class="grab-preview-tree-row level-0 is-missing"><span class="tree-arrow">▸</span><span>大类 {item.name}</span></div>
-                <div class="grab-preview-tree-row level-1 is-missing"><span class="tree-arrow">·</span><span>需要加载全部课程分页</span></div>
-              </>
-            )}
-          </For>
-          <For each={missingClassGroups()}>
-            {(group) => (
-              <>
-                <div class="grab-preview-tree-row level-0 is-missing"><span class="tree-arrow">▾</span><span>大类 {group.categoryId}</span></div>
-                <For each={group.rows}>
-                  {(item) => <div class="grab-preview-tree-row level-1 is-missing"><span class="tree-arrow">·</span><span>{item.courseName} <span class="dim">{item.kchId}</span> 需要加载教学班</span></div>}
-                </For>
-              </>
-            )}
-          </For>
-        </Show>
-        <Show when={matchGroups().length} fallback={<Show when={!missingCourseLoads().length && !missingClassGroups().length}><div class="dim grab-preview-empty">没有匹配项。</div></Show>}>
-          <div class="grab-preview-section">匹配结果</div>
-          <For each={matchGroups()}>
-            {(categoryBucket) => (
-              <>
-                <div class="grab-preview-tree-row level-0"><span class="tree-arrow">▾</span><span>{categoryBucket.category.name}</span></div>
-                <For each={categoryBucket.courses}>
-                  {(courseBucket) => (
-                    <>
-                      <div class="grab-preview-tree-row level-1"><span class="tree-arrow">▾</span><span>{courseBucket.course.courseName} <span class="dim">{courseBucket.course.kchId}</span></span></div>
-                      <For each={courseBucket.classes}>
-                        {(classItem) => (
-                          <Show when={classItem} fallback={<div class="grab-preview-tree-row level-2"><span class="tree-arrow">·</span><span class="dim">待加载教学班</span></div>}>
-                            <div class="grab-preview-tree-row level-2"><span class="tree-arrow">·</span><span>{classItem.classNo} <span class="dim">{classItem.teacherName || "-"} · {classItem.location || "-"} · {classItem.selectedCount}/{classItem.capacity}</span></span></div>
-                          </Show>
-                        )}
-                      </For>
-                    </>
-                  )}
-                </For>
-              </>
-            )}
-          </For>
-        </Show>
+          <div className="grab-preview-section">缺失数据</div>
+          {missingCourseLoads.map((item) => (
+            <div key={item.name || item.categoryId}>
+              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▸</span><span>大类 {item.name}</span></div>
+              <div className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>需要加载全部课程分页</span></div>
+            </div>
+          ))}
+          {missingClassGroups.map((group) => (
+            <div key={group.categoryId}>
+              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▾</span><span>大类 {group.categoryId}</span></div>
+              {group.rows.map((item) => <div key={item.kchId} className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>{item.courseName} <span className="dim">{item.kchId}</span> 需要加载教学班</span></div>)}
+            </div>
+          ))}
         </>
-        )}
-      </Show>
+      )}
+      {matchGroups.length > 0 ? (
+        <>
+          <div className="grab-preview-section">匹配结果</div>
+          {matchGroups.map((categoryBucket) => (
+            <div key={categoryBucket.category.id}>
+              <div className="grab-preview-tree-row level-0"><span className="tree-arrow">▾</span><span>{categoryBucket.category.name}</span></div>
+              {categoryBucket.courses.map((courseBucket) => (
+                <div key={courseBucket.course.kchId}>
+                  <div className="grab-preview-tree-row level-1"><span className="tree-arrow">▾</span><span>{courseBucket.course.courseName} <span className="dim">{courseBucket.course.kchId}</span></span></div>
+                  {courseBucket.classes.map((classItem) => (
+                    <div key={classItem.classKey || classItem.doJxbId} className="grab-preview-tree-row level-2">
+                      <span className="tree-arrow">·</span>
+                      <span>{classItem.classNo} <span className="dim">{classItem.teacherName || "-"} · {classItem.location || "-"} · {classItem.selectedCount}/{classItem.capacity}</span></span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      ) : (!missingCourseLoads.length && !missingClassGroups.length) && (
+        <div className="dim grab-preview-empty">没有匹配项。</div>
+      )}
     </div>
   );
 }
 
 export function GrabModal() {
   const app = useAppContext();
+  const snap = useSnapshot(state);
 
   return (
-    <div id="grab-modal" classList={{ modal: true, hidden: !state.grabDraft }}>
-      <div class="modal-card surface grab-card">
-        <div class="modal-header">
+    <div id="grab-modal" className={cx("modal", { hidden: !snap.grabDraft })}>
+      <div className="modal-card surface grab-card">
+        <div className="modal-header">
           <div>
-            <div class="eyebrow">Grab Rule</div>
-            <strong id="grab-title">添加抢课任务 / {state.grabDraftLabel || state.grabDraft?.type || "-"}</strong>
+            <div className="eyebrow">Grab Rule</div>
+            <strong id="grab-title">添加抢课任务 / {snap.grabDraftLabel || snap.grabDraft?.type || "-"}</strong>
           </div>
           <button type="button" id="grab-close" onClick={app.grab.closeGrabModal}>关闭</button>
         </div>
-        <div class="grab-body">
-          <div class="grab-editor">
-            <label for="grab-expression">表达式</label>
-            <div id="grab-monaco" class="grab-monaco"></div>
-            <textarea id="grab-expression" classList={{ "monaco-enabled": Boolean(state.grabEditor) }} spellcheck="false" value={state.grabExpression} onInput={(event) => { state.grabExpression = event.currentTarget.value; app.grab.scheduleGrabPreview(); }}></textarea>
-            <div class="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
-            <div class={state.grabStatusClass} id="grab-status">{state.grabStatusText}</div>
+        <div className="grab-body">
+          <div className="grab-editor">
+            <label htmlFor="grab-expression">表达式</label>
+            <div id="grab-monaco" className="grab-monaco"></div>
+            <textarea id="grab-expression" className={cx({ "monaco-enabled": Boolean(snap.grabEditor) })} spellCheck="false" value={snap.grabExpression} onInput={(e) => { state.grabExpression = e.currentTarget.value; app.grab.scheduleGrabPreview(); }}></textarea>
+            <div className="grab-hints" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
+            <div className={snap.grabStatusClass} id="grab-status">{snap.grabStatusText}</div>
           </div>
-          <div class="grab-preview">
-            <div class="grab-preview-header">预览：将会查询/匹配的项目</div>
+          <div className="grab-preview">
+            <div className="grab-preview-header">预览：将会查询/匹配的项目</div>
             <GrabPreview />
           </div>
-          <div class="grab-settings form-card">
-            <div class="form-section-title">任务配置</div>
-            <div class="grab-settings-form">
-              <div class="grab-form-row">
-                <label class="grab-form-label" for="grab-start-mode">启动时间</label>
-                <div class="grab-form-control">
-                  <select id="grab-start-mode" value={state.grabStartMode} onChange={(event) => { state.grabStartMode = event.currentTarget.value; }}>
+          <div className="grab-settings form-card">
+            <div className="form-section-title">任务配置</div>
+            <div className="grab-settings-form">
+              <div className="grab-form-row">
+                <label className="grab-form-label" htmlFor="grab-start-mode">启动时间</label>
+                <div className="grab-form-control">
+                  <select id="grab-start-mode" value={snap.grabStartMode} onChange={(e) => { state.grabStartMode = e.currentTarget.value; }}>
                     <option value="now">立即开始</option>
                     <option value="manual">手动启动</option>
                     <option value="scheduled">指定时间点</option>
                   </select>
-                  <Show when={state.grabStartMode === "scheduled"}>
-                    <input id="grab-start-at" type="datetime-local" value={state.grabStartAt} onInput={(event) => { state.grabStartAt = event.currentTarget.value; }} />
-                  </Show>
-                  <div class="field-help">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
+                  {snap.grabStartMode === "scheduled" && (
+                    <input id="grab-start-at" type="datetime-local" value={snap.grabStartAt} onInput={(e) => { state.grabStartAt = e.currentTarget.value; }} />
+                  )}
+                  <div className="field-help">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
                 </div>
               </div>
 
-              <div class="grab-form-row">
-                <label class="grab-form-label" for="grab-stop-mode">停止条件</label>
-                <div class="grab-form-control">
-                  <select id="grab-stop-mode" value={state.grabStopSuccess ? "success" : "manual"} onChange={(event) => { state.grabStopSuccess = event.currentTarget.value === "success"; }}>
+              <div className="grab-form-row">
+                <label className="grab-form-label" htmlFor="grab-stop-mode">停止条件</label>
+                <div className="grab-form-control">
+                  <select id="grab-stop-mode" value={snap.grabStopSuccess ? "success" : "manual"} onChange={(e) => { state.grabStopSuccess = e.currentTarget.value === "success"; }}>
                     <option value="success">成功选到课程后停止</option>
                     <option value="manual">持续运行，直到手动停止或超时</option>
                   </select>
                 </div>
               </div>
 
-              <div class="grab-form-row">
-                <label class="grab-form-label" for="grab-error-policy">错误处理</label>
-                <div class="grab-form-control">
-                  <select id="grab-error-policy" value={state.grabErrorPolicy} onChange={(event) => { state.grabErrorPolicy = event.currentTarget.value; }}>
+              <div className="grab-form-row">
+                <label className="grab-form-label" htmlFor="grab-error-policy">错误处理</label>
+                <div className="grab-form-control">
+                  <select id="grab-error-policy" value={snap.grabErrorPolicy} onChange={(e) => { state.grabErrorPolicy = e.currentTarget.value; }}>
                     <option value="retry_once">重试一次请求</option>
                     <option value="skip">跳过</option>
                     <option value="stop">立即停止</option>
@@ -161,23 +154,23 @@ export function GrabModal() {
                 </div>
               </div>
 
-              <div class="grab-form-row">
-                <label class="grab-form-label" for="grab-tick-interval">Tick 间隔</label>
-                <div class="grab-form-control">
-                  <div class="input-with-unit"><input id="grab-tick-interval" type="number" min="1" value={state.grabTickInterval} onInput={(event) => { state.grabTickInterval = Number(event.currentTarget.value || 3); }} /><span>秒</span></div>
+              <div className="grab-form-row">
+                <label className="grab-form-label" htmlFor="grab-tick-interval">Tick 间隔</label>
+                <div className="grab-form-control">
+                  <div className="input-with-unit"><input id="grab-tick-interval" type="number" min="1" value={snap.grabTickInterval} onInput={(e) => { state.grabTickInterval = Number(e.currentTarget.value || 3); }} /><span>秒</span></div>
                 </div>
               </div>
 
-              <div class="grab-form-row">
-                <label class="grab-form-label" for="grab-timeout">超时时间</label>
-                <div class="grab-form-control">
-                  <div class="input-with-unit"><input id="grab-timeout" type="number" min="1" value={state.grabTimeout} onInput={(event) => { state.grabTimeout = Number(event.currentTarget.value || 600); }} /><span>秒</span></div>
+              <div className="grab-form-row">
+                <label className="grab-form-label" htmlFor="grab-timeout">超时时间</label>
+                <div className="grab-form-control">
+                  <div className="input-with-unit"><input id="grab-timeout" type="number" min="1" value={snap.grabTimeout} onInput={(e) => { state.grabTimeout = Number(e.currentTarget.value || 600); }} /><span>秒</span></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="modal-actions">
+        <div className="modal-actions">
           <button type="button" id="grab-preview-refresh" onClick={() => app.grab.refreshGrabPreview().catch(app.showError)}>刷新预览</button>
           <button type="button" id="grab-confirm" onClick={() => app.grab.confirmGrabExpression().catch(app.showError)}>确认添加</button>
         </div>
@@ -188,64 +181,61 @@ export function GrabModal() {
 
 export function GrabTaskModal() {
   const app = useAppContext();
-  const task = () => state.grabTaskDetail;
+  const snap = useSnapshot(state);
+  const task = snap.grabTaskDetail;
   const formatTime = (value) => value ? new Date(value * 1000).toLocaleString() : "-";
 
   return (
-    <div id="task-modal" classList={{ modal: true, hidden: !task() }}>
-      <div class="modal-card surface">
-        <div class="modal-header">
+    <div id="task-modal" className={cx("modal", { hidden: !task })}>
+      <div className="modal-card surface">
+        <div className="modal-header">
           <div>
-            <div class="eyebrow">Grab Task</div>
-            <strong id="task-title">{task() ? `${task().name} / ${task().id}` : "任务详情"}</strong>
+            <div className="eyebrow">Grab Task</div>
+            <strong id="task-title">{task ? `${task.name} / ${task.id}` : "任务详情"}</strong>
           </div>
           <button type="button" id="task-close" onClick={app.grab.closeGrabTaskDetail}>关闭</button>
         </div>
-        <div id="task-content" class="modal-content">
-          <Show when={task()} keyed>
-            {(item) => (
-              <>
-                <div class="class-meta"><div>状态</div><div>{app.grab.grabStatusLabel(item.status)}</div></div>
-                <div class="class-meta"><div>进度</div><div>{app.grab.grabProgressText(item)}</div></div>
-                <div class="class-meta"><div>表达式</div><div><code>{item.expression || ""}</code></div></div>
-                <div class="class-meta"><div>启动</div><div>{item.startMode || ""} {item.startAt ? new Date(item.startAt * 1000).toLocaleString() : ""}</div></div>
-                <div class="class-meta"><div>Tick/Timeout</div><div>{item.tickInterval}s / {item.timeoutSeconds}s</div></div>
-                <div class="class-meta"><div>错误处理</div><div>{item.errorPolicy || ""}</div></div>
-                <div class="class-meta"><div>停止条件</div><div>{item.stopOnFirstSuccess ? "成功选到课程后停止" : "不自动停止"}</div></div>
-                <div class="class-meta"><div>候选</div><div>{item.candidateCourseCount} 门课程 / {item.candidateClassCount} 个教学班</div></div>
-                <div class="class-meta"><div>最近错误</div><div>{item.lastError || "-"}</div></div>
-                <div class="class-meta"><div>最近结果</div><div>{item.lastResult || "-"}</div></div>
-                <details class="debug-details">
-                  <summary>最近 Tick 调试</summary>
-                  <div class="debug-grid">
-                    <div>检查教学班</div><div>{item.lastTickDebug?.checkedClassCount ?? 0}</div>
-                    <div>ID 命中</div><div>{item.lastTickDebug?.matchedIdentityCount ?? 0}</div>
-                    <div>尝试提交</div><div>{item.lastTickDebug?.attemptedCount ?? 0}</div>
-                    <div>ID 跳过</div><div>{item.lastTickDebug?.skippedIdCount ?? 0}</div>
-                    <div>表达式跳过</div><div>{item.lastTickDebug?.skippedExpressionCount ?? 0}</div>
-                    <div>容量跳过</div><div>{item.lastTickDebug?.skippedCapacityCount ?? 0}</div>
-                    <div>最近 tick</div><div>{formatTime(item.lastTickAt)}</div>
+        <div id="task-content" className="modal-content">
+          {task && (
+            <>
+              <div className="class-meta"><div>状态</div><div>{app.grab.grabStatusLabel(task.status)}</div></div>
+              <div className="class-meta"><div>进度</div><div>{app.grab.grabProgressText(task)}</div></div>
+              <div className="class-meta"><div>表达式</div><div><code>{task.expression || ""}</code></div></div>
+              <div className="class-meta"><div>启动</div><div>{task.startMode || ""} {task.startAt ? new Date(task.startAt * 1000).toLocaleString() : ""}</div></div>
+              <div className="class-meta"><div>Tick/Timeout</div><div>{task.tickInterval}s / {task.timeoutSeconds}s</div></div>
+              <div className="class-meta"><div>错误处理</div><div>{task.errorPolicy || ""}</div></div>
+              <div className="class-meta"><div>停止条件</div><div>{task.stopOnFirstSuccess ? "成功选到课程后停止" : "不自动停止"}</div></div>
+              <div className="class-meta"><div>候选</div><div>{task.candidateCourseCount} 门课程 / {task.candidateClassCount} 个教学班</div></div>
+              <div className="class-meta"><div>最近错误</div><div>{task.lastError || "-"}</div></div>
+              <div className="class-meta"><div>最近结果</div><div>{task.lastResult || "-"}</div></div>
+              <details className="debug-details">
+                <summary>最近 Tick 调试</summary>
+                <div className="debug-grid">
+                  <div>检查教学班</div><div>{task.lastTickDebug?.checkedClassCount ?? 0}</div>
+                  <div>ID 命中</div><div>{task.lastTickDebug?.matchedIdentityCount ?? 0}</div>
+                  <div>尝试提交</div><div>{task.lastTickDebug?.attemptedCount ?? 0}</div>
+                  <div>ID 跳过</div><div>{task.lastTickDebug?.skippedIdCount ?? 0}</div>
+                  <div>表达式跳过</div><div>{task.lastTickDebug?.skippedExpressionCount ?? 0}</div>
+                  <div>容量跳过</div><div>{task.lastTickDebug?.skippedCapacityCount ?? 0}</div>
+                  <div>最近 tick</div><div>{formatTime(task.lastTickAt)}</div>
+                </div>
+              </details>
+              <details className="debug-details">
+                <summary>候选课程 / 教学班号</summary>
+                {(task.candidateCourses || []).length ? (task.candidateCourses || []).map((course) => (
+                  <div key={course.kchId} className="debug-course">
+                    <div><strong>{course.courseName || course.kchId}</strong> <span className="dim">category={course.categoryId} kch={course.kchId}</span></div>
+                    <pre className="debug-pre">{formatDebugJson(course.classIds || [])}</pre>
                   </div>
-                </details>
-                <details class="debug-details">
-                  <summary>候选课程 / 教学班号</summary>
-                  <For each={item.candidateCourses || []} fallback={<div class="dim debug-empty">无候选</div>}>
-                    {(course) => (
-                      <div class="debug-course">
-                        <div><strong>{course.courseName || course.kchId}</strong> <span class="dim">category={course.categoryId} kch={course.kchId}</span></div>
-                        <pre class="debug-pre">{formatDebugJson(course.classIds || [])}</pre>
-                      </div>
-                    )}
-                  </For>
-                </details>
-                <details class="debug-details">
-                  <summary>任务原始数据</summary>
-                  <pre class="debug-pre">{formatDebugJson(item)}</pre>
-                </details>
-                <div class="class-meta"><div>事件</div><div><For each={item.events || []} fallback="-">{(event) => <div>{event.time} {event.message}</div>}</For></div></div>
-              </>
-            )}
-          </Show>
+                )) : <div className="dim debug-empty">无候选</div>}
+              </details>
+              <details className="debug-details">
+                <summary>任务原始数据</summary>
+                <pre className="debug-pre">{formatDebugJson(task)}</pre>
+              </details>
+              <div className="class-meta"><div>事件</div><div>{(task.events || []).length ? task.events.map((ev, i) => <div key={i}>{ev.time} {ev.message}</div>) : "-"}</div></div>
+            </>
+          )}
         </div>
       </div>
     </div>
