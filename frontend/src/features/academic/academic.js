@@ -90,6 +90,21 @@ export function createAcademicFeature({ state }) {
     state.rawModalVisible = false;
   }
 
+  async function loadAcademicCourseDetail(kchId) {
+    if (!kchId) return;
+    state.academicCourseDetail = { _loading: true };
+    try {
+      const res = await apiGet(`/api/academic-course-detail?kch_id=${encodeURIComponent(kchId)}`);
+      state.academicCourseDetail = res;
+    } catch {
+      state.academicCourseDetail = { _error: true };
+    }
+  }
+
+  function closeAcademicCourseDetail() {
+    state.academicCourseDetail = null;
+  }
+
   return {
     renderAcademicStatus,
     refreshAcademicStatus,
@@ -98,5 +113,7 @@ export function createAcademicFeature({ state }) {
     exportAcademicDataJson,
     switchAcademicRawTab,
     closeAcademicRawModal,
+    loadAcademicCourseDetail,
+    closeAcademicCourseDetail,
   };
 }

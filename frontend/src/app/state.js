@@ -50,6 +50,7 @@ export const state = createMutable({
     currentCredit: 0,
   },
   academicStatus: null,
+  academicCourseDetail: null,
   academicLoading: false,
   academicVersion: 0,
   academicFilters: {

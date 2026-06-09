@@ -959,6 +959,84 @@ def fetch_teacher_detail(jgh_id, kch_id, debug_func=print):
         return None
 
 
+def fetch_academic_course_basic_info(kch_id, debug_func=print):
+    try:
+        debug_func(f"查询学业课程基本信息: KCH={kch_id}")
+        ts = int(time.time() * 1000)
+        url = (
+            base_url
+            + f"/jwglxt/jxjhgl/common_cxKcJbxx.html?id={kch_id}&time={ts}&gnmkdm=N105515"
+        )
+        resp = http_post(url, timeout=REQ_TIMEOUT["course_detail"])
+        text = resp.text
+
+        result = {"kchId": kch_id}
+
+        labels = {
+            "课程代码": "courseCode",
+            "课程中文名称": "name",
+            "课程英文名称": "englishName",
+            "开课部门": "academy",
+            "学分": "credits",
+            "课程类别": "category",
+            "课程归属": "ownership",
+            "课程负责人": "director",
+            "是否实践课标记": "isPracticeText",
+            "实践周数": "practiceWeeks",
+            "预修要求": "prerequisites",
+            "成绩录入级别": "gradeLevel",
+            "申请免听标记": "canAudit",
+            "统一安排补考标记": "makeupExam",
+            "快速选课标记": "quickSelect",
+            "课程启用年级": "startYear",
+            "面向对象": "targetAudience",
+            "备注": "remarks",
+            "中文课程简介": "introductionZh",
+            "英文课程简介": "introductionEn",
+            "中文教学大纲": "syllabusZh",
+            "英文教学大纲": "syllabusEn",
+        }
+
+        for label_key, field_name in labels.items():
+            m = re.search(
+                r"<td[^>]*>\s*"
+                + re.escape(label_key)
+                + r"\s*</td>\s*<th[^>]*>\s*(.*?)\s*</th>",
+                text,
+                re.DOTALL,
+            )
+            if m:
+                result[field_name] = _strip_tags(m.group(1))
+
+        hours_m = re.search(r"课程学时[：:]\s*([\d.]+)", text)
+        if hours_m:
+            result["totalHours"] = hours_m.group(1)
+
+        hour_rows = re.findall(
+            r"<td[^>]*class=\"align-center\"[^>]*>\s*(.*?)\s*</td>"
+            r"\s*<td[^>]*class=\"align-center\"[^>]*>\s*(.*?)\s*</td>"
+            r"\s*<td[^>]*class=\"align-center\"[^>]*>\s*(.*?)\s*</td>"
+            r"\s*<td[^>]*class=\"align-center\"[^>]*>\s*(.*?)\s*</td>",
+            text,
+            re.DOTALL,
+        )
+        if hour_rows:
+            result["hoursBreakdown"] = [
+                {
+                    "item": _strip_tags(r[0]),
+                    "weekly": _strip_tags(r[1]),
+                    "total": _strip_tags(r[2]),
+                    "mark": _strip_tags(r[3]),
+                }
+                for r in hour_rows
+            ]
+
+        return result
+    except Exception as exc:
+        debug_func(f"查询学业课程基本信息异常: {exc}")
+        return None
+
+
 def merge_class_data(class_list_req, course_info_list):
     final_data = []
     detail_by_jxb_id = {

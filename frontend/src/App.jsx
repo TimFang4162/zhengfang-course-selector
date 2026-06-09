@@ -1054,6 +1054,74 @@ function ModalLayer() {
         </div>
       </div>
 
+      <div id="academic-course-modal" classList={{ modal: true, hidden: !state.academicCourseDetail }}>
+        <div class="modal-card surface">
+          <div class="modal-header">
+            <div>
+              <div class="eyebrow">Course Detail</div>
+              <strong id="academic-course-title">{state.academicCourseDetail?.name || "课程基本信息"}</strong>
+            </div>
+            <button type="button" id="academic-course-close" onClick={app.academic.closeAcademicCourseDetail}>关闭</button>
+          </div>
+          <div class="modal-content">
+            <Show when={state.academicCourseDetail?._loading}>
+              <div class="dim" style="margin-top:8px">加载课程详情中...</div>
+            </Show>
+            <Show when={state.academicCourseDetail?._error}>
+              <div class="dim" style="margin-top:8px">加载课程详情失败</div>
+            </Show>
+            <Show when={state.academicCourseDetail && !state.academicCourseDetail._loading && !state.academicCourseDetail._error && state.academicCourseDetail.name}>
+              <details class="debug-details" open>
+                <summary>课程基本信息</summary>
+                <div class="debug-grid">
+                  <Show when={state.academicCourseDetail.name}><div>课程名称</div><div>{state.academicCourseDetail.name}</div></Show>
+                  <Show when={state.academicCourseDetail.englishName}><div>英文名称</div><div>{state.academicCourseDetail.englishName}</div></Show>
+                  <Show when={state.academicCourseDetail.academy}><div>开课部门</div><div>{state.academicCourseDetail.academy}</div></Show>
+                  <Show when={state.academicCourseDetail.credits}><div>学分</div><div>{state.academicCourseDetail.credits}</div></Show>
+                  <Show when={state.academicCourseDetail.category}><div>课程类别</div><div>{state.academicCourseDetail.category}</div></Show>
+                  <Show when={state.academicCourseDetail.ownership}><div>课程归属</div><div>{state.academicCourseDetail.ownership}</div></Show>
+                  <Show when={state.academicCourseDetail.director}><div>课程负责人</div><div>{state.academicCourseDetail.director}</div></Show>
+                  <Show when={state.academicCourseDetail.isPracticeText}><div>是否实践课</div><div>{state.academicCourseDetail.isPracticeText}</div></Show>
+                  <Show when={state.academicCourseDetail.totalHours}><div>课程学时</div><div>{state.academicCourseDetail.totalHours}</div></Show>
+                  <Show when={state.academicCourseDetail.gradeLevel}><div>成绩录入级别</div><div>{state.academicCourseDetail.gradeLevel}</div></Show>
+                  <Show when={state.academicCourseDetail.canAudit}><div>申请免听</div><div>{state.academicCourseDetail.canAudit}</div></Show>
+                  <Show when={state.academicCourseDetail.makeupExam}><div>统一安排补考</div><div>{state.academicCourseDetail.makeupExam}</div></Show>
+                  <Show when={state.academicCourseDetail.quickSelect}><div>快速选课</div><div>{state.academicCourseDetail.quickSelect}</div></Show>
+                  <Show when={state.academicCourseDetail.startYear}><div>课程启用年级</div><div>{state.academicCourseDetail.startYear}</div></Show>
+                  <Show when={state.academicCourseDetail.prerequisites}><div>预修要求</div><div>{state.academicCourseDetail.prerequisites}</div></Show>
+                  <Show when={state.academicCourseDetail.targetAudience}><div>面向对象</div><div>{state.academicCourseDetail.targetAudience}</div></Show>
+                  <Show when={state.academicCourseDetail.introductionZh}><div>中文课程简介</div><div>{state.academicCourseDetail.introductionZh}</div></Show>
+                  <Show when={state.academicCourseDetail.introductionEn}><div>英文课程简介</div><div>{state.academicCourseDetail.introductionEn}</div></Show>
+                  <Show when={state.academicCourseDetail.syllabusZh}><div>中文教学大纲</div><div>{state.academicCourseDetail.syllabusZh}</div></Show>
+                  <Show when={state.academicCourseDetail.syllabusEn}><div>英文教学大纲</div><div>{state.academicCourseDetail.syllabusEn}</div></Show>
+                  <Show when={state.academicCourseDetail.remarks}><div>备注</div><div>{state.academicCourseDetail.remarks}</div></Show>
+                </div>
+              </details>
+              <Show when={state.academicCourseDetail.hoursBreakdown?.length}>
+                <details class="debug-details" open>
+                  <summary>学时分配</summary>
+                  <table class="academic-course-table" style="margin:4px 0;width:100%">
+                    <thead><tr><th>分项</th><th>周数/周学时</th><th>总学时</th><th>标记</th></tr></thead>
+                    <tbody>
+                      <For each={state.academicCourseDetail.hoursBreakdown}>
+                        {(row) => (
+                          <tr>
+                            <td>{row.item}</td>
+                            <td>{row.weekly || "-"}</td>
+                            <td>{row.total || "-"}</td>
+                            <td>{row.mark || "-"}</td>
+                          </tr>
+                        )}
+                      </For>
+                    </tbody>
+                  </table>
+                </details>
+              </Show>
+            </Show>
+          </div>
+        </div>
+      </div>
+
       <div id="academic-raw-modal" classList={{ modal: true, hidden: !state.rawModalVisible }}>
         <div class="modal-card surface grab-card">
           <div class="modal-header">

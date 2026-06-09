@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
 import { state } from "../../app/state.js";
+import { useAppContext } from "../../app/app-context.jsx";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 
 export function academicCreditSummary(nodes) {
@@ -48,6 +49,7 @@ function AcademicBadge(props) {
 
 function AcademicCourses(props) {
   const courses = () => filteredAcademicCourses(props.courses || []);
+  const app = useAppContext();
 
   return (
     <Show when={courses().length} fallback={<div class="academic-empty dim">当前筛选下暂无课程明细</div>}>
@@ -57,7 +59,10 @@ function AcademicCourses(props) {
           <For each={courses()}>
             {(course) => (
               <tr class={` is-${course.statusType || "unknown"}`}>
-                <td>{course.name}<br /><span class="dim">{course.kch || course.kchId}</span></td>
+                <td>
+                  <button type="button" class="link-button" onClick={() => app.academic.loadAcademicCourseDetail(course.kchId)}>{course.name}</button>
+                  <br /><span class="dim">{course.kch || course.kchId}</span>
+                </td>
                 <td>{course.creditText || "-"}</td>
                 <td><AcademicBadge type={course.statusType}>{course.status || "-"}</AcademicBadge></td>
                 <td>{course.score || course.maxScore || "-"}</td>

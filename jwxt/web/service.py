@@ -868,6 +868,14 @@ class JWXTWebService(GrabTaskMixin):
             )
             return self.timetable_cache
 
+    def fetch_academic_course_basic_info(self, kch_id: str):
+        with self.lock:
+            self._require_auth()
+            result = self.mod.fetch_academic_course_basic_info(kch_id, self._log_debug)
+            if result is None:
+                raise ValueError("查询学业课程基本信息失败")
+            return result
+
     def fetch_academic_status(self, refresh: bool = False):
         with self.lock:
             self._require_auth()
