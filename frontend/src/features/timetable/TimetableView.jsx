@@ -7,15 +7,21 @@ import { formatWeekRanges } from "../../shared/utils.js";
 const days = [1, 2, 3, 4, 5, 6, 7];
 const jieciRows = Array.from({ length: maxJieci }, (_, index) => index + 1);
 
+function _cellItemKey(entry) {
+  return `${entry.name}|${entry.location || ""}|${entry.teacherName || ""}`;
+}
+
 function cellData(app, day, jieci) {
   state.timetableVersion;
-  const currentWeekNames = new Set();
-  const otherWeekNames = new Set();
+  const currentWeek = new Map();
+  const otherWeek = new Map();
   for (const { week, entry } of app.timetable.entriesForCell(day, jieci)) {
-    if (week === state.displayWeek) currentWeekNames.add(entry.name);
-    else otherWeekNames.add(entry.name);
+    const key = _cellItemKey(entry);
+    const item = { name: entry.name, location: entry.location || "" };
+    if (week === state.displayWeek) currentWeek.set(key, item);
+    else otherWeek.set(key, item);
   }
-  return { currentWeekNames: [...currentWeekNames], otherWeekNames: [...otherWeekNames] };
+  return { currentWeek: [...currentWeek.values()], otherWeek: [...otherWeek.values()] };
 }
 
 function currentWeekCount(app) {
@@ -125,8 +131,8 @@ function TimetableCell(props) {
   return (
     <td classList={{ "active-cell": Boolean(active()) }}>
       <button type="button" class="timetable-cell-button" onClick={selectCell}>
-        <Show when={data().currentWeekNames.length} fallback={<Show when={data().otherWeekNames.length}><div class="cell-dim">{data().otherWeekNames.slice(0, 2).join("、")}</div></Show>}>
-          {data().currentWeekNames.join("\n")}
+        <Show when={data().currentWeek.length} fallback={<Show when={data().otherWeek.length}><div class="cell-dim">{data().otherWeek.slice(0, 2).map((i) => i.name).join("、")}</div></Show>}>
+          {data().currentWeek.map((i) => i.location ? `${i.name}\n  ${i.location}` : i.name).join("\n")}
         </Show>
       </button>
     </td>
