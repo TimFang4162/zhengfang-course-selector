@@ -876,7 +876,7 @@ class JWXTWebService(GrabTaskMixin):
                 raise ValueError("查询学业课程基本信息失败")
             return result
 
-    def fetch_academic_status(self, refresh: bool = False):
+    def fetch_academic_status(self, refresh: bool = False, tree_only: bool = True):
         with self.lock:
             self._require_auth()
             cache_status = "hit"
@@ -886,7 +886,9 @@ class JWXTWebService(GrabTaskMixin):
                     "学业情况缓存刷新" if refresh else "学业情况缓存未命中，开始拉取"
                 )
                 data = self.mod.fetch_academic_status(
-                    self._log_renderable, self._log_debug
+                    tree_only=tree_only,
+                    log_func=self._log_renderable,
+                    debug_func=self._log_debug,
                 )
                 data["updatedAt"] = time.time()
                 self.academic_status_cache = data
@@ -900,6 +902,30 @@ class JWXTWebService(GrabTaskMixin):
                 "fromCache": cache_status == "hit",
                 "cacheStatus": cache_status,
             }
+
+    def fetch_academic_node_courses(self, node_id: str):
+        with self.lock:
+            self._require_auth()
+            cached = self.academic_status_cache
+            if cached is None:
+                raise ValueError("请先加载学业情况")
+            params = cached.get("params", {})
+            nodes = cached.get("nodes", [])
+            flat = []
+
+            def _walk(items):
+                for n in items:
+                    flat.append(n)
+                    _walk(n.get("children", []))
+
+            _walk(nodes)
+            node = next((n for n in flat if n["id"] == node_id), None)
+            if node is None:
+                raise ValueError(f"未找到节点: {node_id}")
+            courses = self.mod.fetch_academic_node_courses(
+                node_id, node.get("courseSource", ""), params, self._log_debug
+            )
+            return courses
 
     def choose_class(self, payload: dict):
         with self.lock:

@@ -102,7 +102,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/academic-status":
                 refresh = query.get("refresh", ["0"])[0] == "1"
-                self._write_json(SERVICE.fetch_academic_status(refresh=refresh))
+                tree_only = query.get("tree_only", ["1"])[0] != "0"
+                self._write_json(
+                    SERVICE.fetch_academic_status(refresh=refresh, tree_only=tree_only)
+                )
+                return
+            if parsed.path == "/api/academic-node-courses":
+                node_id = str(query.get("node_id", [""])[0])
+                self._write_json(SERVICE.fetch_academic_node_courses(node_id))
                 return
             if parsed.path == "/api/tree/state":
                 self._write_json(SERVICE.tree_state())

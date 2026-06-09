@@ -1,28 +1,30 @@
-export function academicFilterTerms(nodes) {
-  const terms = new Set();
-  const walk = (items) => {
+function collectNodeCourses(nodes, nodeCourses) {
+  const out = [];
+  function walk(items) {
     for (const item of items || []) {
-      for (const course of item.courses || []) {
-        const value = [course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ");
-        if (value) terms.add(value);
-      }
+      const loaded = nodeCourses?.[item.id];
+      if (Array.isArray(loaded)) out.push(...loaded);
+      out.push(...(item.courses || []));
       walk(item.children || []);
     }
-  };
+  }
   walk(nodes || []);
+  return out;
+}
+
+export function academicFilterTerms(nodes, nodeCourses) {
+  const terms = new Set();
+  for (const course of collectNodeCourses(nodes, nodeCourses)) {
+    const value = [course.suggestedYear, course.suggestedTerm].filter(Boolean).join(" / ");
+    if (value) terms.add(value);
+  }
   return [...terms].filter(Boolean).sort();
 }
 
-export function academicFilterNatures(nodes) {
+export function academicFilterNatures(nodes, nodeCourses) {
   const natures = new Set();
-  const walk = (items) => {
-    for (const item of items || []) {
-      for (const course of item.courses || []) {
-        if (course.courseNature) natures.add(String(course.courseNature).trim());
-      }
-      walk(item.children || []);
-    }
-  };
-  walk(nodes || []);
+  for (const course of collectNodeCourses(nodes, nodeCourses)) {
+    if (course.courseNature) natures.add(String(course.courseNature).trim());
+  }
   return [...natures].filter(Boolean).sort();
 }

@@ -37,22 +37,39 @@ export function createAcademicFeature({ state }) {
 
   function syncAcademicFilterOptions() {
     const nodes = state.academicStatus?.nodes || [];
-    if (state.academicFilters.suggestedTerm !== "all" && !academicFilterTerms(nodes).includes(state.academicFilters.suggestedTerm)) {
+    const nc = state.academicNodeCourses;
+    if (state.academicFilters.suggestedTerm !== "all" && !academicFilterTerms(nodes, nc).includes(state.academicFilters.suggestedTerm)) {
       state.academicFilters.suggestedTerm = "all";
     }
-    if (state.academicFilters.courseNature !== "all" && !academicFilterNatures(nodes).includes(state.academicFilters.courseNature)) {
+    if (state.academicFilters.courseNature !== "all" && !academicFilterNatures(nodes, nc).includes(state.academicFilters.courseNature)) {
       state.academicFilters.courseNature = "all";
     }
   }
 
-  async function refreshAcademicStatus(force = false) {
+  async function refreshAcademicStatus(force = false, full = false) {
     state.academicLoading = true;
+    state.academicNodeCourses = {};
     renderAcademicStatus();
     try {
-      state.academicStatus = await apiGet(`/api/academic-status${force ? "?refresh=1" : ""}`);
+      const q = force ? "?refresh=1" : "";
+      const treeOnly = full ? "&tree_only=0" : "";
+      state.academicStatus = await apiGet(`/api/academic-status${q}${treeOnly}`);
       syncAcademicFilterOptions();
     } finally {
       state.academicLoading = false;
+    }
+    renderAcademicStatus();
+  }
+
+  async function loadAcademicNodeCourses(nodeId) {
+    if (state.academicNodeCourses[nodeId]?.__loading) return;
+    state.academicNodeCourses[nodeId] = { __loading: true };
+    renderAcademicStatus();
+    try {
+      const courses = await apiGet(`/api/academic-node-courses?node_id=${encodeURIComponent(nodeId)}`);
+      state.academicNodeCourses[nodeId] = courses;
+    } catch {
+      state.academicNodeCourses[nodeId] = { __error: true };
     }
     renderAcademicStatus();
   }
@@ -108,6 +125,7 @@ export function createAcademicFeature({ state }) {
   return {
     renderAcademicStatus,
     refreshAcademicStatus,
+    loadAcademicNodeCourses,
     showAcademicRawPage,
     showAcademicDetailJson,
     exportAcademicDataJson,

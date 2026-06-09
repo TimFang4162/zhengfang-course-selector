@@ -51,6 +51,7 @@ export const state = createMutable({
   },
   academicStatus: null,
   academicCourseDetail: null,
+  academicNodeCourses: {},
   academicLoading: false,
   academicVersion: 0,
   academicFilters: {
@@ -172,6 +173,15 @@ export function courseMuted(categoryId, course) {
 export function completedCourseIds() {
   const ids = new Set();
   const visit = (node) => {
+    const cached = state.academicNodeCourses[node.id];
+    if (Array.isArray(cached)) {
+      for (const course of cached) {
+        if (course.statusType === "passed" || course.statusType === "substituted") {
+          if (course.kchId) ids.add(String(course.kchId));
+          if (course.kch) ids.add(String(course.kch));
+        }
+      }
+    }
     for (const course of node?.courses || []) {
       if (course.statusType === "passed" || course.statusType === "substituted") {
         if (course.kchId) ids.add(String(course.kchId));

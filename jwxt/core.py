@@ -1306,7 +1306,56 @@ def normalize_academic_course(item: dict) -> dict:
     }
 
 
-def fetch_academic_status(log_func=None, debug_func=None):
+def _academic_node_courses_payload(node, params):
+    payload = {
+        "fromXh_id": "",
+        "xfyqjd_id": node["id"],
+        "xh_id": params.get("xh_id", ""),
+    }
+    if node["id"] in ("qtkcxfyq", "cxcyqkxfyq"):
+        payload.update(
+            {
+                "cjlrxn": params.get("cjlrxn", ""),
+                "cjlrxq": params.get("cjlrxq", ""),
+                "bkcjlrxn": params.get("bkcjlrxn", ""),
+                "bkcjlrxq": params.get("bkcjlrxq", ""),
+                "xscjcxkz": params.get("xscjcxkz", ""),
+                "cjcxkzzt": params.get("cjcxkzzt", ""),
+                "cjztkz": params.get("cjztkz", ""),
+                "cjzt": params.get("cjzt", ""),
+            }
+        )
+    return payload
+
+
+def _academic_node_courses_endpoint(node):
+    return (
+        "xsxyqk_cxJxzxjhxfyqKcxx.html"
+        if node["courseSource"] == "1" or node["id"] in ("qtkcxfyq", "cxcyqkxfyq")
+        else "xsxyqk_cxJxzxjhxfyqFKcxx.html"
+    )
+
+
+def fetch_academic_node_courses(
+    node_id, course_source, params, log_func=None, debug_func=None
+):
+    proxy_node = {"id": node_id, "courseSource": course_source}
+    payload = _academic_node_courses_payload(proxy_node, params)
+    endpoint = _academic_node_courses_endpoint(proxy_node)
+    if debug_func:
+        debug_func(f"POST 学业情况课程明细: {node_id}")
+    try:
+        courses = http_post(
+            base_url + f"/jwglxt/xsxy/{endpoint}?gnmkdm=N105515",
+            data=payload,
+            timeout=REQ_TIMEOUT["academic_detail"],
+        ).json()
+    except Exception:
+        courses = []
+    return [normalize_academic_course(item) for item in courses or []]
+
+
+def fetch_academic_status(tree_only=False, log_func=None, debug_func=None):
     try:
         if debug_func:
             debug_func("GET 学业情况页面")
@@ -1317,55 +1366,35 @@ def fetch_academic_status(log_func=None, debug_func=None):
         ).text
         parsed = parse_academic_page(page)
         params = parsed["params"]
-        for node in parsed["flatNodes"]:
-            if not node["isLeaf"]:
-                continue
-            payload = {
-                "fromXh_id": "",
-                "xfyqjd_id": node["id"],
-                "xh_id": params.get("xh_id", ""),
-            }
-            if node["id"] in ("qtkcxfyq", "cxcyqkxfyq"):
-                payload.update(
+        parsed["rawDetailJson"] = []
+        if not tree_only:
+            for node in parsed["flatNodes"]:
+                if not node["isLeaf"]:
+                    continue
+                payload = _academic_node_courses_payload(node, params)
+                endpoint = _academic_node_courses_endpoint(node)
+                if debug_func:
+                    debug_func(f"POST 学业情况课程明细: {node['name']}")
+                try:
+                    courses = http_post(
+                        base_url + f"/jwglxt/xsxy/{endpoint}?gnmkdm=N105515",
+                        data=payload,
+                        timeout=REQ_TIMEOUT["academic_detail"],
+                    ).json()
+                except Exception:
+                    courses = []
+                node["courses"] = [
+                    normalize_academic_course(item) for item in courses or []
+                ]
+                parsed["rawDetailJson"].append(
                     {
-                        "cjlrxn": params.get("cjlrxn", ""),
-                        "cjlrxq": params.get("cjlrxq", ""),
-                        "bkcjlrxn": params.get("bkcjlrxn", ""),
-                        "bkcjlrxq": params.get("bkcjlrxq", ""),
-                        "xscjcxkz": params.get("xscjcxkz", ""),
-                        "cjcxkzzt": params.get("cjcxkzzt", ""),
-                        "cjztkz": params.get("cjztkz", ""),
-                        "cjzt": params.get("cjzt", ""),
+                        "nodeId": node["id"],
+                        "nodeName": node["name"],
+                        "endpoint": endpoint,
+                        "payload": payload,
+                        "response": courses or [],
                     }
                 )
-            endpoint = (
-                "xsxyqk_cxJxzxjhxfyqKcxx.html"
-                if node["courseSource"] == "1"
-                or node["id"] in ("qtkcxfyq", "cxcyqkxfyq")
-                else "xsxyqk_cxJxzxjhxfyqFKcxx.html"
-            )
-            if debug_func:
-                debug_func(f"POST 学业情况课程明细: {node['name']}")
-            try:
-                courses = http_post(
-                    base_url + f"/jwglxt/xsxy/{endpoint}?gnmkdm=N105515",
-                    data=payload,
-                    timeout=REQ_TIMEOUT["academic_detail"],
-                ).json()
-            except Exception:
-                courses = []
-            node["courses"] = [
-                normalize_academic_course(item) for item in courses or []
-            ]
-            parsed["rawDetailJson"].append(
-                {
-                    "nodeId": node["id"],
-                    "nodeName": node["name"],
-                    "endpoint": endpoint,
-                    "payload": payload,
-                    "response": courses or [],
-                }
-            )
         parsed.pop("flatNodes", None)
         return parsed
     except Exception as exc:

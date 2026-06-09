@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { state } from "../../app/state.js";
 import { useAppContext } from "../../app/app-context.jsx";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
@@ -36,10 +36,24 @@ function academicNodeMatchesStatus(node) {
   return state.academicFilters.nodeStatus === "all" || String(node.creditStatus || "") === state.academicFilters.nodeStatus;
 }
 
+function academicNodeCourses(node) {
+  const cached = state.academicNodeCourses[node.id];
+  return Array.isArray(cached) ? cached : (node.courses || []);
+}
+
+function academicNodeIsUnloadedLeaf(node) {
+  return node.isLeaf && !(node.id in state.academicNodeCourses);
+}
+
 function academicNodeHasVisibleContent(node) {
   if (!academicNodeMatchesStatus(node)) return false;
-  const visibleCourses = filteredAcademicCourses(node.courses || []);
+  const cached = state.academicNodeCourses[node.id];
+  // Loaded leaf nodes are always visible; filter only applies to the inner course table
+  if (Array.isArray(cached)) return node.isLeaf || (node.children || []).some((child) => academicNodeHasVisibleContent(child));
+  const visibleCourses = filteredAcademicCourses(academicNodeCourses(node));
   if (visibleCourses.length) return true;
+  // Keep visible during loading, on error, or before first load
+  if (cached != null && !Array.isArray(cached) || academicNodeIsUnloadedLeaf(node)) return true;
   return (node.children || []).some((child) => academicNodeHasVisibleContent(child));
 }
 
@@ -80,8 +94,11 @@ function AcademicCourses(props) {
 }
 
 function AcademicNode(props) {
+  const app = useAppContext();
+  const [isOpen, setIsOpen] = createSignal(props.level <= 1);
   const children = () => (props.node.children || []).filter((child) => academicNodeHasVisibleContent(child));
-  const courses = () => filteredAcademicCourses(props.node.courses || []);
+  const nodeCourses = () => academicNodeCourses(props.node);
+  const courses = () => filteredAcademicCourses(nodeCourses());
   const courseCount = () => courses().length;
   const passedCount = () => courses().filter((course) => course.statusType === "passed" || course.statusType === "substituted").length;
   const progressWidth = () => {
@@ -89,9 +106,19 @@ function AcademicNode(props) {
     const earned = Number(props.node.earnedCredit || 0);
     return Number.isFinite(required) && required > 0 ? Math.min(100, (earned / required) * 100) : 0;
   };
+  const nodeLoading = () => state.academicNodeCourses[props.node.id]?.__loading;
+  const nodeError = () => state.academicNodeCourses[props.node.id]?.__error;
+
+  function handleToggle(event) {
+    setIsOpen(event.target.open);
+    if (!event.target.open) return;
+    if (!academicNodeIsUnloadedLeaf(props.node)) return;
+    if (nodeLoading()) return;
+    app.academic.loadAcademicNodeCourses(props.node.id);
+  }
 
   return (
-    <details class={`academic-node level-${props.level}`} open={props.level <= 1}>
+    <details class={`academic-node level-${props.level}`} open={isOpen()} onToggle={handleToggle}>
       <summary>
         <span class="tree-arrow">▸</span>
         <span class="academic-node-title">{props.node.name}</span>
@@ -102,12 +129,22 @@ function AcademicNode(props) {
             <AcademicBadge type="substitute">{props.node.substituteStatusText || "课程替代"}</AcademicBadge>
           </Show>
         </span>
-        <span class="academic-node-count">{children().length ? `${children().length} 子项` : `${passedCount()}/${courseCount() || "-"} 课程`}</span>
+        <span class="academic-node-count">
+          {children().length ? `${children().length} 子项` : (nodeLoading() ? "加载中..." : nodeError() ? "加载失败" : `${passedCount()}/${courseCount() || "-"} 课程`)}
+        </span>
       </summary>
       <div class={`academic-progress is-${props.node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth()}%` }}></span></div>
       <div class="academic-children">
         <For each={children()}>{(child) => <AcademicNode node={child} level={props.level + 1} />}</For>
-        <Show when={!children().length}><AcademicCourses courses={courses()} /></Show>
+        <Show when={!children().length}>
+          <Show when={nodeLoading()} fallback={
+            <Show when={!nodeError()} fallback={<div class="academic-empty dim">加载失败，点击刷新按钮重新获取。</div>}>
+              <AcademicCourses courses={courses()} />
+            </Show>
+          }>
+            <div class="academic-empty dim">加载课程明细中...</div>
+          </Show>
+        </Show>
       </div>
     </details>
   );

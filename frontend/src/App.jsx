@@ -136,6 +136,7 @@ function LoginOverlay() {
 function WorkspaceTabs() {
   const app = useAppContext();
   const academicNodes = () => state.academicStatus?.nodes || [];
+  const academicNodeCourses = () => state.academicNodeCourses || {};
   const activeCourseTab = () => app.tree.activeCourseTab();
   const activeSearchTab = () => activeCourseTab()?.type === "query" ? activeCourseTab() : null;
 
@@ -477,7 +478,7 @@ function WorkspaceTabs() {
                     <label for="academic-filter-term">建议修读时间</label>
                     <select id="academic-filter-term" value={state.academicFilters.suggestedTerm} onChange={(event) => { state.academicFilters.suggestedTerm = event.currentTarget.value; app.academic.renderAcademicStatus(); }}>
                       <option value="all">全部时间</option>
-                      <For each={academicFilterTerms(academicNodes())}>{(term) => <option value={term}>{term}</option>}</For>
+                      <For each={academicFilterTerms(academicNodes(), academicNodeCourses())}>{(term) => <option value={term}>{term}</option>}</For>
                     </select>
                   </div>
                   <div class="field-group">
@@ -497,7 +498,7 @@ function WorkspaceTabs() {
                     <label for="academic-filter-nature">课程性质</label>
                     <select id="academic-filter-nature" value={state.academicFilters.courseNature} onChange={(event) => { state.academicFilters.courseNature = event.currentTarget.value; app.academic.renderAcademicStatus(); }}>
                       <option value="all">全部性质</option>
-                      <For each={academicFilterNatures(academicNodes())}>{(nature) => <option value={nature}>{nature}</option>}</For>
+                      <For each={academicFilterNatures(academicNodes(), academicNodeCourses())}>{(nature) => <option value={nature}>{nature}</option>}</For>
                     </select>
                   </div>
                   <div class="field-group">
