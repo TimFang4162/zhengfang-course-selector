@@ -1,8 +1,10 @@
+import { useCallback } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
 import { formatDebugJson, cx } from "../../shared/utils.js";
 import { grabSymbols } from "./expression.js";
+import { useComposingInput } from "../../hooks/use-composing-input.js";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -100,6 +102,14 @@ export function GrabModal() {
   const app = useAppContext();
   const snap = useSnapshot(state);
 
+  const expressionField = useComposingInput(snap.grabExpression, useCallback((v) => {
+    state.grabExpression = v;
+    app.grab.scheduleGrabPreview();
+  }, [app]));
+  const startAtField = useComposingInput(snap.grabStartAt, useCallback((v) => { state.grabStartAt = v; }, []));
+  const tickIntervalField = useComposingInput(snap.grabTickInterval, useCallback((v) => { state.grabTickInterval = Number(v || 3); }, []));
+  const timeoutField = useComposingInput(snap.grabTimeout, useCallback((v) => { state.grabTimeout = Number(v || 600); }, []));
+
   return (
     <Dialog open={!!snap.grabDraft} onOpenChange={(open) => { if (!open) app.grab.closeGrabModal(); }}>
       <DialogPopup className="grab-card">
@@ -111,7 +121,7 @@ export function GrabModal() {
           <div className="grab-editor">
             <Label htmlFor="grab-expression">表达式</Label>
             <div id="grab-monaco" className="grab-monaco"></div>
-            <Textarea id="grab-expression" className={cx({ "monaco-enabled": Boolean(snap.grabEditor) })} spellCheck="false" value={snap.grabExpression} onInput={(e) => { state.grabExpression = e.currentTarget.value; app.grab.scheduleGrabPreview(); }}></Textarea>
+            <Textarea id="grab-expression" className={cx({ "monaco-enabled": Boolean(snap.grabEditor) })} spellCheck="false" {...expressionField}></Textarea>
             <div className="grab-hints text-muted-foreground text-xs" id="grab-hints">可用字段: {grabSymbols.join(", ")}</div>
             <div className={snap.grabStatusClass + " min-h-5 text-xs"} id="grab-status">{snap.grabStatusText}</div>
           </div>
@@ -134,7 +144,7 @@ export function GrabModal() {
                     </SelectPopup>
                   </Select>
                   {snap.grabStartMode === "scheduled" && (
-                    <Input id="grab-start-at" type="datetime-local" value={snap.grabStartAt} onInput={(e) => { state.grabStartAt = e.currentTarget.value; }} />
+                    <Input id="grab-start-at" type="datetime-local" {...startAtField} />
                   )}
                   <div className="field-help text-muted-foreground text-xs">立即开始会在创建后直接运行；手动启动会先进入待启动状态；指定时间点按本机时间提交给后端调度。</div>
                 </div>
@@ -170,14 +180,14 @@ export function GrabModal() {
               <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
                 <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-tick-interval">Tick 间隔</label>
                 <div className="grab-form-control">
-                  <div className="flex items-center gap-1.5"><Input id="grab-tick-interval" className="min-w-0 flex-1" type="number" min="1" value={snap.grabTickInterval} onInput={(e) => { state.grabTickInterval = Number(e.currentTarget.value || 3); }} /><span className="text-muted-foreground text-xs">秒</span></div>
+                  <div className="flex items-center gap-1.5"><Input id="grab-tick-interval" className="min-w-0 flex-1" type="number" min="1" {...tickIntervalField} /><span className="text-muted-foreground text-xs">秒</span></div>
                 </div>
               </div>
 
               <div className="grab-form-row max-lg:grid-cols-1 max-lg:gap-1.5">
                 <label className="grab-form-label min-h-6 pt-1 max-lg:pt-0 text-muted-foreground text-xs" htmlFor="grab-timeout">超时时间</label>
                 <div className="grab-form-control">
-                  <div className="flex items-center gap-1.5"><Input id="grab-timeout" className="min-w-0 flex-1" type="number" min="1" value={snap.grabTimeout} onInput={(e) => { state.grabTimeout = Number(e.currentTarget.value || 600); }} /><span className="text-muted-foreground text-xs">秒</span></div>
+                  <div className="flex items-center gap-1.5"><Input id="grab-timeout" className="min-w-0 flex-1" type="number" min="1" {...timeoutField} /><span className="text-muted-foreground text-xs">秒</span></div>
                 </div>
               </div>
             </div>

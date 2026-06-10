@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "./app/app-context.jsx";
 import { state, isSelectedClass } from "./app/state.js";
+import { useComposingInput } from "./hooks/use-composing-input.js";
 import { TreeView } from "./features/tree/TreeView.jsx";
 import { TimetableView } from "./features/timetable/TimetableView.jsx";
 import { AcademicStatusView, activeAcademicFilterCount } from "./features/academic/AcademicView.jsx";
@@ -43,6 +44,10 @@ function LoginOverlay() {
   const tab = snap.auth.loginTab;
   const defaultTab = savedAvailable ? "saved" : "password";
   const activeTab = (tab === "saved" && !savedAvailable) ? defaultTab : tab || defaultTab;
+  const customUrl = useComposingInput(snap.auth.customBaseUrl, useCallback((v) => { state.auth.customBaseUrl = v; }, []));
+  const studentNumber = useComposingInput(snap.auth.studentNumber, useCallback((v) => { state.auth.studentNumber = v; }, []));
+  const password = useComposingInput(snap.auth.password, useCallback((v) => { state.auth.password = v; }, []));
+  const cookieInput = useComposingInput(snap.auth.cookieInput, useCallback((v) => { state.auth.cookieInput = v; }, []));
 
   return (
     <div id="login-overlay" className={cx("overlay", { "!hidden": !snap.auth.loginVisible })}>
@@ -78,8 +83,7 @@ function LoginOverlay() {
             className={cx({ "!hidden": snap.auth.baseUrl !== "__custom__" })}
             type="url"
             placeholder="https://jwxt.example.edu.cn"
-            value={snap.auth.customBaseUrl}
-            onInput={(e) => { state.auth.customBaseUrl = e.currentTarget.value; }}
+            {...customUrl}
           />
         </div>
         <div className="mb-3">
@@ -108,11 +112,11 @@ function LoginOverlay() {
           <div className="flex flex-col">
             <div className="grid gap-1.5 mb-3">
               <Label htmlFor="student-number">学号</Label>
-              <Input id="student-number" autoComplete="username" value={snap.auth.studentNumber} onInput={(e) => { state.auth.studentNumber = e.currentTarget.value; }} />
+              <Input id="student-number" autoComplete="username" {...studentNumber} />
             </div>
             <div className="grid gap-1.5 mb-3">
               <Label htmlFor="password">密码</Label>
-              <Input id="password" type="password" autoComplete="current-password" value={snap.auth.password} onInput={(e) => { state.auth.password = e.currentTarget.value; }} />
+              <Input id="password" type="password" autoComplete="current-password" {...password} />
             </div>
             <div className="mb-3 flex items-center justify-between gap-3">
               <Label className="gap-1.5"><Checkbox id="save-creds" checked={snap.auth.saveCredentials} onCheckedChange={(checked) => { state.auth.saveCredentials = checked; }} /> 保存本次凭据</Label>
@@ -131,8 +135,7 @@ function LoginOverlay() {
               <Textarea
                 id="cookie-input"
                 placeholder={`从浏览器 DevTools → Application → Cookies 复制，或粘贴 document.cookie 的值，或直接粘贴请求头里的 Cookie 行。\n支持格式：name=value; name2=value2，或多行 name=value，或带 Cookie: 前缀。\n同名 cookie（如双 JSESSIONID）会按 path=/jwglxt 和 path=/ 自动拆分注入。`}
-                value={snap.auth.cookieInput}
-                onInput={(e) => { state.auth.cookieInput = e.currentTarget.value; }}
+                {...cookieInput}
                 spellCheck={false}
               />
             </div>
@@ -240,6 +243,29 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
   const snapshotRef = useRef(null);
   const committedRef = useRef(false);
 
+  const proxyTab = state.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
+  const snapTab = snap.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
+  const draft = snapTab?.draftFilters || {};
+  const queryValue = snapTab?.query || "";
+
+  const commitQuery = useCallback((v) => {
+    if (!proxyTab) return;
+    proxyTab.query = v;
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+  }, [proxyTab, app]);
+  const commitList = useCallback((field, text) => {
+    if (!proxyTab) return;
+    proxyTab.draftFilters[field] = text.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+  }, [proxyTab, app]);
+
+  const queryField = useComposingInput(queryValue, commitQuery);
+  const gradeField = useComposingInput((draft.gradeIds || []).map(filterValue).join(","), useCallback((v) => { commitList("gradeIds", v); }, [commitList]));
+  const classNameField = useComposingInput((draft.classNames || []).map(filterValue).join(","), useCallback((v) => { commitList("classNames", v); }, [commitList]));
+  const creditField = useComposingInput((draft.credits || []).map(filterValue).join(","), useCallback((v) => { commitList("credits", v); }, [commitList]));
+
   useEffect(() => {
     if (!open) return;
     for (const type of Object.values(dropdownTypeMap)) {
@@ -248,10 +274,6 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
       }
     }
   }, [app, dropdownTypeMap, open, snap.filterOptions]);
-
-  // Writes go to the original proxy, reads go through valtio snapshot for reactivity
-  const proxyTab = state.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
-  const snapTab = snap.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
 
   if (!proxyTab?.draftFilters) return null;
 
@@ -279,12 +301,6 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
     }
     if (!committedRef.current) restoreSnapshot();
     setOpen(false);
-  }
-
-  function setList(field, text) {
-    proxyTab.draftFilters[field] = text.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
-    app.tree.saveTabsState();
-    app.tree.renderTree();
   }
 
   function setItems(field, items) {
@@ -315,8 +331,6 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
 
   const optionItems = (field) => snap.filterOptions[dropdownTypeMap[field]]?.items || [];
   const isOptionLoading = (field) => snap.loadingFilterOptions.has(dropdownTypeMap[field]);
-  const draft = snapTab?.draftFilters || {};
-  const queryValue = snapTab?.query || "";
   const selectedCollegeIds = (draft.collegeIds || []).map(filterValue).filter(Boolean);
   const majorDescription = selectedCollegeIds.length === 1
     ? describeFilterValues(draft, "majorIds")
@@ -337,7 +351,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
             <div className="course-filter-grid">
               <Field className="course-filter-keyword">
                 <FieldLabel htmlFor="query-filter-keyword">关键词</FieldLabel>
-                <Input id="query-filter-keyword" type="search" value={queryValue} placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..." onInput={(e) => { proxyTab.query = e.currentTarget.value; app.tree.saveTabsState(); app.tree.renderTree(); }} />
+                <Input id="query-filter-keyword" type="search" placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..." {...queryField} />
                 <FieldDescription>支持课程号、课程名、教学班名、教师姓名或工号。</FieldDescription>
               </Field>
               <Field>
@@ -366,7 +380,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
               </Field>
               <Field>
                 <FieldLabel htmlFor="query-filter-grade">年级</FieldLabel>
-                <Input id="query-filter-grade" type="text" value={(draft.gradeIds || []).map(filterValue).join(",")} placeholder="例如 2023,2024" onInput={(e) => setList("gradeIds", e.currentTarget.value)} />
+                <Input id="query-filter-grade" type="text" placeholder="例如 2023,2024" {...gradeField} />
                 <FieldDescription>支持逗号或空格分隔多个值</FieldDescription>
               </Field>
               <StaticFilterCombobox fieldId="query-filter-course-category" label="课程类别" items={optionItems("courseCategoryIds")} value={draft.courseCategoryIds} onChange={(items) => setItems("courseCategoryIds", items)} placeholder="搜索课程类别" loading={isOptionLoading("courseCategoryIds")} />
@@ -377,12 +391,12 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
               <StaticFilterCombobox fieldId="query-filter-period" label="上课节次" items={optionItems("periodIds")} value={draft.periodIds} onChange={(items) => setItems("periodIds", items)} placeholder="搜索上课节次" loading={isOptionLoading("periodIds")} />
               <Field>
                 <FieldLabel htmlFor="query-filter-class-name">教学班</FieldLabel>
-                <Input id="query-filter-class-name" type="text" value={(draft.classNames || []).map(filterValue).join(",")} placeholder="支持多个教学班名称" onInput={(e) => setList("classNames", e.currentTarget.value)} />
+                <Input id="query-filter-class-name" type="text" placeholder="支持多个教学班名称" {...classNameField} />
                 <FieldDescription>支持逗号或空格分隔多个值</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="query-filter-credit">学分</FieldLabel>
-                <Input id="query-filter-credit" type="text" value={(draft.credits || []).map(filterValue).join(",")} placeholder="例如 2,3,4" onInput={(e) => setList("credits", e.currentTarget.value)} />
+                <Input id="query-filter-credit" type="text" placeholder="例如 2,3,4" {...creditField} />
                 <FieldDescription>按教务系统原值匹配</FieldDescription>
               </Field>
               <StaticFilterCombobox fieldId="query-filter-retake" label="是否重修" items={[{ value: "1", label: "是" }, { value: "0", label: "否" }]} value={draft.retake} onChange={(items) => setItems("retake", items)} placeholder="选择是否重修" />
@@ -410,6 +424,16 @@ function WorkspaceTabs() {
   const activeCourseTab = app.tree.activeCourseTab();
   const activeSearchTab = activeCourseTab?.type === "query" ? activeCourseTab : null;
 
+  const applyResultFilter = useCallback((value) => {
+    const tab = activeSearchTab;
+    if (!tab) return;
+    tab.localFilter = value;
+    app.tree.saveTabsState();
+    app.tree.applyLocalSearch();
+  }, [activeSearchTab, app]);
+
+  const resultFilter = useComposingInput(activeSearchTab?.localFilter || "", applyResultFilter);
+
   useEffect(() => {
     const closeOutside = (e) => {
       if (e.target.closest?.('[data-slot="menu-trigger"]')) return;
@@ -419,14 +443,6 @@ function WorkspaceTabs() {
     document.addEventListener("click", closeOutside);
     return () => document.removeEventListener("click", closeOutside);
   }, []);
-
-  function applyResultFilter(value) {
-    const tab = activeSearchTab;
-    if (!tab) return;
-    tab.localFilter = value;
-    app.tree.saveTabsState();
-    app.tree.applyLocalSearch();
-  }
 
   function openFilterPicker(config) {
     const tab = activeSearchTab;
@@ -551,8 +567,7 @@ function WorkspaceTabs() {
               id="course-result-filter"
               type="search"
               placeholder="筛选"
-              value={activeSearchTab?.localFilter || ""}
-              onInput={(e) => applyResultFilter(e.currentTarget.value)}
+              {...resultFilter}
               onKeyDown={(e) => { if (e.key === "Escape") applyResultFilter(""); }}
             />
             <Button variant="ghost" aria-label="清除筛选" disabled={!activeSearchTab?.localFilter} onClick={() => applyResultFilter("")}>×</Button>
@@ -814,6 +829,9 @@ function AppShell() {
 function ModalLayer() {
   const app = useAppContext();
   const snap = useSnapshot(state);
+  const picker = snap.filterPicker;
+
+  const pickerSearch = useComposingInput(picker?.query || "", useCallback((v) => { state.filterPicker.query = v; }, []));
 
   const modalClass = snap.modalClass;
   const classConflictEntries = (() => {
@@ -843,7 +861,6 @@ function ModalLayer() {
     if (!logDetailEntry) return "日志详情";
     return logDetailEntry.type === "request" ? `${logDetailEntry.method || "HTTP"} ${logDetailEntry.path || ""}` : `${app.logs.logTypeText(logDetailEntry.type)} #${logDetailEntry.id}`;
   })();
-  const picker = snap.filterPicker;
   const pickerKeyStr = (() => {
     if (!picker) return "";
     return `${picker.type}${picker.parent?.collegeId ? `:${picker.parent.collegeId}` : ""}${picker.query ? `:${picker.query}` : ""}`;
@@ -897,7 +914,7 @@ function ModalLayer() {
               state.filterPicker.page = 1;
               app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
             }}>
-              <Input type="search" className="flex-1" placeholder="搜索选项" value={picker?.query || ""} onInput={(e) => { state.filterPicker.query = e.currentTarget.value; }} onKeyDown={(e) => {
+              <Input type="search" className="flex-1" placeholder="搜索选项" {...pickerSearch} onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
                 state.filterPicker.page = 1;
                 app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
