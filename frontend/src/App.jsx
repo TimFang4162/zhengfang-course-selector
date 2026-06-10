@@ -20,7 +20,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "./components/ui/select";
 import { Card, CardPanel } from "./components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "./components/ui/accordion";
-import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxValue } from "./components/ui/combobox";
+import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxStatus, ComboboxValue } from "./components/ui/combobox";
+import { Spinner } from "./components/ui/spinner";
 import { Field, FieldDescription, FieldLabel } from "./components/ui/field";
 import { ChevronRightIcon, XIcon } from "lucide-react";
 import { Badge } from "./components/ui/badge";
@@ -177,7 +178,7 @@ function normalizeComboboxItems(items) {
   }));
 }
 
-function StaticFilterCombobox({ fieldId, label, description, items, value, onChange, placeholder }) {
+function StaticFilterCombobox({ fieldId, label, description, items, value, onChange, placeholder, loading }) {
   const normalizedItems = normalizeComboboxItems(items);
   const selectedItems = (value || []).map((selected) => {
     const targetValue = String(filterValue(selected));
@@ -209,14 +210,23 @@ function StaticFilterCombobox({ fieldId, label, description, items, value, onCha
           </ComboboxValue>
         </ComboboxChips>
         <ComboboxPopup>
-          <ComboboxEmpty>无匹配选项</ComboboxEmpty>
-          <ComboboxList>
-            {(item) => (
-              <ComboboxItem key={item.value} value={item}>
-                {item.label}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
+          {loading && !normalizedItems.length ? (
+            <ComboboxStatus>
+              <Spinner className="mr-1.5 size-4" />
+              加载中...
+            </ComboboxStatus>
+          ) : (
+            <>
+              <ComboboxEmpty>无匹配选项</ComboboxEmpty>
+              <ComboboxList>
+                {(item) => (
+                  <ComboboxItem key={item.value} value={item}>
+                    {item.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </>
+          )}
         </ComboboxPopup>
       </Combobox>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
@@ -304,6 +314,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
   }
 
   const optionItems = (field) => snap.filterOptions[dropdownTypeMap[field]]?.items || [];
+  const isOptionLoading = (field) => snap.loadingFilterOptions.has(dropdownTypeMap[field]);
   const draft = snapTab?.draftFilters || {};
   const queryValue = snapTab?.query || "";
   const selectedCollegeIds = (draft.collegeIds || []).map(filterValue).filter(Boolean);
@@ -358,12 +369,12 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
                 <Input id="query-filter-grade" type="text" value={(draft.gradeIds || []).map(filterValue).join(",")} placeholder="例如 2023,2024" onInput={(e) => setList("gradeIds", e.currentTarget.value)} />
                 <FieldDescription>支持逗号或空格分隔多个值</FieldDescription>
               </Field>
-              <StaticFilterCombobox fieldId="query-filter-course-category" label="课程类别" items={optionItems("courseCategoryIds")} value={draft.courseCategoryIds} onChange={(items) => setItems("courseCategoryIds", items)} placeholder="搜索课程类别" />
-              <StaticFilterCombobox fieldId="query-filter-course-nature" label="课程性质" items={optionItems("courseNatureIds")} value={draft.courseNatureIds} onChange={(items) => setItems("courseNatureIds", items)} placeholder="搜索课程性质" />
-              <StaticFilterCombobox fieldId="query-filter-course-ownership" label="课程归属" items={optionItems("courseOwnershipIds")} value={draft.courseOwnershipIds} onChange={(items) => setItems("courseOwnershipIds", items)} placeholder="搜索课程归属" />
-              <StaticFilterCombobox fieldId="query-filter-teaching-mode" label="教学模式" items={optionItems("teachingModeIds")} value={draft.teachingModeIds} onChange={(items) => setItems("teachingModeIds", items)} placeholder="搜索教学模式" />
-              <StaticFilterCombobox fieldId="query-filter-weekday" label="上课星期" items={optionItems("weekdayIds")} value={draft.weekdayIds} onChange={(items) => setItems("weekdayIds", items)} placeholder="搜索上课星期" />
-              <StaticFilterCombobox fieldId="query-filter-period" label="上课节次" items={optionItems("periodIds")} value={draft.periodIds} onChange={(items) => setItems("periodIds", items)} placeholder="搜索上课节次" />
+              <StaticFilterCombobox fieldId="query-filter-course-category" label="课程类别" items={optionItems("courseCategoryIds")} value={draft.courseCategoryIds} onChange={(items) => setItems("courseCategoryIds", items)} placeholder="搜索课程类别" loading={isOptionLoading("courseCategoryIds")} />
+              <StaticFilterCombobox fieldId="query-filter-course-nature" label="课程性质" items={optionItems("courseNatureIds")} value={draft.courseNatureIds} onChange={(items) => setItems("courseNatureIds", items)} placeholder="搜索课程性质" loading={isOptionLoading("courseNatureIds")} />
+              <StaticFilterCombobox fieldId="query-filter-course-ownership" label="课程归属" items={optionItems("courseOwnershipIds")} value={draft.courseOwnershipIds} onChange={(items) => setItems("courseOwnershipIds", items)} placeholder="搜索课程归属" loading={isOptionLoading("courseOwnershipIds")} />
+              <StaticFilterCombobox fieldId="query-filter-teaching-mode" label="教学模式" items={optionItems("teachingModeIds")} value={draft.teachingModeIds} onChange={(items) => setItems("teachingModeIds", items)} placeholder="搜索教学模式" loading={isOptionLoading("teachingModeIds")} />
+              <StaticFilterCombobox fieldId="query-filter-weekday" label="上课星期" items={optionItems("weekdayIds")} value={draft.weekdayIds} onChange={(items) => setItems("weekdayIds", items)} placeholder="搜索上课星期" loading={isOptionLoading("weekdayIds")} />
+              <StaticFilterCombobox fieldId="query-filter-period" label="上课节次" items={optionItems("periodIds")} value={draft.periodIds} onChange={(items) => setItems("periodIds", items)} placeholder="搜索上课节次" loading={isOptionLoading("periodIds")} />
               <Field>
                 <FieldLabel htmlFor="query-filter-class-name">教学班</FieldLabel>
                 <Input id="query-filter-class-name" type="text" value={(draft.classNames || []).map(filterValue).join(",")} placeholder="支持多个教学班名称" onInput={(e) => setList("classNames", e.currentTarget.value)} />
@@ -887,6 +898,7 @@ function ModalLayer() {
     app.tree.saveTabsState();
     app.tree.renderTree();
   };
+  const pickerLoading = snap.loadingFilterOptions.has(pickerKeyStr);
 
   return (
     <>
@@ -917,7 +929,12 @@ function ModalLayer() {
               </div>
             )}
             <div className="max-h-[min(420px,55vh)] overflow-auto">
-              {pickerIsMajor ? (
+              {pickerLoading && !pickerOptions.length ? (
+                <div className="flex items-center gap-2 py-3 px-2 text-muted-foreground text-sm">
+                  <Spinner className="size-4" />
+                  加载中...
+                </div>
+              ) : pickerIsMajor ? (
                 <Table className="w-full min-w-max border-collapse text-xs">
                   <TableHeader><TableRow><TableHead className="w-[34px] text-center"></TableHead><TableHead className="text-muted-foreground font-semibold">专业代码</TableHead><TableHead className="text-muted-foreground font-semibold">专业名称</TableHead><TableHead className="text-muted-foreground font-semibold">学院</TableHead></TableRow></TableHeader>
                   <TableBody>
@@ -945,7 +962,7 @@ function ModalLayer() {
                   </button>
                 ))
               )}
-              {!pickerOptions.length && <div className="py-[5px] px-2 text-muted-foreground text-xs">无选项，输入关键词后搜索或稍后重试</div>}
+              {!pickerOptions.length && !pickerLoading && <div className="py-2 px-2 text-muted-foreground text-sm">无选项，输入关键词后搜索或稍后重试</div>}
             </div>
             {pickerHasMore && (
               <Button variant="ghost" size="sm" className="text-info" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage + 1, state.filterPicker.query).catch(app.showError)}>加载更多...</Button>
