@@ -5,6 +5,11 @@
   flex-direction: column;
 }
 
+.grab-editor {
+  display: grid;
+  gap: 6px;
+}
+
 #grab-expression {
   min-height: 118px;
   resize: vertical;
@@ -15,6 +20,12 @@
 
 #grab-expression.monaco-enabled {
   display: none;
+}
+
+.grab-monaco {
+  height: 140px;
+  border: 1px solid var(--vscode-border);
+  background: var(--vscode-editor-bg);
 }
 
 .grab-status.is-ok {
@@ -59,6 +70,11 @@
   white-space: normal;
 }
 
+.grab-settings-form {
+  display: grid;
+  gap: 10px;
+}
+
 .grab-form-row {
   display: grid;
   grid-template-columns: 108px minmax(0, 1fr);
@@ -66,4 +82,8 @@
   align-items: start;
 }
 
-
+.grab-form-control {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}

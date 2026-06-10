@@ -70,7 +70,7 @@ function AcademicBadge({ type, children }) {
 function AcademicCourses({ courses, filters }) {
   const app = useAppContext();
   const filtered = filteredAcademicCourses(courses, filters);
-  if (!filtered.length) return <div className="px-[25px] py-2 text-muted-foreground">当前筛选下暂无课程明细</div>;
+  if (!filtered.length) return <div className="academic-empty text-muted-foreground">当前筛选下暂无课程明细</div>;
 
   return (
     <Table className="academic-course-table">
@@ -156,9 +156,9 @@ function AcademicNode({ node, level }) {
             </Accordion>
           ) : (
             nodeLoading ? (
-              <div className="px-[25px] py-2 text-muted-foreground">加载课程明细中...</div>
+              <div className="academic-empty text-muted-foreground">加载课程明细中...</div>
             ) : nodeError ? (
-              <div className="px-[25px] py-2 text-muted-foreground">加载失败，点击刷新按钮重新获取。</div>
+              <div className="academic-empty text-muted-foreground">加载失败，点击刷新按钮重新获取。</div>
             ) : (
               <AcademicCourses courses={courses} filters={filters} />
             )
@@ -179,11 +179,11 @@ export function AcademicStatusView() {
   const summary = academicCreditSummary(nodes);
   const serverSummary = snap.academicStatus?.summary || {};
 
-  if (snap.academicLoading) return <div id="academic-status" className="flex-1 min-w-0 pb-2"><div className="px-[25px] py-2 text-muted-foreground">正在拉取学业情况和课程明细...</div></div>;
-  if (!nodes.length) return <div id="academic-status" className="flex-1 min-w-0 pb-2"><div className="px-[25px] py-2 text-muted-foreground">暂无学业情况数据，点击刷新重新获取。</div></div>;
+  if (snap.academicLoading) return <div id="academic-status" className="academic-view flex-1"><div className="academic-empty text-muted-foreground">正在拉取学业情况和课程明细...</div></div>;
+  if (!nodes.length) return <div id="academic-status" className="academic-view flex-1"><div className="academic-empty text-muted-foreground">暂无学业情况数据，点击刷新重新获取。</div></div>;
 
   return (
-    <div id="academic-status" className="flex-1 min-w-0 pb-2">
+    <div id="academic-status" className="academic-view flex-1">
       <div className="academic-overview">
         <div><span className="text-muted-foreground">方案</span><strong>{summary.plan}</strong></div>
         <div><span className="text-muted-foreground">学分</span><strong>{summary.earned}/{summary.required}</strong></div>
@@ -201,7 +201,7 @@ export function AcademicStatusView() {
             {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
           </Accordion>
         ) : (
-          <div className="px-[25px] py-2 text-muted-foreground"><FilterX className="inline size-4 mr-1 align-[-2px]" />当前筛选下没有匹配课程。</div>
+          <div className="academic-empty text-muted-foreground"><FilterX className="inline size-4 mr-1 align-[-2px]" />当前筛选下没有匹配课程。</div>
         )}
       </div>
     </div>

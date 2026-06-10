@@ -1,3 +1,8 @@
+.timetable-wrap {
+  flex: 1 1 auto;
+  border-bottom: 1px solid var(--vscode-border-subtle);
+}
+
 #timetable-table {
   width: 100%;
   border-collapse: collapse;
@@ -49,7 +54,8 @@
   cursor: pointer;
 }
 
-.timetable-cell-dim {
+.timetable-cell-dim,
+.timetable-cell-dim .timetable-cell-location {
   color: var(--vscode-fg-muted);
 }
 

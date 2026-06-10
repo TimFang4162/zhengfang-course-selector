@@ -1,3 +1,14 @@
+.academic-view {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0 8px;
+}
+
+.academic-toolbar {
+  gap: 8px;
+  justify-content: flex-start;
+}
+
 .academic-tree {
   width: 100%;
   min-width: 0;
@@ -203,9 +214,19 @@
   border-left: 2px solid var(--vscode-warning);
 }
 
+.academic-empty {
+  padding: 8px 25px;
+}
+
 .academic-filter-menu {
   min-width: 220px;
   padding: 8px;
+}
+
+.academic-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 #academic-more-menu {

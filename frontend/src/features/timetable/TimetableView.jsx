@@ -143,11 +143,11 @@ function TimetableCell({ day, jieci }) {
     return (
       <div key={item.jxbId || index}>
         {display.courseName && <div>{item.name}</div>}
-        {display.location && item.location && <div className=" text-xs text-muted-foreground">{item.location}</div>}
-        {display.credit && item.credit && <div className=" text-xs text-muted-foreground">{item.credit}</div>}
-        {display.teacher && item.teacher && <div className=" text-xs text-muted-foreground">{item.teacher}</div>}
-        {display.weeks && item.weeks.length ? <div className=" text-xs text-muted-foreground">{formatWeekRanges(item.weeks)}</div> : null}
-        {display.time && item.time && <div className=" text-xs text-muted-foreground">{item.time}</div>}
+        {display.location && item.location && <div className="timetable-cell-location text-xs text-muted-foreground">{item.location}</div>}
+        {display.credit && item.credit && <div className="timetable-cell-location text-xs text-muted-foreground">{item.credit}</div>}
+        {display.teacher && item.teacher && <div className="timetable-cell-location text-xs text-muted-foreground">{item.teacher}</div>}
+        {display.weeks && item.weeks.length ? <div className="timetable-cell-location text-xs text-muted-foreground">{formatWeekRanges(item.weeks)}</div> : null}
+        {display.time && item.time && <div className="timetable-cell-location text-xs text-muted-foreground">{item.time}</div>}
       </div>
     );
   }
@@ -333,7 +333,7 @@ export function TimetableView() {
           </Menu>
         </div>
       </div>
-      <div className="flex-auto border-b border-border-subtle">
+      <div className="timetable-wrap">
         <table id="timetable-table">
           <thead>
             <tr>

@@ -2,10 +2,18 @@
   width: min(735px, calc(100vw - 28px));
 }
 
+.course-filter-panel {
+  padding-top: 0;
+}
+
 .course-filter-grid {
   display: grid;
   gap: 14px 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.course-filter-keyword {
+  grid-column: 1 / -1;
 }
 
 .course-filter-grid [data-slot="field"] {
@@ -30,6 +38,33 @@
 
 .query-dialog-submit.is-dirty:hover {
   background: color-mix(in srgb, var(--vscode-focus-border) 24%, var(--vscode-button-hover-bg));
+}
+
+.tree-result-toolbar {
+  min-height: 32px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tree-result-filter {
+  margin-left: auto;
+  min-width: 150px;
+  max-width: 240px;
+}
+
+.tree-result-filter input {
+  min-height: 24px;
+  font-size: 12px;
+}
+
+.tree-view,
+.log-list,
+.detail-panel,
+.academic-view,
+.timetable-wrap {
+  min-height: 0;
+  overflow: auto;
+  background: var(--vscode-panel-bg);
 }
 
 .tree-row.selected {
@@ -89,6 +124,16 @@
 }
 
 @media (max-width: 960px) {
+  .tree-actions {
+    flex: 1 1 auto;
+  }
+
+  .tree-result-filter {
+    flex: 1 1 220px;
+    max-width: none;
+    margin-left: 0;
+  }
+
   .course-filter-grid {
     grid-template-columns: 1fr;
   }
