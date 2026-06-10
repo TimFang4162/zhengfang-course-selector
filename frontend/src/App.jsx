@@ -633,7 +633,7 @@ function WorkspaceTabs() {
           <Menu open={snap.openMenu === "academic-filter-menu"} onOpenChange={(open) => { state.openMenu = open ? "academic-filter-menu" : null; }}>
             <MenuTrigger><Button variant="ghost" size="sm" id="academic-filter-button">{activeAcademicFilterCount(snap) > 0 ? `筛选(${activeAcademicFilterCount(snap)})` : "筛选"}</Button></MenuTrigger>
             <MenuPopup className="academic-filter-menu">
-              <div className="field-group">
+              <div>
                 <Label htmlFor="academic-filter-term">建议修读时间</Label>
                 <Select id="academic-filter-term" value={snap.academicFilters.suggestedTerm} onValueChange={(v) => { state.academicFilters.suggestedTerm = v; app.academic.renderAcademicStatus(); }}>
                   <SelectTrigger id="academic-filter-term"><SelectValue /></SelectTrigger>
@@ -643,7 +643,7 @@ function WorkspaceTabs() {
                   </SelectPopup>
                 </Select>
               </div>
-              <div className="field-group">
+              <div>
                 <Label htmlFor="academic-filter-status">修读状态</Label>
                 <Select id="academic-filter-status" value={snap.academicFilters.statusType} onValueChange={(v) => { state.academicFilters.statusType = v; app.academic.renderAcademicStatus(); }}>
                   <SelectTrigger id="academic-filter-status"><SelectValue /></SelectTrigger>
@@ -659,7 +659,7 @@ function WorkspaceTabs() {
                   </SelectPopup>
                 </Select>
               </div>
-              <div className="field-group">
+              <div>
                 <Label htmlFor="academic-filter-nature">课程性质</Label>
                 <Select id="academic-filter-nature" value={snap.academicFilters.courseNature} onValueChange={(v) => { state.academicFilters.courseNature = v; app.academic.renderAcademicStatus(); }}>
                   <SelectTrigger id="academic-filter-nature"><SelectValue /></SelectTrigger>
@@ -669,7 +669,7 @@ function WorkspaceTabs() {
                   </SelectPopup>
                 </Select>
               </div>
-              <div className="field-group">
+              <div>
                 <Label htmlFor="academic-filter-node-status">节点状态</Label>
                 <Select id="academic-filter-node-status" value={snap.academicFilters.nodeStatus} onValueChange={(v) => { state.academicFilters.nodeStatus = v; app.academic.renderAcademicStatus(); }}>
                   <SelectTrigger id="academic-filter-node-status"><SelectValue /></SelectTrigger>
@@ -753,7 +753,7 @@ function RightPane() {
               data-log-key={app.logs.logEntryKey(item)}
               onClick={() => app.logs.openLogDetail(app.logs.logEntryKey(item))}
             >
-              <span className="log-time text-muted-foreground/70 whitespace-nowrap">{app.logs.logTimestampText(item, index)}</span>
+              <span className="text-muted-foreground/70 whitespace-nowrap">{app.logs.logTimestampText(item, index)}</span>
               <span className="log-type text-muted-foreground/70 text-[11px] whitespace-nowrap">{app.logs.logTypeLabel(item.type)}</span>
               <span className="log-message min-w-0 text-muted-foreground whitespace-pre-wrap break-all">{app.logs.describeLogEntry(item)}</span>
             </button>
@@ -773,19 +773,19 @@ function RightPane() {
             </Menu>
           </div>
         </div>
-        <div className="activity-panel flex-1 min-h-0 overflow-auto">
+        <div className="flex-1 min-h-0 overflow-auto">
           <Table className="w-full border-collapse table-fixed text-[13px]">
             <TableHeader>
               <TableRow><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">任务</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">状态</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">进度</TableHead></TableRow>
             </TableHeader>
             <TableBody id="activity-list">
               {snap.activities.length ? snap.activities.map((item) => (
-                <TableRow key={item.id} className={cx("activity-row", { "is-clickable": Boolean(state.grabTasks[item.id]) })} onClick={() => { const task = state.grabTasks[item.id]; if (task) app.grab.showGrabTaskDetail(task); }}>
+                <TableRow key={item.id} className={cx({ "is-clickable": Boolean(state.grabTasks[item.id]) })} onClick={() => { const task = state.grabTasks[item.id]; if (task) app.grab.showGrabTaskDetail(task); }}>
                   <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</TableCell>
                   <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.status}</TableCell>
                   <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.progress} {snap.grabTasks[item.id] && (
   <Menu>
-    <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px] border-transparent bg-transparent" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
+    <MenuTrigger><Button variant="ghost" size="icon-xs" className="float-right min-w-[22px] min-h-5 px-[5px] border-transparent bg-transparent" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
     <MenuPopup>
       {snap.grabTasks[item.id] && <MenuItem onClick={() => app.grab.showGrabTaskDetail(snap.grabTasks[item.id])}><Eye aria-hidden="true" />详情</MenuItem>}
       <MenuItem onClick={() => { apiPost("/api/grab/tasks/start", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Play aria-hidden="true" />启动</MenuItem>
@@ -829,7 +829,7 @@ function AppShell() {
   }
 
   return (
-    <div className="app-shell h-dvh overflow-hidden">
+    <div className="h-dvh overflow-hidden">
       <div className="main-layout h-dvh overflow-hidden">
         <main className="left-pane min-h-0 overflow-hidden flex flex-col h-full gap-0 p-0 bg-card border-r border-border">
           <Tabs className="flex-1 min-h-0" value={snap.activeTab} onValueChange={(v) => app.tree.switchTab(v)}>
@@ -839,7 +839,7 @@ function AppShell() {
                 <TabsTab value="timetable"><CalendarDays className="size-4" />当前课表</TabsTab>
                 <TabsTab value="academic"><GraduationCap className="size-4" />学业情况</TabsTab>
               </TabsList>
-              <div className="workspace-controls flex items-center gap-1 py-[3px] px-1.5 max-lg:flex-wrap">
+              <div className="flex items-center gap-1 py-[3px] px-1.5 max-lg:flex-wrap">
                 <Select id="workspace-base-url" aria-label="教务地址" value={snap.auth.baseUrl} onValueChange={runAddressAction}>
                   <SelectTrigger id="workspace-base-url" className="max-w-[220px] min-h-[26px] text-[13px]"><SelectValue>{(value) => {
                     if (!value || value === "__test__" || value === "__custom__") return snap.auth.baseUrl;

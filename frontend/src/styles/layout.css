@@ -17,11 +17,6 @@
   border-right: 0;
 }
 
-.workspace-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 .splitter::before {
   content: "";
   position: absolute;
@@ -57,7 +52,4 @@
     grid-template-columns: 1fr;
   }
 
-  .workspace-header {
-    grid-template-columns: 1fr;
-  }
 }
