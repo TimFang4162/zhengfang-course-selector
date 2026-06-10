@@ -1,10 +1,12 @@
+import { useEffect } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
-import { maxJieci, maxWeek, weekdayNames } from "../../shared/constants.js";
-import { formatWeekRanges } from "../../shared/utils.js";
+import { maxJieci, maxWeek, weekdayNames, DETAIL_HEIGHT_KEY } from "../../shared/constants.js";
+import { formatWeekRanges, clamp } from "../../shared/utils.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
 import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuCheckboxItem } from "../../components/ui/menu";
 
 const days = [1, 2, 3, 4, 5, 6, 7];
@@ -73,42 +75,60 @@ function TimetableDetail() {
     const rows = [...grouped.values()];
     return (
       <div id="timetable-detail" className="detail-panel">
-        <table className="detail-table">
-          <thead><tr><th>名称</th><th>学分</th><th>教师</th><th>周次</th><th>时间</th><th>地点</th></tr></thead>
-          <tbody>
-            {rows.map(({ weeks, entry }, i) => (
-              <tr key={i}>
-                <td><DetailCourseName entry={entry} /></td>
-                <td>{entry.creditText || ""}</td>
-                <td>{entry.teacherName || ""}<br /><span className="text-muted-foreground">{entry.teacherTitle || ""}</span></td>
-                <td>{formatWeekRanges(weeks)}</td>
-                <td>{entry.sksj || ""}</td>
-                <td>{entry.location || ""}</td>
-              </tr>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[30%]">名称</TableHead>
+              <TableHead className="w-[50px]">学分</TableHead>
+              <TableHead className="w-[15%]">教师</TableHead>
+              <TableHead className="w-[12%]">周次</TableHead>
+              <TableHead>时间</TableHead>
+              <TableHead>地点</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(({ weeks, entry }) => (
+              <TableRow key={[entry.kchId, entry.classNo].join("/")}>
+                <TableCell><DetailCourseName entry={entry} /></TableCell>
+                <TableCell>{entry.creditText || ""}</TableCell>
+                <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
+                <TableCell>{formatWeekRanges(weeks)}</TableCell>
+                <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
+                <TableCell className="whitespace-normal">{entry.location || ""}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   }
 
   if (!entries.length) {
-    return <div id="timetable-detail" className="detail-panel"><div className="text-muted-foreground">暂无已选课程</div></div>;
+    return <div id="timetable-detail" className="detail-panel flex items-center justify-center text-muted-foreground text-sm">暂无已选课程</div>;
   }
 
   return (
     <div id="timetable-detail" className="detail-panel">
-      <table className="detail-table">
-        <thead><tr><th>名称</th><th>学分</th><th>教师</th><th>时间</th><th>地点</th><th></th></tr></thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[30%]">名称</TableHead>
+            <TableHead className="w-[50px]">学分</TableHead>
+            <TableHead className="w-[15%]">教师</TableHead>
+            <TableHead>时间</TableHead>
+            <TableHead>地点</TableHead>
+            <TableHead className="w-[34px] p-0 text-center" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {entries.map((entry, index) => (
-            <tr key={entry.doJxbId || index}>
-              <td><DetailCourseName entry={entry} /></td>
-              <td>{entry.creditText || ""}</td>
-              <td>{entry.teacherName || ""}<br /><span className="text-muted-foreground">{entry.teacherTitle || ""}</span></td>
-              <td>{entry.sksj || ""}</td>
-              <td>{entry.location || ""}</td>
-              <td>
+            <TableRow key={entry.doJxbId || index}>
+              <TableCell><DetailCourseName entry={entry} /></TableCell>
+              <TableCell>{entry.creditText || ""}</TableCell>
+              <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
+              <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
+              <TableCell className="whitespace-normal">{entry.location || ""}</TableCell>
+              <TableCell className="w-[34px] p-0 text-center">
                 <Menu>
                   <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
                   <MenuPopup>
@@ -116,11 +136,11 @@ function TimetableDetail() {
                     <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}>退课</MenuItem>
                   </MenuPopup>
                 </Menu>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -151,14 +171,14 @@ function TimetableCell({ day, jieci }) {
     );
   }
 
-  const hasContent = data.currentWeek.length || data.otherWeek.length;
+  const hasContent = !!(data.currentWeek.length || data.otherWeek.length);
   const showItems = data.currentWeek.length ? data.currentWeek : data.otherWeek.slice(0, 2);
 
   return (
     <td className={cx({ "active-cell": Boolean(active) })}>
       <button type="button" className="timetable-cell-button" onClick={selectCell}>
         {hasContent && (
-          <div className={cx({ "timetable-cell-dim opacity-45 text-[11px]": !data.currentWeek.length })}>
+          <div className={cx({ "timetable-cell-dim opacity-45": !data.currentWeek.length })}>
             {showItems.map(renderItem)}
           </div>
         )}
@@ -178,6 +198,39 @@ export function TimetableView() {
     app.timetable.renderTimetable();
   }
 
+  useEffect(() => {
+    const splitter = document.getElementById("detail-splitter");
+    const panel = document.getElementById("tab-timetable");
+    if (!splitter || !panel) return;
+    let active = false;
+    function onPointerDown(e) {
+      e.preventDefault();
+      active = true;
+      splitter.classList.add("is-dragging");
+    }
+    function onPointerMove(e) {
+      if (!active) return;
+      const rect = panel.getBoundingClientRect();
+      const next = clamp(rect.bottom - e.clientY, 110, Math.max(110, Math.min(window.innerHeight * 0.5, panel.clientHeight - 120)));
+      document.documentElement.style.setProperty("--detail-height", `${next}px`);
+      window.localStorage.setItem(DETAIL_HEIGHT_KEY, String(next));
+    }
+    function onPointerUp() {
+      if (!active) return;
+      active = false;
+      splitter.classList.remove("is-dragging");
+    }
+    splitter.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      splitter.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      splitter.classList.remove("is-dragging");
+    };
+  }, []);
+
   const displayFields = [
     ["courseName", "课程名"],
     ["location", "地点"],
@@ -188,7 +241,7 @@ export function TimetableView() {
   ];
 
   return (
-    <>
+    <div id="tab-timetable" className="flex flex-col flex-1 min-h-0">
       <div className="flex items-center gap-1 toolbar-tight min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
         <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</Button>
         <span id="week-label">第 {snap.displayWeek}/{maxWeek} 周</span>
@@ -230,8 +283,8 @@ export function TimetableView() {
           </tbody>
         </table>
       </div>
-      <div id="detail-splitter" className="splitter splitter-horizontal relative z-[2] select-none touch-none bg-background flex-none w-1.5 cursor-row-resize" aria-hidden="true"></div>
+      <div id="detail-splitter" className="splitter splitter-horizontal relative z-[2] select-none touch-none bg-background flex-none h-1.5 self-stretch cursor-row-resize" aria-hidden="true"></div>
       <TimetableDetail />
-    </>
+    </div>
   );
 }

@@ -76,31 +76,17 @@
   background: var(--vscode-panel-bg);
 }
 
-.detail-table {
-  width: 100%;
+.detail-panel [data-slot="table-container"] {
+  height: 100%;
+}
+
+.detail-panel [data-slot="table-container"] > table {
   border-collapse: collapse;
-  table-layout: fixed;
 }
 
-.detail-table td,
-.detail-table th {
-  border-bottom: 1px solid var(--vscode-border-subtle);
-  padding: 6px 8px;
-  text-align: left;
-  vertical-align: top;
-  font-size: 13px;
-}
-
-.detail-table th:last-child,
-.detail-table td:last-child {
-  width: 34px;
-  text-align: center;
-}
-
-.detail-table th {
+.detail-panel [data-slot="table-head"] {
   position: sticky;
   top: 0;
+  z-index: 1;
   background: var(--vscode-side-bg);
-  color: var(--vscode-fg-muted);
-  font-weight: 500;
 }
