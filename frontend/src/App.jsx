@@ -15,6 +15,7 @@ import { apiPost } from "./api/client.js";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogHeader, DialogTitle, DialogPanel, DialogFooter } from "./components/ui/dialog";
 import { Tabs, TabsList, TabsTab, TabsPanel } from "./components/ui/tabs";
 import { Input } from "./components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "./components/ui/input-group";
 import { Checkbox } from "./components/ui/checkbox";
 import { Textarea } from "./components/ui/textarea";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
@@ -563,14 +564,22 @@ function WorkspaceTabs() {
             )}
           </div>
           <div className="tree-result-filter">
-            <Input
-              id="course-result-filter"
-              type="search"
-              placeholder="筛选"
-              {...resultFilter}
-              onKeyDown={(e) => { if (e.key === "Escape") applyResultFilter(""); }}
-            />
-            <Button variant="ghost" aria-label="清除筛选" disabled={!activeSearchTab?.localFilter} onClick={() => applyResultFilter("")}>×</Button>
+            <InputGroup>
+              <InputGroupInput
+                id="course-result-filter"
+                type="search"
+                placeholder="筛选"
+                {...resultFilter}
+                onKeyDown={(e) => { if (e.key === "Escape") applyResultFilter(""); }}
+              />
+              {activeSearchTab?.localFilter && (
+                <InputGroupAddon align="inline-end">
+                  <Button aria-label="清除筛选" onClick={() => applyResultFilter("")} size="icon-xs" variant="ghost">
+                    <XIcon />
+                  </Button>
+                </InputGroupAddon>
+              )}
+            </InputGroup>
           </div>
         </div>
         <TreeView />
