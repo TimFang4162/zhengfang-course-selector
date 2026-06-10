@@ -22,6 +22,8 @@ import { Card, CardPanel } from "./components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "./components/ui/accordion";
 import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxValue } from "./components/ui/combobox";
 import { Field, FieldDescription, FieldLabel } from "./components/ui/field";
+import { ChevronRightIcon, XIcon } from "lucide-react";
+import { Badge } from "./components/ui/badge";
 import { Label } from "./components/ui/label";
 
 function filterValue(item) {
@@ -222,28 +224,6 @@ function StaticFilterCombobox({ fieldId, label, description, items, value, onCha
   );
 }
 
-function PickerFilterField({ fieldId, label, value, description, onOpen }) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={fieldId}>{label}</FieldLabel>
-      <Button id={fieldId} type="button" variant="outline" className="justify-between font-normal" onClick={onOpen} title={description || value}>
-        <span className="truncate">{value}</span>
-      </Button>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
-    </Field>
-  );
-}
-
-function TextListFilterField({ fieldId, label, value, onChange, placeholder, description }) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={fieldId}>{label}</FieldLabel>
-      <Input id={fieldId} type="text" value={value} placeholder={placeholder} onInput={(e) => onChange(e.currentTarget.value)} />
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
-    </Field>
-  );
-}
-
 function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchFilters, defaultFiltersForTab, openFilterPicker, queryConditionCount, hasPendingQueryChanges }) {
   const snap = useSnapshot(state);
   const [open, setOpen] = useState(false);
@@ -336,7 +316,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
       <Button type="button" variant="ghost" size="sm" className={cx("menu-button query-toggle-button min-w-[84px]", { "is-dirty": hasPendingQueryChanges() })} onClick={() => handleOpenChange(true)}>
         {`查询(${queryConditionCount()})`}
       </Button>
-      <DialogPopup className="course-filter-dialog sm:max-w-4xl" showCloseButton={false}>
+      <DialogPopup className="course-filter-dialog" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>课程查询</DialogTitle>
           <DialogDescription>关键词和筛选条件统一放在这里；学院、专业、开课学院继续使用独立对话框选择。</DialogDescription>
@@ -349,18 +329,51 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
                 <Input id="query-filter-keyword" type="search" value={queryValue} placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..." onInput={(e) => { proxyTab.query = e.currentTarget.value; app.tree.saveTabsState(); app.tree.renderTree(); }} />
                 <FieldDescription>支持课程号、课程名、教学班名、教师姓名或工号。</FieldDescription>
               </Field>
-              <PickerFilterField fieldId="query-filter-college" label="学院" value={summarizeFilterValues(draft, "collegeIds")} description={describeFilterValues(draft, "collegeIds")} onOpen={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} />
-              <PickerFilterField fieldId="query-filter-major" label="专业" value={summarizeFilterValues(draft, "majorIds")} description={majorDescription} onOpen={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })} />
-              <PickerFilterField fieldId="query-filter-teaching-college" label="开课学院" value={summarizeFilterValues(draft, "teachingCollegeIds")} description={describeFilterValues(draft, "teachingCollegeIds")} onOpen={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })} />
-              <TextListFilterField fieldId="query-filter-grade" label="年级" value={(draft.gradeIds || []).map(filterValue).join(",")} onChange={(text) => setList("gradeIds", text)} placeholder="例如 2023,2024" description="支持逗号或空格分隔多个值" />
+              <Field>
+                <FieldLabel htmlFor="query-filter-college">学院</FieldLabel>
+                <Button id="query-filter-college" type="button" variant="outline" className="justify-between font-normal" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} title={describeFilterValues(draft, "collegeIds")}>
+                  <span className="truncate">{summarizeFilterValues(draft, "collegeIds")}</span>
+                  <ChevronRightIcon className="size-4 shrink-0 opacity-60" />
+                </Button>
+                <FieldDescription>{describeFilterValues(draft, "collegeIds")}</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="query-filter-major">专业</FieldLabel>
+                <Button id="query-filter-major" type="button" variant="outline" className="justify-between font-normal" onClick={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })} title={majorDescription}>
+                  <span className="truncate">{summarizeFilterValues(draft, "majorIds")}</span>
+                  <ChevronRightIcon className="size-4 shrink-0 opacity-60" />
+                </Button>
+                <FieldDescription>{majorDescription}</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="query-filter-teaching-college">开课学院</FieldLabel>
+                <Button id="query-filter-teaching-college" type="button" variant="outline" className="justify-between font-normal" onClick={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })} title={describeFilterValues(draft, "teachingCollegeIds")}>
+                  <span className="truncate">{summarizeFilterValues(draft, "teachingCollegeIds")}</span>
+                  <ChevronRightIcon className="size-4 shrink-0 opacity-60" />
+                </Button>
+                <FieldDescription>{describeFilterValues(draft, "teachingCollegeIds")}</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="query-filter-grade">年级</FieldLabel>
+                <Input id="query-filter-grade" type="text" value={(draft.gradeIds || []).map(filterValue).join(",")} placeholder="例如 2023,2024" onInput={(e) => setList("gradeIds", e.currentTarget.value)} />
+                <FieldDescription>支持逗号或空格分隔多个值</FieldDescription>
+              </Field>
               <StaticFilterCombobox fieldId="query-filter-course-category" label="课程类别" items={optionItems("courseCategoryIds")} value={draft.courseCategoryIds} onChange={(items) => setItems("courseCategoryIds", items)} placeholder="搜索课程类别" />
               <StaticFilterCombobox fieldId="query-filter-course-nature" label="课程性质" items={optionItems("courseNatureIds")} value={draft.courseNatureIds} onChange={(items) => setItems("courseNatureIds", items)} placeholder="搜索课程性质" />
               <StaticFilterCombobox fieldId="query-filter-course-ownership" label="课程归属" items={optionItems("courseOwnershipIds")} value={draft.courseOwnershipIds} onChange={(items) => setItems("courseOwnershipIds", items)} placeholder="搜索课程归属" />
               <StaticFilterCombobox fieldId="query-filter-teaching-mode" label="教学模式" items={optionItems("teachingModeIds")} value={draft.teachingModeIds} onChange={(items) => setItems("teachingModeIds", items)} placeholder="搜索教学模式" />
               <StaticFilterCombobox fieldId="query-filter-weekday" label="上课星期" items={optionItems("weekdayIds")} value={draft.weekdayIds} onChange={(items) => setItems("weekdayIds", items)} placeholder="搜索上课星期" />
               <StaticFilterCombobox fieldId="query-filter-period" label="上课节次" items={optionItems("periodIds")} value={draft.periodIds} onChange={(items) => setItems("periodIds", items)} placeholder="搜索上课节次" />
-              <TextListFilterField fieldId="query-filter-class-name" label="教学班" value={(draft.classNames || []).map(filterValue).join(",")} onChange={(text) => setList("classNames", text)} placeholder="支持多个教学班名称" description="支持逗号或空格分隔多个值" />
-              <TextListFilterField fieldId="query-filter-credit" label="学分" value={(draft.credits || []).map(filterValue).join(",")} onChange={(text) => setList("credits", text)} placeholder="例如 2,3,4" description="按教务系统原值匹配" />
+              <Field>
+                <FieldLabel htmlFor="query-filter-class-name">教学班</FieldLabel>
+                <Input id="query-filter-class-name" type="text" value={(draft.classNames || []).map(filterValue).join(",")} placeholder="支持多个教学班名称" onInput={(e) => setList("classNames", e.currentTarget.value)} />
+                <FieldDescription>支持逗号或空格分隔多个值</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="query-filter-credit">学分</FieldLabel>
+                <Input id="query-filter-credit" type="text" value={(draft.credits || []).map(filterValue).join(",")} placeholder="例如 2,3,4" onInput={(e) => setList("credits", e.currentTarget.value)} />
+                <FieldDescription>按教务系统原值匹配</FieldDescription>
+              </Field>
               <StaticFilterCombobox fieldId="query-filter-retake" label="是否重修" items={[{ value: "1", label: "是" }, { value: "0", label: "否" }]} value={draft.retake} onChange={(items) => setItems("retake", items)} placeholder="选择是否重修" />
               <StaticFilterCombobox fieldId="query-filter-has-capacity" label="有无余量" items={[{ value: "1", label: "有" }, { value: "0", label: "无" }]} value={draft.hasCapacity} onChange={(items) => setItems("hasCapacity", items)} placeholder="选择余量状态" />
             </div>
@@ -878,67 +891,65 @@ function ModalLayer() {
   return (
     <>
       <Dialog open={!!picker} onOpenChange={(open) => { if (!open) state.filterPicker = null; }}>
-        <DialogPopup className="filter-picker-card">
+        <DialogPopup className="sm:max-w-2xl">
           <DialogHeader>
             <span className="text-muted-foreground">筛选</span>
             <DialogTitle>{picker?.title || "..."}</DialogTitle>
           </DialogHeader>
-          <DialogPanel>
-            <div className="filter-picker-body">
-              <div className="filter-picker-toolbar flex gap-1.5">
-                <Input type="search" className="flex-1" placeholder="搜索选项" value={picker?.query || ""} onInput={(e) => { state.filterPicker.query = e.currentTarget.value; }} onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  state.filterPicker.page = 1;
-                  app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
-                }} />
-                <Button variant="ghost" size="sm" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError)}>搜索</Button>
-              </div>
-              {pickerSelectedItems.length > 0 && (
-                <div className="filter-picker-selected flex flex-wrap items-center gap-1.5 py-0.5">
-                  <span className="text-muted-foreground">已选</span>
-                  {pickerSelectedItems.map((item) => (
-                    <button key={item.value} type="button" className="filter-chip" onClick={() => togglePickerValue(item.value)} title={`移除 ${item.label}`}>
-                      <span>{item.label}</span>
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className={cx("filter-picker-list", { "filter-picker-table-wrap": pickerIsMajor })}>
-                {pickerIsMajor ? (
-                  <Table className="filter-picker-table w-full min-w-max border-collapse text-xs">
-                    <TableHeader><TableRow><TableHead className="bg-card text-muted-foreground font-semibold w-[34px] text-center"></TableHead><TableHead className="bg-card text-muted-foreground font-semibold">专业代码</TableHead><TableHead className="bg-card text-muted-foreground font-semibold">专业名称</TableHead><TableHead className="bg-card text-muted-foreground font-semibold">学院</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {pickerOptions.map((item) => (
-                        <TableRow key={item.value} onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)} className={cx("hover:bg-accent", { selected: pickerOptionSelected(item.value), "bg-accent/50": pickerOptionSelected(item.value) })}>
-                          <TableCell className="w-[34px] text-center"><Checkbox checked={pickerOptionSelected(item.value)} onClick={(e) => e.stopPropagation()} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} /></TableCell>
-                          <TableCell>{item.raw?.zyh || item.value}</TableCell>
-                          <TableCell>{item.raw?.zymc || item.label}</TableCell>
-                          <TableCell>{item.raw?.jgmc || ""}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  pickerOptions.map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      className="filter-picker-option grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 min-h-7 py-0.5 px-1.5 rounded text-left hover:bg-accent"
-                      onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)}
-                    >
-                      <Checkbox checked={pickerOptionSelected(item.value)} onClick={(e) => e.stopPropagation()} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} />
-                      <span>{item.displayLabel || item.label}</span>
-                      <span className="text-muted-foreground">{item.value}</span>
-                    </button>
-                  ))
-                )}
-                {!pickerOptions.length && <div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">无选项，输入关键词后搜索或稍后重试</div>}
-              </div>
-              {pickerHasMore && (
-                <Button variant="ghost" className="tree-more block w-[calc(100%-16px)] min-h-6 my-0.5 mx-2 py-0.5 px-2 pl-6 border border-transparent bg-transparent text-left text-[13px] text-info hover:bg-accent hover:border-transparent" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage + 1, state.filterPicker.query).catch(app.showError)}>加载更多...</Button>
-              )}
+          <DialogPanel className="flex flex-col gap-3" scrollFade={false}>
+            <div className="flex gap-1.5">
+              <Input type="search" className="flex-1" placeholder="搜索选项" value={picker?.query || ""} onInput={(e) => { state.filterPicker.query = e.currentTarget.value; }} onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                state.filterPicker.page = 1;
+                app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
+              }} />
+              <Button variant="ghost" size="sm" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError)}>搜索</Button>
             </div>
+            {pickerSelectedItems.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-muted-foreground text-xs">已选</span>
+                {pickerSelectedItems.map((item) => (
+                  <Badge key={item.value} variant="secondary" render={<button type="button" />} onClick={() => togglePickerValue(item.value)}>
+                    {item.label}
+                    <XIcon className="-me-0.5" />
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="max-h-[min(420px,55vh)] overflow-auto">
+              {pickerIsMajor ? (
+                <Table className="w-full min-w-max border-collapse text-xs">
+                  <TableHeader><TableRow><TableHead className="w-[34px] text-center"></TableHead><TableHead className="text-muted-foreground font-semibold">专业代码</TableHead><TableHead className="text-muted-foreground font-semibold">专业名称</TableHead><TableHead className="text-muted-foreground font-semibold">学院</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {pickerOptions.map((item) => (
+                      <TableRow key={item.value} onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)} className={cx("hover:bg-accent", { "bg-accent/50": pickerOptionSelected(item.value) })}>
+                        <TableCell className="w-[34px] text-center"><Checkbox checked={pickerOptionSelected(item.value)} onClick={(e) => e.stopPropagation()} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} /></TableCell>
+                        <TableCell>{item.raw?.zyh || item.value}</TableCell>
+                        <TableCell>{item.raw?.zymc || item.label}</TableCell>
+                        <TableCell>{item.raw?.jgmc || ""}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                pickerOptions.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-1.5 py-0.5 min-h-7 text-left text-sm hover:bg-accent"
+                    onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)}
+                  >
+                    <Checkbox checked={pickerOptionSelected(item.value)} onClick={(e) => e.stopPropagation()} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} />
+                    <span className="flex-1 truncate">{item.displayLabel || item.label}</span>
+                    <span className="text-muted-foreground text-xs shrink-0">{item.value}</span>
+                  </button>
+                ))
+              )}
+              {!pickerOptions.length && <div className="py-[5px] px-2 text-muted-foreground text-xs">无选项，输入关键词后搜索或稍后重试</div>}
+            </div>
+            {pickerHasMore && (
+              <Button variant="ghost" size="sm" className="text-info" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage + 1, state.filterPicker.query).catch(app.showError)}>加载更多...</Button>
+            )}
           </DialogPanel>
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={() => { state.filterPicker.selected = []; }}>清空</Button>

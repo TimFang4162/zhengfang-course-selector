@@ -36,7 +36,7 @@
 
 
 .course-filter-dialog {
-  width: min(980px, calc(100vw - 28px));
+  width: min(735px, calc(100vw - 28px));
 }
 
 .course-filter-panel {
@@ -110,45 +110,6 @@
 
 .tree-result-filter button:disabled {
   opacity: 0.35;
-}
-
-.filter-picker-card {
-  width: min(860px, calc(100vw - 28px));
-}
-
-.filter-picker-body {
-  gap: 8px;
-}
-
-.filter-chip {
-  display: inline-flex;
-  max-width: 220px;
-  min-height: 22px;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
-  border-color: var(--vscode-border);
-  border-radius: 999px;
-  background: var(--vscode-list-hover-bg);
-  font-size: 12px;
-}
-
-.filter-chip span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.filter-picker-list {
-  display: grid;
-  gap: 3px;
-  max-height: min(420px, 55vh);
-  overflow: auto;
-}
-
-.filter-picker-table-wrap {
-  display: block;
-  overflow: auto;
 }
 
 .tree-view,
