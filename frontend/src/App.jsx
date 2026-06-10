@@ -18,8 +18,7 @@ import { Checkbox } from "./components/ui/checkbox";
 import { Textarea } from "./components/ui/textarea";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "./components/ui/select";
-import { Card, CardHeader, CardTitle, CardDescription, CardPanel, CardAction } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
+import { Card, CardPanel } from "./components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "./components/ui/accordion";
 import { Label } from "./components/ui/label";
 
@@ -37,19 +36,21 @@ function LoginOverlay() {
   const snap = useSnapshot(state);
   const savedAvailable = Boolean(snap.bootstrap?.savedCredentials?.available);
   const tab = snap.auth.loginTab;
-  const activeTab = (tab === "saved" && savedAvailable) ? "saved" : tab === "password" ? "password" : tab === "cookie" ? "cookie" : savedAvailable ? "saved" : "password";
+  const defaultTab = savedAvailable ? "saved" : "password";
+  const activeTab = (tab === "saved" && !savedAvailable) ? defaultTab : tab || defaultTab;
 
   return (
     <div id="login-overlay" className={cx("overlay", { "!hidden": !snap.auth.loginVisible })}>
-      <Card>
-        <CardHeader>
-          <div>
-            <CardDescription className="eyebrow">Local Console</CardDescription>
-            <CardTitle>JWXT Web UI</CardTitle>
-          </div>
-          <CardAction><Badge variant="outline">Enterprise</Badge></CardAction>
-        </CardHeader>
+      <Card className="relative w-[420px]">
         <CardPanel>
+        {snap.bootstrap?.authenticated && (
+          <Button
+            variant="ghost"
+            className="absolute top-1.5 right-1.5 min-w-7 h-7 p-0"
+            onClick={() => { state.auth.loginVisible = false; }}
+            aria-label="关闭"
+          >✕</Button>
+        )}
         <div className="grid gap-1.5 mb-3 address-row">
           <Label htmlFor="base-url">教务地址</Label>
           <Select id="base-url" value={snap.auth.baseUrl} onValueChange={(v) => {
@@ -76,9 +77,8 @@ function LoginOverlay() {
             onInput={(e) => { state.auth.customBaseUrl = e.currentTarget.value; }}
           />
         </div>
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3">
           <Label className="gap-1.5"><Checkbox id="disable-ssl-verify" checked={snap.auth.disableSslVerify} onCheckedChange={(checked) => { state.auth.disableSslVerify = checked; app.auth.updateSslVerifySetting().catch(app.showError); }} /> 禁用 SSL 验证</Label>
-          <span className="text-muted-foreground">应用于登录、选课请求和测速</span>
         </div>
         <Tabs value={activeTab} onValueChange={(v) => { state.auth.loginTab = v; }}>
           <TabsList>

@@ -14,20 +14,6 @@ export function createAuthFeature({ state, getApp }) {
     return state.auth.baseUrl;
   }
 
-  function syncLoginFormFromDom() {
-    const customBaseUrl = document.getElementById("custom-base-url");
-    const studentNumber = document.getElementById("student-number");
-    const password = document.getElementById("password");
-    const saveCredentials = document.getElementById("save-creds");
-    const disableSslVerify = document.getElementById("disable-ssl-verify");
-
-    if (customBaseUrl) state.auth.customBaseUrl = customBaseUrl.value;
-    if (studentNumber) state.auth.studentNumber = studentNumber.value;
-    if (password) state.auth.password = password.value;
-    if (saveCredentials) state.auth.saveCredentials = saveCredentials.checked;
-    if (disableSslVerify) state.auth.disableSslVerify = disableSslVerify.checked;
-  }
-
   function syncCustomAddressInput() {
     return state.auth.baseUrl === "__custom__";
   }
@@ -73,7 +59,6 @@ export function createAuthFeature({ state, getApp }) {
     const app = getApp();
     setLoginStatus("登录中...");
     try {
-      syncLoginFormFromDom();
       const baseUrl = getLoginBaseUrl();
       const payload = {
         baseUrl,
@@ -93,7 +78,6 @@ export function createAuthFeature({ state, getApp }) {
       state.bootstrap.savedCredentials.masked = payload.studentNumber;
       state.bootstrap.disableSslVerify = state.auth.disableSslVerify;
       state.auth.loginVisible = false;
-      document.getElementById("login-overlay")?.classList.add("hidden");
       updateAuthStatus();
       app.tree.syncSearchScopeOptions();
       app.tree.setFilterStatus();
@@ -111,7 +95,6 @@ export function createAuthFeature({ state, getApp }) {
     const app = getApp();
     setLoginStatus("Cookie 登录中...");
     try {
-      syncLoginFormFromDom();
       const baseUrl = getLoginBaseUrl();
       const cookies = state.auth.cookieInput.trim();
       if (!cookies) throw new Error("请粘贴 Cookie");
@@ -131,7 +114,6 @@ export function createAuthFeature({ state, getApp }) {
         state.bootstrap.savedCredentials.masked = result.studentNumber;
       }
       state.auth.loginVisible = false;
-      document.getElementById("login-overlay")?.classList.add("hidden");
       updateAuthStatus();
       app.tree.syncSearchScopeOptions();
       app.tree.setFilterStatus();
