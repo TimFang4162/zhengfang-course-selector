@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
@@ -9,6 +9,8 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
 import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuCheckboxItem } from "../../components/ui/menu";
+import { Popover, PopoverTrigger, PopoverPopup, PopoverTitle } from "../../components/ui/popover";
+import { CalendarX, ChevronLeft, ChevronRight, CircleMinus, Ellipsis, Eye, RefreshCw, SlidersHorizontal, Wrench } from "lucide-react";
 
 const days = [1, 2, 3, 4, 5, 6, 7];
 const jieciRows = Array.from({ length: maxJieci }, (_, i) => i + 1);
@@ -58,10 +60,10 @@ function DetailCourseName({ entry }) {
 function DetailActionMenu({ entry, app }) {
   return (
     <Menu>
-      <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+      <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
       <MenuPopup>
-        <MenuItem onClick={() => { state.modalClass = { entry }; }}>详细信息</MenuItem>
-        <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}>退课</MenuItem>
+        <MenuItem onClick={() => { state.modalClass = { entry }; }}><Eye aria-hidden="true" />详细信息</MenuItem>
+        <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}><CircleMinus aria-hidden="true" />退课</MenuItem>
       </MenuPopup>
     </Menu>
   );
@@ -76,7 +78,7 @@ function TimetableDetail() {
   const selectedCell = snap.selectedCell;
 
   if (!entries.length) {
-    return <div id="timetable-detail" className="detail-panel flex items-center justify-center text-muted-foreground text-sm">暂无已选课程</div>;
+    return <div id="timetable-detail" className="detail-panel flex items-center justify-center text-muted-foreground text-sm"><CalendarX className="inline size-4 mr-1 align-[-2px]" />暂无已选课程</div>;
   }
 
   let rows;
@@ -210,6 +212,40 @@ export function TimetableView() {
     };
   }, []);
 
+  function computeWeekCounts() {
+    const weekSet = {};
+    for (const entry of snap.timetable.entries) {
+      for (const [week] of entry.slots || []) {
+        if (!weekSet[week]) weekSet[week] = new Set();
+        weekSet[week].add(entry.doJxbId || entry.kchId);
+      }
+    }
+    const result = [];
+    for (let w = 1; w <= maxWeek; w++) {
+      result.push({ week: w, count: weekSet[w]?.size || 0 });
+    }
+    return result;
+  }
+
+  function computeCreditStats() {
+    const creditMap = {};
+    let localTotal = 0;
+    for (const entry of snap.timetable.entries) {
+      const credit = parseFloat(entry.creditText);
+      if (isNaN(credit)) continue;
+      const key = credit.toFixed(1);
+      creditMap[key] = (creditMap[key] || 0) + 1;
+      localTotal += credit;
+    }
+    return Object.entries(creditMap)
+      .map(([credit, count]) => ({ credit: parseFloat(credit), count }))
+      .sort((a, b) => b.credit - a.credit);
+  }
+
+  const weekCounts = useMemo(computeWeekCounts, [snap.timetable.entries]);
+  const creditBreakdown = useMemo(computeCreditStats, [snap.timetable.entries]);
+  const localTotalCredit = useMemo(() => creditBreakdown.reduce((sum, c) => sum + c.credit * c.count, 0), [creditBreakdown]);
+
   const displayFields = [
     ["courseName", "课程名"],
     ["location", "地点"],
@@ -221,28 +257,81 @@ export function TimetableView() {
 
   return (
     <div id="tab-timetable" className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center gap-1 toolbar-tight min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
-        <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}>上一周</Button>
-        <span id="week-label">第 {snap.displayWeek}/{maxWeek} 周</span>
-        <Button variant="outline" size="sm" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周</Button>
-        <span id="week-selected">已选{selectedCourseCount(snap)}门课程</span>
-        <span id="week-credit">学分{(snap.timetable.currentCredit || 0).toFixed(1)}/{snap.timetable.maxCredit || 32}</span>
-        <Menu open={snap.openMenu === "timetable-display-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-display-menu" : null; }}>
-          <MenuTrigger><Button variant="ghost" size="sm">显示</Button></MenuTrigger>
-          <MenuPopup>
-            {displayFields.map(([field, label]) => (
-              <MenuCheckboxItem key={field} checked={snap.timetableDisplay[field]} onCheckedChange={() => toggleDisplayField(field)}>
-                {label}
-              </MenuCheckboxItem>
-            ))}
-          </MenuPopup>
-        </Menu>
-        <Menu open={snap.openMenu === "timetable-feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-feature-menu" : null; }}>
-          <MenuTrigger><Button variant="ghost" size="sm">功能</Button></MenuTrigger>
-          <MenuPopup>
-            <MenuItem onClick={() => { app.tree.refreshTimetable().catch(app.showError); }}>刷新已选课程</MenuItem>
-          </MenuPopup>
-        </Menu>
+      <div className="flex items-center gap-2 min-h-[34px] py-[3px] px-1.5 bg-card border-b border-border">
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}><ChevronLeft aria-hidden="true" />上一周</Button>
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" size="sm" />}>第 {snap.displayWeek}/{maxWeek} 周</PopoverTrigger>
+            <PopoverPopup align="start">
+              <PopoverTitle>每周课程数</PopoverTitle>
+              <table className="mt-2 w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="text-left pr-4 pb-1 font-medium">周次</th>
+                    <th className="text-right pb-1 font-medium">课程数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weekCounts.map(({ week, count }) => (
+                    <tr key={week} className={week === snap.displayWeek ? "font-semibold text-foreground" : "text-muted-foreground"}>
+                      <td className="pr-4 py-0.5">{week === snap.displayWeek ? <span className="inline-flex items-center gap-1"><Badge>{week}</Badge><span className="sr-only">当前周</span></span> : week}</td>
+                      <td className="text-right py-0.5">{count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PopoverPopup>
+          </Popover>
+          <Button variant="outline" size="sm" id="week-next" onClick={() => { state.displayWeek = Math.min(maxWeek, state.displayWeek + 1); app.timetable.renderTimetable(); }}>下一周<ChevronRight aria-hidden="true" /></Button>
+        </div>
+        <div className="flex items-center gap-1 ml-auto">
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" size="sm" />}>已选{selectedCourseCount(snap)}门课程</PopoverTrigger>
+            <PopoverPopup align="start">
+            </PopoverPopup>
+          </Popover>
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" size="sm" />}>学分{localTotalCredit.toFixed(1)}/{snap.timetable.maxCredit || 32}</PopoverTrigger>
+            <PopoverPopup align="start">
+              <PopoverTitle>学分分布</PopoverTitle>
+              <div className="text-xs text-muted-foreground mt-1 mb-2">本地计算总学分：{localTotalCredit.toFixed(1)}</div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="text-left pr-4 pb-1 font-medium">学分</th>
+                    <th className="text-right pb-1 font-medium">课程数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creditBreakdown.map(({ credit, count }) => (
+                    <tr key={credit} className="text-muted-foreground">
+                      <td className="pr-4 py-0.5">{credit.toFixed(1)}</td>
+                      <td className="text-right py-0.5">{count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PopoverPopup>
+          </Popover>
+        </div>
+        <div className="flex items-center gap-1">
+          <Menu open={snap.openMenu === "timetable-display-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-display-menu" : null; }}>
+            <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
+            <MenuPopup>
+              {displayFields.map(([field, label]) => (
+                <MenuCheckboxItem key={field} checked={snap.timetableDisplay[field]} onCheckedChange={() => toggleDisplayField(field)}>
+                  {label}
+                </MenuCheckboxItem>
+              ))}
+            </MenuPopup>
+          </Menu>
+          <Menu open={snap.openMenu === "timetable-feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-feature-menu" : null; }}>
+            <MenuTrigger><Button variant="ghost" size="sm"><Wrench aria-hidden="true" />功能</Button></MenuTrigger>
+            <MenuPopup>
+              <MenuItem onClick={() => { app.tree.refreshTimetable().catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新已选课程</MenuItem>
+            </MenuPopup>
+          </Menu>
+        </div>
       </div>
       <div className="timetable-wrap">
         <table id="timetable-table">
