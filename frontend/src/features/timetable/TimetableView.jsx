@@ -54,15 +54,31 @@ function DetailCourseName({ entry }) {
   );
 }
 
+function DetailActionMenu({ entry, app }) {
+  return (
+    <Menu>
+      <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+      <MenuPopup>
+        <MenuItem onClick={() => { state.modalClass = { entry }; }}>详细信息</MenuItem>
+        <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}>退课</MenuItem>
+      </MenuPopup>
+    </Menu>
+  );
+}
+
 function TimetableDetail() {
   const app = useAppContext();
   const snap = useSnapshot(state);
   void snap.timetableVersion;
 
-  const display = snap.timetableDisplay;
   const entries = snap.timetable.entries;
   const selectedCell = snap.selectedCell;
 
+  if (!entries.length) {
+    return <div id="timetable-detail" className="detail-panel flex items-center justify-center text-muted-foreground text-sm">暂无已选课程</div>;
+  }
+
+  let rows;
   if (selectedCell) {
     const grouped = new Map();
     const items = app.timetable.entriesForCell(selectedCell.day, selectedCell.jieci).sort((a, b) => a.week - b.week);
@@ -72,39 +88,7 @@ function TimetableDetail() {
       current.weeks.push(week);
       grouped.set(key, current);
     }
-    const rows = [...grouped.values()];
-    return (
-      <div id="timetable-detail" className="detail-panel">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[30%]">名称</TableHead>
-              <TableHead className="w-[50px]">学分</TableHead>
-              <TableHead className="w-[15%]">教师</TableHead>
-              <TableHead className="w-[12%]">周次</TableHead>
-              <TableHead>时间</TableHead>
-              <TableHead>地点</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map(({ weeks, entry }) => (
-              <TableRow key={[entry.kchId, entry.classNo].join("/")}>
-                <TableCell><DetailCourseName entry={entry} /></TableCell>
-                <TableCell>{entry.creditText || ""}</TableCell>
-                <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
-                <TableCell>{formatWeekRanges(weeks)}</TableCell>
-                <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
-                <TableCell className="whitespace-normal">{entry.location || ""}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
-
-  if (!entries.length) {
-    return <div id="timetable-detail" className="detail-panel flex items-center justify-center text-muted-foreground text-sm">暂无已选课程</div>;
+    rows = [...grouped.values()];
   }
 
   return (
@@ -112,31 +96,25 @@ function TimetableDetail() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[30%]">名称</TableHead>
+            <TableHead className="w-[28%]">名称</TableHead>
             <TableHead className="w-[50px]">学分</TableHead>
-            <TableHead className="w-[15%]">教师</TableHead>
+            <TableHead className="w-[13%]">教师</TableHead>
+            {selectedCell && <TableHead className="w-[10%]">周次</TableHead>}
             <TableHead>时间</TableHead>
             <TableHead>地点</TableHead>
             <TableHead className="w-[34px] p-0 text-center" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {entries.map((entry, index) => (
-            <TableRow key={entry.doJxbId || index}>
+          {(selectedCell ? rows.map((r) => ({ ...r })) : entries.map((entry) => ({ entry }))).map(({ entry, weeks }) => (
+            <TableRow key={entry.doJxbId || [entry.kchId, entry.classNo].join("/")}>
               <TableCell><DetailCourseName entry={entry} /></TableCell>
               <TableCell>{entry.creditText || ""}</TableCell>
               <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
+              {selectedCell && <TableCell>{formatWeekRanges(weeks)}</TableCell>}
               <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
               <TableCell className="whitespace-normal">{entry.location || ""}</TableCell>
-              <TableCell className="w-[34px] p-0 text-center">
-                <Menu>
-                  <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
-                  <MenuPopup>
-                    <MenuItem onClick={() => { state.modalClass = { entry }; }}>详细信息</MenuItem>
-                    <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}>退课</MenuItem>
-                  </MenuPopup>
-                </Menu>
-              </TableCell>
+              <TableCell className="w-[34px] p-0 text-center"><DetailActionMenu entry={entry} app={app} /></TableCell>
             </TableRow>
           ))}
         </TableBody>
