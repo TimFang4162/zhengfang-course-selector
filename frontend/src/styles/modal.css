@@ -21,3 +21,11 @@
 .debug-grid > div:nth-child(odd) {
   color: var(--vscode-fg-muted);
 }
+
+.speed-table tr.is-ok td:nth-child(2) {
+  color: var(--vscode-success);
+}
+
+.speed-table tr.is-error td:nth-child(2) {
+  color: var(--vscode-error-soft);
+}

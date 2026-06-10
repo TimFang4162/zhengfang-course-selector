@@ -16,7 +16,6 @@
 @import "./log-activity.css";
 @import "./modal.css";
 @import "./grab.css";
-@import "./speed.css";
 
 @custom-variant dark (&:is(.dark *));
 

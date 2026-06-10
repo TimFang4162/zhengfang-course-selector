@@ -51,7 +51,7 @@ function LoginOverlay() {
   const cookieInput = useComposingInput(snap.auth.cookieInput, useCallback((v) => { state.auth.cookieInput = v; }, []));
 
   return (
-    <div id="login-overlay" className={cx("overlay", { "!hidden": !snap.auth.loginVisible })}>
+    <div id="login-overlay" className={cx("fixed inset-0 z-20 flex items-center justify-center bg-[var(--vscode-overlay-bg)]", { "!hidden": !snap.auth.loginVisible })}>
       <Card className="relative w-[420px]">
         <CardPanel>
         {snap.bootstrap?.authenticated && (
@@ -62,7 +62,7 @@ function LoginOverlay() {
             aria-label="关闭"
           ><XIcon /></Button>
         )}
-        <div className="grid gap-1.5 mb-3 address-row">
+        <div className="grid gap-1.5 mb-3">
           <Label htmlFor="base-url">教务地址</Label>
           <Select id="base-url" value={snap.auth.baseUrl} onValueChange={(v) => {
             if (v === "__test__") {
@@ -358,9 +358,9 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
           <DialogDescription>关键词和筛选条件统一放在这里；学院、专业、开课学院继续使用独立对话框选择。</DialogDescription>
         </DialogHeader>
         <form className="contents" onSubmit={(e) => { e.preventDefault(); commitDraft(); runQuery(); }}>
-          <DialogPanel className="course-filter-panel" scrollFade={false}>
+          <DialogPanel className="pt-0" scrollFade={false}>
             <div className="course-filter-grid">
-              <Field className="course-filter-keyword">
+              <Field className="col-span-full">
                 <FieldLabel htmlFor="query-filter-keyword">关键词</FieldLabel>
                 <Input id="query-filter-keyword" type="search" placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..." {...queryField} />
                 <FieldDescription>支持课程号、课程名、教学班名、教师姓名或工号。</FieldDescription>
@@ -569,8 +569,8 @@ function WorkspaceTabs() {
           })}
           <button type="button" className="inline-flex items-center justify-center h-7 px-1.5 text-[12px] text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-t-md transition-colors" onClick={app.tree.createSearchTab}>+ 新查询</button>
         </div>
-        <div className="flex items-center gap-1 toolbar-tight tree-result-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border max-lg:items-stretch">
-          <div className="tree-actions flex flex-none items-center gap-1 mr-3.5">
+        <div className="flex flex-wrap items-center gap-2 justify-between min-h-[34px] py-[3px] px-1.5 bg-card border-b border-border max-lg:items-stretch">
+          <div className="flex flex-none items-center gap-1 mr-3.5">
             <Menu open={snap.openMenu === "display-menu"} onOpenChange={(open) => { state.openMenu = open ? "display-menu" : null; }}>
               <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
               <MenuPopup>
@@ -599,7 +599,7 @@ function WorkspaceTabs() {
               </Menu>
             )}
           </div>
-          <div className="tree-result-filter">
+          <div className="ml-auto min-w-[150px] max-w-[240px] max-lg:flex-1 max-lg:max-w-none max-lg:ml-0">
             <InputGroup>
               <InputGroupAddon align="inline-start">
                 <Filter className="size-4" />
@@ -629,7 +629,7 @@ function WorkspaceTabs() {
       </TabsPanel>
 
       <TabsPanel value="academic" className="flex flex-col overflow-hidden">
-        <div className="flex items-center gap-1 toolbar-tight academic-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
+        <div className="flex flex-wrap items-center gap-2 justify-start min-h-[34px] py-[3px] px-1.5 bg-card border-b border-border">
           <Menu open={snap.openMenu === "academic-filter-menu"} onOpenChange={(open) => { state.openMenu = open ? "academic-filter-menu" : null; }}>
             <MenuTrigger><Button variant="ghost" size="sm" id="academic-filter-button">{activeAcademicFilterCount(snap) > 0 ? `筛选(${activeAcademicFilterCount(snap)})` : "筛选"}</Button></MenuTrigger>
             <MenuPopup className="academic-filter-menu">
@@ -683,7 +683,7 @@ function WorkspaceTabs() {
                   </SelectPopup>
                 </Select>
               </div>
-              <div className="academic-filter-actions">
+              <div className="flex justify-end mt-2">
                 <Button variant="ghost" size="sm" id="academic-filter-reset" onClick={() => {
                   state.academicFilters.suggestedTerm = "all";
                   state.academicFilters.statusType = "all";
@@ -727,10 +727,10 @@ function RightPane() {
 
   return (
     <aside className="right-pane min-h-0 overflow-hidden flex flex-col h-full bg-background max-lg:min-h-[320px] max-lg:border-t max-lg:border-border">
-      <div className="log-shell flex flex-1 min-h-0 flex-col overflow-hidden bg-background">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-background">
         <div className="flex items-center justify-between gap-2 min-h-[35px] px-[7px] py-[3px] pl-[10px] bg-[var(--vscode-panel-header-bg)] border-b border-[var(--vscode-border)]">
           <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-[var(--vscode-fg-muted)]"><ScrollText className="size-3.5" />日志</span>
-          <div className="log-actions flex items-center gap-1">
+          <div className=" flex items-center gap-1">
             <Select id="log-filter-type" value={snap.logFilterType} onValueChange={(v) => { state.logFilterType = v; }}>
               <SelectTrigger id="log-filter-type" aria-label="日志类型"><SelectValue /></SelectTrigger>
               <SelectPopup>
@@ -764,7 +764,7 @@ function RightPane() {
       <div className="activity-shell flex flex-col overflow-hidden bg-background">
         <div className="flex items-center justify-between gap-2 min-h-[35px] px-[7px] py-[3px] pl-[10px] bg-[var(--vscode-panel-header-bg)] border-b border-[var(--vscode-border)]">
           <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-[var(--vscode-fg-muted)]"><Activity className="size-3.5" />活动</span>
-          <div className="log-actions flex items-center gap-1">
+          <div className=" flex items-center gap-1">
             <Menu>
               <MenuTrigger><Button variant="ghost" id="activity-add" onClick={(e) => e.stopPropagation()}><Plus /></Button></MenuTrigger>
               <MenuPopup>
@@ -774,7 +774,7 @@ function RightPane() {
           </div>
         </div>
         <div className="activity-panel flex-1 min-h-0 overflow-auto">
-          <Table className="activity-table">
+          <Table className="w-full border-collapse table-fixed text-[13px]">
             <TableHeader>
               <TableRow><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">任务</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">状态</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">进度</TableHead></TableRow>
             </TableHeader>
@@ -833,7 +833,7 @@ function AppShell() {
       <div className="main-layout h-dvh overflow-hidden">
         <main className="left-pane min-h-0 overflow-hidden flex flex-col h-full gap-0 p-0 bg-card border-r border-border">
           <Tabs className="flex-1 min-h-0" value={snap.activeTab} onValueChange={(v) => app.tree.switchTab(v)}>
-            <div className="workspace-header grid grid-cols-[minmax(0,1fr)_auto] items-stretch min-h-[35px] bg-muted border-b border-border">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch min-h-[35px] bg-muted border-b border-border">
               <TabsList variant="underline" className="p-0">
                 <TabsTab value="tree"><FolderTree className="size-4" />课程树</TabsTab>
                 <TabsTab value="timetable"><CalendarDays className="size-4" />当前课表</TabsTab>
@@ -1072,9 +1072,9 @@ function ModalLayer() {
                     <div className="class-meta"><div>冲突课程</div><div>{classConflictEntries.map((entry) => <div key={entry.doJxbId}>{entry.name} <span className="text-muted-foreground">{entry.classNo || "-"} / {entry.sksj || "-"}</span></div>)}</div></div>
                   )}
                   {snap.teacherDetail === null && (
-                    <Button variant="link" size="sm" onClick={() => app.timetable.loadTeacherDetail(modalClass.item.teacherJghId, modalClass.item.kchId || modalClass?.course?.kchId)} style={{ marginTop: 8 }}>查看教师详情</Button>
+                    <Button variant="link" size="sm" className="mt-2" onClick={() => app.timetable.loadTeacherDetail(modalClass.item.teacherJghId, modalClass.item.kchId || modalClass?.course?.kchId)}>查看教师详情</Button>
                   )}
-                  {snap.teacherDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载教师详情中...</div>}
+                  {snap.teacherDetail?._loading && <div className="text-muted-foreground mt-2">加载教师详情中...</div>}
                   {snap.teacherDetail && !snap.teacherDetail._loading && (
                     <Accordion>
                       <AccordionItem value="teacher-detail" defaultOpen>
@@ -1093,7 +1093,7 @@ function ModalLayer() {
                           {snap.teacherDetail.office && <><div>科室名称</div><div>{snap.teacherDetail.office}</div></>}
                           {snap.teacherDetail.introduction && <><div>教师简介</div><div>{snap.teacherDetail.introduction}</div></>}
                         </div>
-                      ) : <div className="text-muted-foreground" style={{ marginTop: 6 }}>暂无教师详情数据</div>}
+                      ) : <div className="text-muted-foreground mt-1.5">暂无教师详情数据</div>}
                         </AccordionPanel>
                       </AccordionItem>
                     </Accordion>
@@ -1108,9 +1108,9 @@ function ModalLayer() {
                   <div className="class-meta"><div>教学班</div><div>{modalClass.course.classCount ?? "-"}</div></div>
                   <div className="class-meta"><div>已选</div><div>{snap.timetable.selectedCourseIds?.includes(modalClass.course.kchId) ? "是" : "否"}</div></div>
                   {snap.courseDetail === null && (
-                    <Button variant="link" size="sm" onClick={() => app.timetable.loadCourseDetail(modalClass.course.kchId)} style={{ marginTop: 8 }}>查看课程详情</Button>
+                    <Button variant="link" size="sm" className="mt-2" onClick={() => app.timetable.loadCourseDetail(modalClass.course.kchId)}>查看课程详情</Button>
                   )}
-                  {snap.courseDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情中...</div>}
+                  {snap.courseDetail?._loading && <div className="text-muted-foreground mt-2">加载课程详情中...</div>}
                   {snap.courseDetail && !snap.courseDetail._loading && (
                     <Accordion>
                       <AccordionItem value="course-detail" defaultOpen>
@@ -1137,7 +1137,7 @@ function ModalLayer() {
                           {snap.courseDetail.introduction && <><div>课程简介</div><div>{snap.courseDetail.introduction}</div></>}
                           {snap.courseDetail.syllabus && <><div>教学大纲</div><div>{snap.courseDetail.syllabus}</div></>}
                         </div>
-                      ) : <div className="text-muted-foreground" style={{ marginTop: 6 }}>暂无课程详情数据</div>}
+                      ) : <div className="text-muted-foreground mt-1.5">暂无课程详情数据</div>}
                         </AccordionPanel>
                       </AccordionItem>
                     </Accordion>
@@ -1194,13 +1194,13 @@ function ModalLayer() {
             <DialogTitle>教务地址测速</DialogTitle>
           </DialogHeader>
           <DialogPanel>
-            <div id="speed-content" className="speed-content max-h-[min(60vh,520px)] overflow-y-auto">
-              <Table className="speed-table">
+            <div id="speed-content" className="max-h-[min(60vh,520px)] overflow-y-auto">
+              <Table className="speed-table w-full border-collapse text-xs">
                 <TableHeader><TableRow><TableHead className="py-[7px] px-2 border-b border-border text-left align-top">地址</TableHead><TableHead className="py-[7px] px-2 border-b border-border text-left align-top">状态</TableHead><TableHead className="py-[7px] px-2 border-b border-border text-left align-top">耗时</TableHead><TableHead className="py-[7px] px-2 border-b border-border text-left align-top">说明</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {snap.speedRows.map((row) => (
                     <TableRow key={row.url} className={row.statusClass}>
-                      <TableCell className="py-[7px] px-2 border-b border-border text-left align-top"><Button variant="link" size="sm" className="link-button min-h-0 p-0 border-0 text-info bg-transparent text-left" onClick={() => { app.auth.setLoginBaseUrl(row.url); app.auth.closeSpeedModal(); }}>{row.url}</Button><div className="text-muted-foreground">{row.label}</div></TableCell>
+                      <TableCell className="py-[7px] px-2 border-b border-border text-left align-top"><Button variant="link" size="sm" className="min-h-0 p-0 border-0 text-info bg-transparent text-left" onClick={() => { app.auth.setLoginBaseUrl(row.url); app.auth.closeSpeedModal(); }}>{row.url}</Button><div className="text-muted-foreground">{row.label}</div></TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.status}</TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.ms}</TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.message}</TableCell>
@@ -1254,8 +1254,8 @@ function ModalLayer() {
             <DialogTitle>{snap.academicCourseDetail?.name || "课程基本信息"}</DialogTitle>
           </DialogHeader>
           <DialogPanel>
-            {snap.academicCourseDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情中...</div>}
-            {snap.academicCourseDetail?._error && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情失败</div>}
+            {snap.academicCourseDetail?._loading && <div className="text-muted-foreground mt-2">加载课程详情中...</div>}
+            {snap.academicCourseDetail?._error && <div className="text-muted-foreground mt-2">加载课程详情失败</div>}
             {snap.academicCourseDetail && !snap.academicCourseDetail._loading && !snap.academicCourseDetail._error && snap.academicCourseDetail.name && (
               <Accordion>
                 <AccordionItem value="academic-course-detail" defaultOpen>
@@ -1290,7 +1290,7 @@ function ModalLayer() {
                   <AccordionItem value="hours-breakdown" defaultOpen>
                     <AccordionTrigger>学时分配</AccordionTrigger>
                     <AccordionPanel>
-                    <Table style={{ margin: "4px 0", width: "100%" }}>
+                    <Table className="my-1 w-full">
                       <TableHeader>
                         <TableRow>
                           <TableHead>分项</TableHead>

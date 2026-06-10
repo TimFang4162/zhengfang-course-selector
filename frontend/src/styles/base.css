@@ -84,19 +84,4 @@ body {
   color: var(--vscode-fg);
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--vscode-overlay-bg);
-}
 
-.eyebrow {
-  color: var(--vscode-fg-muted);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
