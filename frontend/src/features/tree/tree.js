@@ -768,6 +768,44 @@ export function createTreeFeature({ state, getApp, helpers }) {
     return loadCourseClasses(categoryId, kchId, true);
   }
 
+  function syncExpandedCategories(categoryIds) {
+    const app = getApp();
+    const tab = activeCourseTab();
+    const expanded = expandedCategories(tab);
+    const next = new Set(categoryIds);
+    let dirty = false;
+    for (const id of next) { if (!expanded.has(id)) { expanded.add(id); dirty = true; } }
+    for (const id of [...expanded]) { if (!next.has(id)) { expanded.delete(id); dirty = true; } }
+    if (!dirty) return;
+    const toLoad = [...next].filter((id) => !expanded.has(id) || !tabBucket(id, tab).loaded);
+    if (toLoad.length) {
+      loadSearchCategoryCourses(tab, toLoad[0], 1).catch(app.showError);
+    } else {
+      renderTree();
+    }
+  }
+
+  function syncExpandedCourses(courseKeys) {
+    const app = getApp();
+    const tab = activeCourseTab();
+    const expanded = expandedCourses(tab);
+    const next = new Set(courseKeys);
+    let dirty = false;
+    for (const k of next) { if (!expanded.has(k)) { expanded.add(k); dirty = true; } }
+    for (const k of [...expanded]) { if (!next.has(k)) { expanded.delete(k); dirty = true; } }
+    if (!dirty) return;
+    const toLoad = [...next].filter((k) => {
+      const [catId, kchId] = k.split(":");
+      return !classBucket(catId, kchId);
+    });
+    if (toLoad.length) {
+      const [catId, kchId] = toLoad[0].split(":");
+      loadCourseClasses(catId, kchId).catch(app.showError);
+    } else {
+      renderTree();
+    }
+  }
+
   return {
     syncSearchScopeOptions,
     activeCourseTab,

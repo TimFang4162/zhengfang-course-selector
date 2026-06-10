@@ -249,11 +249,11 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
     }
   }, [app, dropdownTypeMap, open, snap.filterOptions]);
 
-  if (!activeSearchTab?.draftFilters) return null;
-
   // Writes go to the original proxy, reads go through valtio snapshot for reactivity
-  const proxyTab = activeSearchTab;
-  const snapTab = snap.courseTabs.find((tab) => tab.id === snap.activeCourseTabId);
+  const proxyTab = state.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
+  const snapTab = snap.courseTabs.find((tab) => tab.id === snap.activeCourseTabId && tab.type === "query");
+
+  if (!proxyTab?.draftFilters) return null;
 
   function snapshotCurrentState() {
     snapshotRef.current = {
@@ -404,6 +404,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
 function WorkspaceTabs() {
   const app = useAppContext();
   const snap = useSnapshot(state);
+  void snap.treeVersion;
   const academicNodes = snap.academicStatus?.nodes || [];
   const academicNodeCourses = snap.academicNodeCourses || {};
   const activeCourseTab = app.tree.activeCourseTab();
@@ -434,6 +435,7 @@ function WorkspaceTabs() {
     const parent = config.type === "major" && collegeIds.length === 1 ? { collegeId: collegeIds[0] } : {};
     state.filterPicker = {
       ...config,
+      tabId: tab.id,
       parent,
       query: "",
       page: 1,
@@ -509,7 +511,7 @@ function WorkspaceTabs() {
           {snap.courseTabs.map((tab) => (
             <span key={tab.id} className={cx("course-tab-shell hover:bg-accent", { active: snap.activeCourseTabId === tab.id })}>
               <Button variant="ghost" size="sm" className="course-tab max-w-[190px] truncate" onClick={() => app.tree.activateCourseTab(tab.id)}>{tab.title}</Button>
-              <Button variant="ghost" size="sm" className="course-tab-close w-6 text-muted-foreground" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</Button>
+              {tab.id !== "default" && <Button variant="ghost" size="sm" className="course-tab-close w-6 text-muted-foreground" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</Button>}
             </span>
           ))}
           <Button variant="ghost" size="sm" className="course-tab-new rounded text-muted-foreground hover:bg-accent" onClick={app.tree.createSearchTab}>+ 新查询</Button>
@@ -868,9 +870,10 @@ function ModalLayer() {
     else selected.push({ value, label: label || value });
   };
   const applyPicker = () => {
-    const tab = app.tree.activeCourseTab();
     const proxyPicker = state.filterPicker;
-    if (tab?.type === "query" && proxyPicker) {
+    if (!proxyPicker) return;
+    const tab = state.courseTabs.find((t) => t.id === proxyPicker.tabId);
+    if (tab?.type === "query") {
       tab.draftFilters[proxyPicker.field] = [...proxyPicker.selected];
       if (proxyPicker.field === "collegeIds") tab.draftFilters.majorIds = [];
     }

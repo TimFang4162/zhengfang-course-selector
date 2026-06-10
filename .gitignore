@@ -15,5 +15,6 @@ node_modules/
 .jwxt_credentials.json
 .ruff_cache/
 
-# Capture files
-*.har
+# Docs artifacts
+docs/*.json
+docs/*.har
