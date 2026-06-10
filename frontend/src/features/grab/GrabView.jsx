@@ -4,6 +4,7 @@ import { useAppContext } from "../../app/app-context.jsx";
 import { state } from "../../app/state.js";
 import { formatDebugJson, cx } from "../../shared/utils.js";
 import { grabSymbols } from "./expression.js";
+import { Bug, ChevronDown, ChevronRight, FileJson, ListChecks, Minus, RefreshCw, SearchX } from "lucide-react";
 import { useComposingInput } from "../../hooks/use-composing-input.js";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -47,7 +48,7 @@ export function GrabPreview() {
   const missingClassGroups = groupMissingClasses(data?.missing?.classLoads || []);
   const matchGroups = groupMatches(data?.matches || []);
 
-  if (!data)     return <div id="grab-preview-list" className="grab-preview-list max-h-[260px] overflow-auto"><div className="dim grab-preview-empty p-2">没有匹配项。</div></div>;
+  if (!data)     return <div id="grab-preview-list" className="grab-preview-list max-h-[260px] overflow-auto"><div className="dim grab-preview-empty p-2"><SearchX className="inline size-4 mr-1 align-[-2px]" />没有匹配项。</div></div>;
 
   return (
     <div id="grab-preview-list" className="grab-preview-list max-h-[260px] overflow-auto">
@@ -59,14 +60,14 @@ export function GrabPreview() {
           <div className="grab-preview-section pt-1.5 px-2 pb-1 text-muted-foreground text-xs uppercase">缺失数据</div>
           {missingCourseLoads.map((item) => (
             <div key={item.name || item.categoryId}>
-              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▸</span><span>大类 {item.name}</span></div>
-              <div className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>需要加载全部课程分页</span></div>
+              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow"><ChevronRight className="size-3.5" /></span><span>大类 {item.name}</span></div>
+              <div className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow"><Minus className="size-3.5" /></span><span>需要加载全部课程分页</span></div>
             </div>
           ))}
           {missingClassGroups.map((group) => (
             <div key={group.categoryId}>
-              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow">▾</span><span>大类 {group.categoryId}</span></div>
-              {group.rows.map((item) => <div key={item.kchId} className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow">·</span><span>{item.courseName} <span className="text-muted-foreground">{item.kchId}</span> 需要加载教学班</span></div>)}
+              <div className="grab-preview-tree-row level-0 is-missing"><span className="tree-arrow"><ChevronDown className="size-3.5" /></span><span>大类 {group.categoryId}</span></div>
+              {group.rows.map((item) => <div key={item.kchId} className="grab-preview-tree-row level-1 is-missing"><span className="tree-arrow"><Minus className="size-3.5" /></span><span>{item.courseName} <span className="text-muted-foreground">{item.kchId}</span> 需要加载教学班</span></div>)}
             </div>
           ))}
         </>
@@ -76,13 +77,13 @@ export function GrabPreview() {
           <div className="grab-preview-section pt-1.5 px-2 pb-1 text-muted-foreground text-xs uppercase">匹配结果</div>
           {matchGroups.map((categoryBucket) => (
             <div key={categoryBucket.category.id}>
-              <div className="grab-preview-tree-row level-0"><span className="tree-arrow">▾</span><span>{categoryBucket.category.name}</span></div>
+              <div className="grab-preview-tree-row level-0"><span className="tree-arrow"><ChevronDown className="size-3.5" /></span><span>{categoryBucket.category.name}</span></div>
               {categoryBucket.courses.map((courseBucket) => (
                 <div key={courseBucket.course.kchId}>
-                  <div className="grab-preview-tree-row level-1"><span className="tree-arrow">▾</span><span>{courseBucket.course.courseName} <span className="text-muted-foreground">{courseBucket.course.kchId}</span></span></div>
+                  <div className="grab-preview-tree-row level-1"><span className="tree-arrow"><ChevronDown className="size-3.5" /></span><span>{courseBucket.course.courseName} <span className="text-muted-foreground">{courseBucket.course.kchId}</span></span></div>
                   {courseBucket.classes.map((classItem) => (
                     <div key={classItem.classKey || classItem.doJxbId} className="grab-preview-tree-row level-2">
-                      <span className="tree-arrow">·</span>
+                      <span className="tree-arrow"><Minus className="size-3.5" /></span>
                       <span>{classItem.classNo} <span className="text-muted-foreground">{classItem.teacherName || "-"} · {classItem.location || "-"} · {classItem.selectedCount}/{classItem.capacity}</span></span>
                     </div>
                   ))}
@@ -92,7 +93,7 @@ export function GrabPreview() {
           ))}
         </>
       ) : (!missingCourseLoads.length && !missingClassGroups.length) && (
-        <div className="dim grab-preview-empty p-2">没有匹配项。</div>
+        <div className="dim grab-preview-empty p-2"><SearchX className="inline size-4 mr-1 align-[-2px]" />没有匹配项。</div>
       )}
     </div>
   );
@@ -194,7 +195,7 @@ export function GrabModal() {
           </div>
         </DialogPanel>
         <DialogFooter>
-          <Button variant="outline" id="grab-preview-refresh" onClick={() => app.grab.refreshGrabPreview().catch(app.showError)}>刷新预览</Button>
+          <Button variant="outline" id="grab-preview-refresh" onClick={() => app.grab.refreshGrabPreview().catch(app.showError)}><RefreshCw aria-hidden="true" />刷新预览</Button>
           <Button id="grab-confirm" onClick={() => app.grab.confirmGrabExpression().catch(app.showError)}>确认添加</Button>
         </DialogFooter>
       </DialogPopup>
@@ -231,7 +232,7 @@ export function GrabTaskModal() {
                 <div className="class-meta"><div>最近结果</div><div>{task.lastResult || "-"}</div></div>
                 <Accordion>
                   <AccordionItem value="tick-debug">
-                    <AccordionTrigger>最近 Tick 调试</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><Bug className="size-4" />最近 Tick 调试</span></AccordionTrigger>
                     <AccordionPanel>
                     <div className="debug-grid">
                       <div>检查教学班</div><div>{task.lastTickDebug?.checkedClassCount ?? 0}</div>
@@ -245,7 +246,7 @@ export function GrabTaskModal() {
                     </AccordionPanel>
                   </AccordionItem>
                   <AccordionItem value="candidate-classes">
-                    <AccordionTrigger>候选课程 / 教学班号</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><ListChecks className="size-4" />候选课程 / 教学班号</span></AccordionTrigger>
                     <AccordionPanel>
                     {(task.candidateCourses || []).length ? (task.candidateCourses || []).map((course) => (
                        <div key={course.kchId} className="mt-2 text-xs">
@@ -256,7 +257,7 @@ export function GrabTaskModal() {
                     </AccordionPanel>
                   </AccordionItem>
                   <AccordionItem value="raw-task-data">
-                    <AccordionTrigger>任务原始数据</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><FileJson className="size-4" />任务原始数据</span></AccordionTrigger>
                     <AccordionPanel>
                      <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(task)}</pre>
                     </AccordionPanel>

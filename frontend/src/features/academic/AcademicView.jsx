@@ -5,6 +5,7 @@ import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
+import { Ellipsis, FilterX, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "../../components/ui/accordion";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
@@ -140,9 +141,9 @@ function AcademicNode({ node, level }) {
           {children.length ? `${children.length} 子项` : (nodeLoading ? "加载中..." : nodeError ? "加载失败" : `${passedCount}/${courses.length || "-"} 课程`)}
         </span>
         <Menu>
-          <MenuTrigger><Button variant="ghost" size="icon-xs" className="academic-node-more" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+          <MenuTrigger><Button variant="ghost" size="icon-xs" className="academic-node-more" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
           <MenuPopup>
-            <MenuItem onClick={() => { app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError); }}>刷新此节点</MenuItem>
+            <MenuItem onClick={() => { app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新此节点</MenuItem>
           </MenuPopup>
         </Menu>
       </AccordionTrigger>
@@ -200,7 +201,7 @@ export function AcademicStatusView() {
             {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
           </Accordion>
         ) : (
-          <div className="academic-empty text-muted-foreground">当前筛选下没有匹配课程。</div>
+          <div className="academic-empty text-muted-foreground"><FilterX className="inline size-4 mr-1 align-[-2px]" />当前筛选下没有匹配课程。</div>
         )}
       </div>
     </div>

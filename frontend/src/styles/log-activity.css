@@ -17,16 +17,6 @@
   background: var(--vscode-panel-bg);
 }
 
-.log-header {
-  display: flex;
-  min-height: 35px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 3px 7px 3px 10px;
-  background: var(--vscode-panel-header-bg);
-  border-bottom: 1px solid var(--vscode-border);
-}
 
 .log-list {
   flex: 1;

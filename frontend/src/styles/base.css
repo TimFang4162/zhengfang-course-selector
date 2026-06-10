@@ -94,8 +94,7 @@ body {
   background: var(--vscode-overlay-bg);
 }
 
-.eyebrow,
-.log-title {
+.eyebrow {
   color: var(--vscode-fg-muted);
   font-size: 11px;
   letter-spacing: 0.08em;

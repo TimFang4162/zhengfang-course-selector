@@ -19,13 +19,13 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "./components/ui/in
 import { Checkbox } from "./components/ui/checkbox";
 import { Textarea } from "./components/ui/textarea";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
-import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "./components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem, SelectGroup, SelectGroupLabel, SelectSeparator } from "./components/ui/select";
 import { Card, CardPanel } from "./components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "./components/ui/accordion";
 import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxStatus, ComboboxValue } from "./components/ui/combobox";
 import { Spinner } from "./components/ui/spinner";
 import { Field, FieldDescription, FieldLabel } from "./components/ui/field";
-import { ChevronRightIcon, XIcon } from "lucide-react";
+import { Activity, BookOpen, Braces, CalendarDays, Check, CheckSquare, ChevronRightIcon, Clock, Download, Ellipsis, ExternalLink, Eye, FileJson, Filter, FolderTree, Gauge, GraduationCap, Inbox, KeyRound, PanelRightClose, PanelRightOpen, Play, Plus, RefreshCw, Repeat, RotateCcw, ScrollText, Search, SlidersHorizontal, Square, Trash2, User, Wrench, XIcon } from "lucide-react";
 import { Badge } from "./components/ui/badge";
 import { Label } from "./components/ui/label";
 
@@ -60,7 +60,7 @@ function LoginOverlay() {
             className="absolute top-1.5 right-1.5 min-w-7 h-7 p-0"
             onClick={() => { state.auth.loginVisible = false; }}
             aria-label="关闭"
-          >✕</Button>
+          ><XIcon /></Button>
         )}
         <div className="grid gap-1.5 mb-3 address-row">
           <Label htmlFor="base-url">教务地址</Label>
@@ -72,11 +72,21 @@ function LoginOverlay() {
             }
             state.auth.baseUrl = v;
           }}>
-            <SelectTrigger id="base-url" className="flex-1"><SelectValue placeholder="选择教务地址" /></SelectTrigger>
+            <SelectTrigger id="base-url" className="flex-1"><SelectValue placeholder="选择教务地址">{(value) => {
+              if (!value || value === "__test__" || value === "__custom__") return null;
+              return value.replace(/^https?:\/\//, "");
+            }}</SelectValue></SelectTrigger>
             <SelectPopup>
-              {(snap.bootstrap?.addressChoices || []).map((item) => <SelectItem key={item.url} value={item.url}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</SelectItem>)}
-              <SelectItem value="__test__">测速</SelectItem>
-              <SelectItem value="__custom__">{snap.auth.customBaseUrl || "自定义地址"}</SelectItem>
+              <SelectGroup>
+                <SelectGroupLabel>教务地址</SelectGroupLabel>
+                {(snap.bootstrap?.addressChoices || []).map((item) => <SelectItem key={item.url} value={item.url}>{item.url.replace(/^https?:\/\//, "")} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</SelectItem>)}
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectGroupLabel>操作</SelectGroupLabel>
+                <SelectItem value="__test__"><span className="flex items-center gap-2"><Gauge className="size-4" /><span className="truncate">测速</span></span></SelectItem>
+                <SelectItem value="__custom__">{snap.auth.customBaseUrl || "自定义地址"}</SelectItem>
+              </SelectGroup>
             </SelectPopup>
           </Select>
           <Input
@@ -340,14 +350,14 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button type="button" variant={hasPendingQueryChanges() ? "secondary" : "ghost"} size="sm" onClick={() => handleOpenChange(true)}>
-        {`查询(${queryConditionCount()})`}
+        <Search aria-hidden="true" />{`查询(${queryConditionCount()})`}
       </Button>
       <DialogPopup className="course-filter-dialog" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>课程查询</DialogTitle>
           <DialogDescription>关键词和筛选条件统一放在这里；学院、专业、开课学院继续使用独立对话框选择。</DialogDescription>
         </DialogHeader>
-        <form className="contents" onSubmit={(e) => { e.preventDefault(); runQuery(); }}>
+        <form className="contents" onSubmit={(e) => { e.preventDefault(); commitDraft(); runQuery(); }}>
           <DialogPanel className="course-filter-panel" scrollFade={false}>
             <div className="course-filter-grid">
               <Field className="course-filter-keyword">
@@ -404,11 +414,12 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
               <StaticFilterCombobox fieldId="query-filter-has-capacity" label="有无余量" items={[{ value: "1", label: "有" }, { value: "0", label: "无" }]} value={draft.hasCapacity} onChange={(items) => setItems("hasCapacity", items)} placeholder="选择余量状态" />
             </div>
           </DialogPanel>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={resetDraft}>清空</Button>
-            <DialogClose render={<Button type="button" variant="ghost" />}>取消</DialogClose>
-            <Button type="button" variant="secondary" onClick={commitDraft}>应用条件</Button>
-            <Button type="submit" className={cx("query-dialog-submit", { "is-dirty": hasPendingQueryChanges() })}>查询</Button>
+          <DialogFooter className="sm:justify-between">
+            <Button type="button" variant="ghost" onClick={resetDraft}><Trash2 aria-hidden="true" />清空</Button>
+            <div className="flex items-center gap-2">
+              <DialogClose render={<Button type="button" variant="ghost" />}>取消</DialogClose>
+              <Button type="submit" className={cx("query-dialog-submit", { "is-dirty": hasPendingQueryChanges() })}><Search aria-hidden="true" />查询</Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogPopup>
@@ -524,19 +535,44 @@ function WorkspaceTabs() {
   return (
     <>
       <TabsPanel value="tree" className="flex flex-col overflow-hidden">
-        <div className="course-tab-strip">
-          {snap.courseTabs.map((tab) => (
-            <span key={tab.id} className={cx("course-tab-shell hover:bg-accent", { active: snap.activeCourseTabId === tab.id })}>
-              <Button variant="ghost" size="sm" className="course-tab max-w-[190px] truncate" onClick={() => app.tree.activateCourseTab(tab.id)}>{tab.title}</Button>
-              {tab.id !== "default" && <Button variant="ghost" size="sm" className="course-tab-close w-6 text-muted-foreground" aria-label={`关闭${tab.title}`} onClick={() => app.tree.closeCourseTab(tab.id)}>×</Button>}
-            </span>
-          ))}
-          <Button variant="ghost" size="sm" className="course-tab-new rounded text-muted-foreground hover:bg-accent" onClick={app.tree.createSearchTab}>+ 新查询</Button>
+        <div className="flex items-end gap-0 border-b border-border bg-muted/50 px-1.5 pt-0.5">
+          {snap.courseTabs.map((tab) => {
+            const isActive = snap.activeCourseTabId === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={cx(
+                  "group relative inline-flex items-center gap-0.5 h-7 px-2 text-[12px] font-medium rounded-t-md transition-colors",
+                  isActive
+                    ? "bg-card text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                )}
+                onClick={() => app.tree.activateCourseTab(tab.id)}
+              >
+                <span className="truncate max-w-[150px]">{tab.title}</span>
+                {tab.id !== "default" && (
+                  <button
+                    type="button"
+                    aria-label={`关闭${tab.title}`}
+                    className="ml-0.5 flex items-center justify-center size-3.5 rounded-sm text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); app.tree.closeCourseTab(tab.id); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); app.tree.closeCourseTab(tab.id); } }}
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                )}
+              </button>
+            );
+          })}
+          <button type="button" className="inline-flex items-center justify-center h-7 px-1.5 text-[12px] text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-t-md transition-colors" onClick={app.tree.createSearchTab}>+ 新查询</button>
         </div>
         <div className="flex items-center gap-1 toolbar-tight tree-result-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border max-lg:items-stretch">
           <div className="tree-actions flex flex-none items-center gap-1 mr-3.5">
             <Menu open={snap.openMenu === "display-menu"} onOpenChange={(open) => { state.openMenu = open ? "display-menu" : null; }}>
-              <MenuTrigger><Button variant="ghost" size="sm">显示</Button></MenuTrigger>
+              <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
               <MenuPopup>
                 <MenuCheckboxItem checked={snap.filters.conflict} onCheckedChange={() => { app.tree.runDisplayAction("toggle-conflict"); }}>淡化时间冲突教学班</MenuCheckboxItem>
                 <MenuCheckboxItem checked={snap.filters.noCapacity} onCheckedChange={() => { app.tree.runDisplayAction("toggle-no-capacity"); }}>淡化无余量教学班</MenuCheckboxItem>
@@ -546,25 +582,28 @@ function WorkspaceTabs() {
               </MenuPopup>
             </Menu>
             <Menu open={snap.openMenu === "feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "feature-menu" : null; }}>
-              <MenuTrigger><Button variant="ghost" size="sm">功能</Button></MenuTrigger>
+              <MenuTrigger><Button variant="ghost" size="sm"><Wrench aria-hidden="true" />功能</Button></MenuTrigger>
               <MenuPopup>
-                <MenuItem onClick={() => { app.tree.runFeatureAction("refresh-categories"); }}>刷新列表</MenuItem>
-                <MenuItem onClick={() => { app.tree.runFeatureAction("export-courses"); }}>导出所有课程</MenuItem>
+                <MenuItem onClick={() => { app.tree.runFeatureAction("refresh-categories"); }}><RefreshCw aria-hidden="true" />刷新列表</MenuItem>
+                <MenuItem onClick={() => { app.tree.runFeatureAction("export-courses"); }}><Download aria-hidden="true" />导出所有课程</MenuItem>
               </MenuPopup>
             </Menu>
             <QueryFilterDialog activeSearchTab={activeSearchTab} app={app} dropdownTypeMap={dropdownTypeMap} emptySearchFilters={emptySearchFilters} defaultFiltersForTab={defaultFiltersForTab} openFilterPicker={openFilterPicker} queryConditionCount={queryConditionCount} hasPendingQueryChanges={hasPendingQueryChanges} />
             {hasTreeSelection() && (
               <Menu open={snap.openMenu === "selection-menu"} onOpenChange={(open) => { state.openMenu = open ? "selection-menu" : null; }}>
-                <MenuTrigger><Button variant="secondary" size="sm">选择({app.tree.selectionStats().total})</Button></MenuTrigger>
+                <MenuTrigger><Button variant="secondary" size="sm"><CheckSquare aria-hidden="true" />选择({app.tree.selectionStats().total})</Button></MenuTrigger>
                 <MenuPopup>
                   <MenuItem onClick={() => app.grab.openGrabModalFromSelection()}>添加到抢课任务</MenuItem>
-                  <MenuItem onClick={() => app.tree.clearTreeSelection()}>清空全部选择</MenuItem>
+                  <MenuItem onClick={() => app.tree.clearTreeSelection()}><Trash2 aria-hidden="true" />清空全部选择</MenuItem>
                 </MenuPopup>
               </Menu>
             )}
           </div>
           <div className="tree-result-filter">
             <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <Filter className="size-4" />
+              </InputGroupAddon>
               <InputGroupInput
                 id="course-result-filter"
                 type="search"
@@ -651,18 +690,18 @@ function WorkspaceTabs() {
                   state.academicFilters.courseNature = "all";
                   state.academicFilters.nodeStatus = "all";
                   app.academic.renderAcademicStatus();
-                }}>重置</Button>
+                }}><RotateCcw aria-hidden="true" />重置</Button>
               </div>
             </MenuPopup>
           </Menu>
           <Menu open={snap.openMenu === "academic-more-menu"} onOpenChange={(open) => { state.openMenu = open ? "academic-more-menu" : null; }}>
-            <MenuTrigger><Button variant="ghost" size="sm" id="academic-more-button">功能</Button></MenuTrigger>
+            <MenuTrigger><Button variant="ghost" size="sm" id="academic-more-button"><Wrench aria-hidden="true" />功能</Button></MenuTrigger>
             <MenuPopup>
-              <MenuItem onClick={() => { app.academic.refreshAcademicStatus(true).catch(app.showError); }}>刷新学业情况</MenuItem>
-              <MenuItem onClick={() => { app.academic.refreshAcademicStatus(true, true).catch(app.showError); }}>递归加载全部课程</MenuItem>
-              <MenuItem onClick={() => { app.academic.showAcademicRawPage(); }}>查看教务原始网页</MenuItem>
-              <MenuItem onClick={() => { app.academic.showAcademicDetailJson(); }}>查看学业明细原始 JSON</MenuItem>
-              <MenuItem onClick={() => { app.academic.exportAcademicDataJson(); }}>导出当前学业数据 JSON</MenuItem>
+              <MenuItem onClick={() => { app.academic.refreshAcademicStatus(true).catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新学业情况</MenuItem>
+              <MenuItem onClick={() => { app.academic.refreshAcademicStatus(true, true).catch(app.showError); }}><RefreshCw aria-hidden="true" />递归加载全部课程</MenuItem>
+              <MenuItem onClick={() => { app.academic.showAcademicRawPage(); }}><ExternalLink aria-hidden="true" />查看教务原始网页</MenuItem>
+              <MenuItem onClick={() => { app.academic.showAcademicDetailJson(); }}><FileJson aria-hidden="true" />查看学业明细原始 JSON</MenuItem>
+              <MenuItem onClick={() => { app.academic.exportAcademicDataJson(); }}><Download aria-hidden="true" />导出当前学业数据 JSON</MenuItem>
             </MenuPopup>
           </Menu>
         </div>
@@ -689,8 +728,8 @@ function RightPane() {
   return (
     <aside className="right-pane min-h-0 overflow-hidden flex flex-col h-full bg-background max-lg:min-h-[320px] max-lg:border-t max-lg:border-border">
       <div className="log-shell flex flex-1 min-h-0 flex-col overflow-hidden bg-background">
-        <div className="log-header">
-          <span className="log-title text-foreground">LOG</span>
+        <div className="flex items-center justify-between gap-2 min-h-[35px] px-[7px] py-[3px] pl-[10px] bg-[var(--vscode-panel-header-bg)] border-b border-[var(--vscode-border)]">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-[var(--vscode-fg-muted)]"><ScrollText className="size-3.5" />日志</span>
           <div className="log-actions flex items-center gap-1">
             <Select id="log-filter-type" value={snap.logFilterType} onValueChange={(v) => { state.logFilterType = v; }}>
               <SelectTrigger id="log-filter-type" aria-label="日志类型"><SelectValue /></SelectTrigger>
@@ -702,7 +741,7 @@ function RightPane() {
                 <SelectItem value="system">系统</SelectItem>
               </SelectPopup>
             </Select>
-            <Button variant="ghost" size="sm" id="clear-logs" onClick={() => app.logs.clearLogs().catch(app.showError)}>清空</Button>
+            <Button variant="ghost" size="sm" id="clear-logs" onClick={() => app.logs.clearLogs().catch(app.showError)}><Trash2 aria-hidden="true" />清空</Button>
           </div>
         </div>
         <div id="log-list" className="log-list" ref={logListRef}>
@@ -723,11 +762,11 @@ function RightPane() {
       </div>
       <div id="activity-splitter" className="splitter splitter-horizontal relative z-[2] select-none touch-none bg-background flex-none w-1.5 cursor-row-resize" aria-hidden="true"></div>
       <div className="activity-shell flex flex-col overflow-hidden bg-background">
-        <div className="log-header">
-          <span className="log-title text-foreground">ACTIVITY</span>
+        <div className="flex items-center justify-between gap-2 min-h-[35px] px-[7px] py-[3px] pl-[10px] bg-[var(--vscode-panel-header-bg)] border-b border-[var(--vscode-border)]">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-[var(--vscode-fg-muted)]"><Activity className="size-3.5" />活动</span>
           <div className="log-actions flex items-center gap-1">
             <Menu>
-              <MenuTrigger><Button variant="ghost" id="activity-add" onClick={(e) => e.stopPropagation()}>+</Button></MenuTrigger>
+              <MenuTrigger><Button variant="ghost" id="activity-add" onClick={(e) => e.stopPropagation()}><Plus /></Button></MenuTrigger>
               <MenuPopup>
                 <MenuItem onClick={() => app.grab.openManualGrabModal()}>添加抢课任务</MenuItem>
               </MenuPopup>
@@ -746,16 +785,16 @@ function RightPane() {
                   <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.status}</TableCell>
                   <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.progress} {snap.grabTasks[item.id] && (
   <Menu>
-    <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px] border-transparent bg-transparent" onClick={(e) => e.stopPropagation()}>⋯</Button></MenuTrigger>
+    <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px] border-transparent bg-transparent" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
     <MenuPopup>
-      {snap.grabTasks[item.id] && <MenuItem onClick={() => app.grab.showGrabTaskDetail(snap.grabTasks[item.id])}>详情</MenuItem>}
-      <MenuItem onClick={() => { apiPost("/api/grab/tasks/start", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}>启动</MenuItem>
-      <MenuItem onClick={() => { apiPost("/api/grab/tasks/stop", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}>停止</MenuItem>
+      {snap.grabTasks[item.id] && <MenuItem onClick={() => app.grab.showGrabTaskDetail(snap.grabTasks[item.id])}><Eye aria-hidden="true" />详情</MenuItem>}
+      <MenuItem onClick={() => { apiPost("/api/grab/tasks/start", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Play aria-hidden="true" />启动</MenuItem>
+      <MenuItem onClick={() => { apiPost("/api/grab/tasks/stop", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Square aria-hidden="true" />停止</MenuItem>
     </MenuPopup>
   </Menu>
 )}</TableCell>
                 </TableRow>
-              )) : <TableRow><TableCell colSpan="3" className="text-muted-foreground">暂无活动</TableCell></TableRow>}
+              )) : <TableRow><TableCell colSpan="3" className="text-muted-foreground"><Inbox className="inline size-4 mr-1 align-[-2px]" />暂无活动</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
@@ -796,17 +835,27 @@ function AppShell() {
           <Tabs className="flex-1 min-h-0" value={snap.activeTab} onValueChange={(v) => app.tree.switchTab(v)}>
             <div className="workspace-header grid grid-cols-[minmax(0,1fr)_auto] items-stretch min-h-[35px] bg-muted border-b border-border">
               <TabsList variant="underline" className="p-0">
-                <TabsTab value="tree">课程树</TabsTab>
-                <TabsTab value="timetable">当前课表</TabsTab>
-                <TabsTab value="academic">学业情况</TabsTab>
+                <TabsTab value="tree"><FolderTree className="size-4" />课程树</TabsTab>
+                <TabsTab value="timetable"><CalendarDays className="size-4" />当前课表</TabsTab>
+                <TabsTab value="academic"><GraduationCap className="size-4" />学业情况</TabsTab>
               </TabsList>
               <div className="workspace-controls flex items-center gap-1 py-[3px] px-1.5 max-lg:flex-wrap">
                 <Select id="workspace-base-url" aria-label="教务地址" value={snap.auth.baseUrl} onValueChange={runAddressAction}>
-                  <SelectTrigger id="workspace-base-url" className="max-w-[220px] min-h-[26px] text-[13px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="workspace-base-url" className="max-w-[220px] min-h-[26px] text-[13px]"><SelectValue>{(value) => {
+                    if (!value || value === "__test__" || value === "__custom__") return snap.auth.baseUrl;
+                    return value.replace(/^https?:\/\//, "");
+                  }}</SelectValue></SelectTrigger>
                   <SelectPopup>
-                    {(snap.bootstrap?.addressChoices || []).map((item) => <SelectItem key={item.url} value={item.url}>{item.url} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</SelectItem>)}
-                    <SelectItem value="__test__">测速</SelectItem>
-                    <SelectItem value="__custom__">{snap.auth.customBaseUrl || "自定义地址"}</SelectItem>
+                    <SelectGroup>
+                      <SelectGroupLabel>教务地址</SelectGroupLabel>
+                      {(snap.bootstrap?.addressChoices || []).map((item) => <SelectItem key={item.url} value={item.url}>{item.url.replace(/^https?:\/\//, "")} ({item.description}{item.latencyMs ? `, ${item.latencyMs}ms` : ""})</SelectItem>)}
+                    </SelectGroup>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectGroupLabel>操作</SelectGroupLabel>
+                      <SelectItem value="__test__"><span className="flex items-center gap-2"><Gauge className="size-4" /><span className="truncate">测速</span></span></SelectItem>
+                      <SelectItem value="__custom__">{snap.auth.customBaseUrl || "自定义地址"}</SelectItem>
+                    </SelectGroup>
                   </SelectPopup>
                 </Select>
                 <Select id="account-action" aria-label="账号操作" onValueChange={(value) => {
@@ -817,10 +866,10 @@ function AppShell() {
                 }}>
                   <SelectTrigger id="account-action" className="max-w-[220px] min-h-[26px] text-[13px]"><SelectValue>{accountLabel()}</SelectValue></SelectTrigger>
                   <SelectPopup>
-                    <SelectItem value="show-login">切换账号</SelectItem>
+                    <SelectItem value="show-login"><span className="flex items-center gap-2"><Repeat className="size-4" /><span className="truncate">切换账号</span></span></SelectItem>
                   </SelectPopup>
                 </Select>
-                <Button variant="ghost" id="toggle-sidebar" className="min-w-7 min-h-[26px] py-0.5 px-[7px]" title="折叠侧栏" onClick={app.tree.toggleSidebar}>{snap.sidebarCollapsed ? "⇥" : "⇤"}</Button>
+                <Button variant="ghost" id="toggle-sidebar" className="min-w-7 min-h-[26px] py-0.5 px-[7px]" title="折叠侧栏" onClick={app.tree.toggleSidebar}>{snap.sidebarCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}</Button>
               </div>
             </div>
             <WorkspaceTabs />
@@ -984,7 +1033,7 @@ function ModalLayer() {
             )}
           </DialogPanel>
           <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={() => { state.filterPicker.selected = []; }}>清空</Button>
+            <Button variant="ghost" size="sm" onClick={() => { state.filterPicker.selected = []; }}><Trash2 aria-hidden="true" />清空</Button>
             <Button variant="default" onClick={applyPicker}>应用</Button>
           </DialogFooter>
         </DialogPopup>
@@ -1029,7 +1078,7 @@ function ModalLayer() {
                   {snap.teacherDetail && !snap.teacherDetail._loading && (
                     <Accordion>
                       <AccordionItem value="teacher-detail" defaultOpen>
-                        <AccordionTrigger>教师详情</AccordionTrigger>
+                        <AccordionTrigger><span className="inline-flex items-center gap-1.5"><User className="size-4" />教师详情</span></AccordionTrigger>
                         <AccordionPanel>
                         {snap.teacherDetail.name ? (
                         <div className="debug-grid">
@@ -1065,9 +1114,9 @@ function ModalLayer() {
                   {snap.courseDetail && !snap.courseDetail._loading && (
                     <Accordion>
                       <AccordionItem value="course-detail" defaultOpen>
-                        <AccordionTrigger>课程基本信息</AccordionTrigger>
+                        <AccordionTrigger><span className="inline-flex items-center gap-1.5"><BookOpen className="size-4" />课程基本信息</span></AccordionTrigger>
                         <AccordionPanel>
-                        {snap.courseDetail.code || snap.courseDetail.name ? (
+                        {snap.courseDetail.name || snap.courseDetail.code ? (
                         <div className="debug-grid">
                           {snap.courseDetail.name && <><div>课程名称</div><div>{snap.courseDetail.name}</div></>}
                           {snap.courseDetail.englishName && <><div>英文名称</div><div>{snap.courseDetail.englishName}</div></>}
@@ -1098,7 +1147,7 @@ function ModalLayer() {
               {classDebugPayload && (
                 <Accordion>
                   <AccordionItem value="grab-fields">
-                    <AccordionTrigger>抢课 / 选课关键字段</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><KeyRound className="size-4" />抢课 / 选课关键字段</span></AccordionTrigger>
                     <AccordionPanel>
                     <div className="debug-grid">
                       <div>来源</div><div>{classDebugPayload.source}</div>
@@ -1110,7 +1159,7 @@ function ModalLayer() {
                     </AccordionPanel>
                   </AccordionItem>
                   <AccordionItem value="time-slots">
-                    <AccordionTrigger>时间 slots</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><Clock className="size-4" />时间 slots</span></AccordionTrigger>
                     <AccordionPanel>
                     <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(classDebugPayload.classItem?.slots || classDebugPayload.entry?.slots || [])}</pre>
 
@@ -1118,7 +1167,7 @@ function ModalLayer() {
                     </AccordionPanel>
                   </AccordionItem>
                   <AccordionItem value="raw-json">
-                    <AccordionTrigger>原始详情 JSON</AccordionTrigger>
+                    <AccordionTrigger><span className="inline-flex items-center gap-1.5"><Braces className="size-4" />原始详情 JSON</span></AccordionTrigger>
                     <AccordionPanel>
                     <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(classDebugPayload)}</pre>
                     </AccordionPanel>
@@ -1210,7 +1259,7 @@ function ModalLayer() {
             {snap.academicCourseDetail && !snap.academicCourseDetail._loading && !snap.academicCourseDetail._error && snap.academicCourseDetail.name && (
               <Accordion>
                 <AccordionItem value="academic-course-detail" defaultOpen>
-                  <AccordionTrigger>课程基本信息</AccordionTrigger>
+                   <AccordionTrigger><span className="inline-flex items-center gap-1.5"><BookOpen className="size-4" />课程基本信息</span></AccordionTrigger>
                   <AccordionPanel>
                   <div className="debug-grid">
                     {snap.academicCourseDetail.name && <><div>课程名称</div><div>{snap.academicCourseDetail.name}</div></>}

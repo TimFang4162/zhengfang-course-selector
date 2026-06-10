@@ -4,7 +4,7 @@ import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseEx
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
-import { Check, ChevronRight, ChevronDown, Ellipsis, Minus, X } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, CircleMinus, CirclePlus, Ellipsis, Eye, Minus, RefreshCw, X } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
 
@@ -109,8 +109,8 @@ function CourseSummary({ category, course }) {
         <Cell className="tree-table-count text-muted-foreground">{course.classCount}教学班</Cell>
       </div>
       <RowMoreMenu>
-        <MenuItem onClick={() => app.timetable.openCourseModal(category.id, course)}>显示详情</MenuItem>
-        <MenuItem onClick={() => app.tree.refreshCourseClasses(category.id, course.kchId).catch(app.showError)}>刷新教学班</MenuItem>
+        <MenuItem onClick={() => app.timetable.openCourseModal(category.id, course)}><Eye aria-hidden="true" />显示详情</MenuItem>
+        <MenuItem onClick={() => app.tree.refreshCourseClasses(category.id, course.kchId).catch(app.showError)}><RefreshCw aria-hidden="true" />刷新教学班</MenuItem>
       </RowMoreMenu>
     </RowChrome>
   );
@@ -140,8 +140,8 @@ function ClassSummary({ category, course, item }) {
         <Cell className={cx("tree-table-count", snap.filters.highlightCapacity && hasCap ? "is-has-capacity text-success" : "text-muted-foreground")}>{item.selectedCount}/{item.capacity}</Cell>
       </div>
       <RowMoreMenu>
-        <MenuItem onClick={() => app.timetable.openClassModal(category.id, course, item)}>显示详情</MenuItem>
-        <MenuItem onClick={() => app.timetable.chooseOrWithdrawClass(category.id, course, item).catch(app.showError)}>{isSelectedClass(item) ? "退选" : "选课"}</MenuItem>
+        <MenuItem onClick={() => app.timetable.openClassModal(category.id, course, item)}><Eye aria-hidden="true" />显示详情</MenuItem>
+        <MenuItem onClick={() => app.timetable.chooseOrWithdrawClass(category.id, course, item).catch(app.showError)}>{isSelectedClass(item) ? <><CircleMinus aria-hidden="true" />退选</> : <><CirclePlus aria-hidden="true" />选课</>}</MenuItem>
       </RowMoreMenu>
     </RowChrome>
   );
@@ -245,7 +245,7 @@ function CategoryRows({ category, shouldRenderCourse }) {
         >
           {category.name}{countText && ` (${countText})`}
           <RowMoreMenu>
-            <MenuItem onClick={() => app.tree.refreshCategoryCourses(category.id).catch(app.showError)}>刷新课程</MenuItem>
+            <MenuItem onClick={() => app.tree.refreshCategoryCourses(category.id).catch(app.showError)}><RefreshCw aria-hidden="true" />刷新课程</MenuItem>
           </RowMoreMenu>
         </RowChrome>
       </TreeRow>
