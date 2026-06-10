@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "./app/app-context.jsx";
 import { state, isSelectedClass } from "./app/state.js";
@@ -11,7 +11,7 @@ import { formatDebugJson, cx } from "./shared/utils.js";
 import { Button } from "./components/ui/button";
 import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuCheckboxItem } from "./components/ui/menu";
 import { apiPost } from "./api/client.js";
-import { Dialog, DialogPopup, DialogHeader, DialogTitle, DialogPanel, DialogFooter } from "./components/ui/dialog";
+import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogHeader, DialogTitle, DialogPanel, DialogFooter } from "./components/ui/dialog";
 import { Tabs, TabsList, TabsTab, TabsPanel } from "./components/ui/tabs";
 import { Input } from "./components/ui/input";
 import { Checkbox } from "./components/ui/checkbox";
@@ -20,6 +20,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "./components/ui/select";
 import { Card, CardPanel } from "./components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "./components/ui/accordion";
+import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxValue } from "./components/ui/combobox";
+import { Field, FieldDescription, FieldLabel } from "./components/ui/field";
 import { Label } from "./components/ui/label";
 
 function filterValue(item) {
@@ -144,47 +146,234 @@ function LoginOverlay() {
   );
 }
 
-function MultiSelectDropdown({ field, label, staticOptions, ctx }) {
-  const { activeSearchTab, dropdownTypeMap, toggleDropdown, selectedSummary, app } = ctx;
-  const snapOpen = useSnapshot(state).openDropdown;
-  const isOpen = snapOpen === field;
-  const filterOpts = useSnapshot(state).filterOptions;
-  const options = staticOptions || filterOpts[dropdownTypeMap[field]]?.items || [];
-  const selected = activeSearchTab?.draftFilters[field] || [];
+function summarizeFilterValues(filters, field) {
+  const values = filters?.[field] || [];
+  if (!values.length) return "全部";
+  if (values.length === 1) return filterLabel(values[0]);
+  return `${values.length} 项`;
+}
 
-  function isSelected(item) {
-    return selected.some((s) => filterValue(s) === item.value);
+function describeFilterValues(filters, field) {
+  const values = filters?.[field] || [];
+  if (!values.length) return "全部";
+  return values.map(filterLabel).join(", ");
+}
+
+function cloneDialogFilters(filters) {
+  if (!filters) return null;
+  const cloned = {};
+  for (const [key, value] of Object.entries(filters)) {
+    cloned[key] = Array.isArray(value) ? value.map((item) => (item && typeof item === "object" ? { ...item } : item)) : value;
+  }
+  return cloned;
+}
+
+function normalizeComboboxItems(items) {
+  return (items || []).map((item) => ({
+    value: String(item.value),
+    label: item.displayLabel || item.label || String(item.value),
+  }));
+}
+
+function StaticFilterCombobox({ fieldId, label, description, items, value, onChange, placeholder }) {
+  const normalizedItems = normalizeComboboxItems(items);
+  const selectedItems = (value || []).map((selected) => {
+    const targetValue = String(filterValue(selected));
+    return normalizedItems.find((item) => item.value === targetValue) || {
+      value: targetValue,
+      label: filterLabel(selected) || targetValue,
+    };
+  });
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={fieldId}>{label}</FieldLabel>
+      <Combobox items={normalizedItems} multiple value={selectedItems} onValueChange={(next) => {
+        const values = Array.isArray(next) ? next : [];
+        onChange(values.map((item) => ({ value: item.value, label: item.label })));
+      }}>
+        <ComboboxChips>
+          <ComboboxValue>
+            {(selected = []) => (
+              <>
+                {selected.map((item) => (
+                  <ComboboxChip key={item.value} aria-label={item.label}>
+                    {item.label}
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput id={fieldId} aria-label={label} placeholder={selected.length ? undefined : placeholder} />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxPopup>
+          <ComboboxEmpty>无匹配选项</ComboboxEmpty>
+          <ComboboxList>
+            {(item) => (
+              <ComboboxItem key={item.value} value={item}>
+                {item.label}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxPopup>
+      </Combobox>
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
+  );
+}
+
+function PickerFilterField({ fieldId, label, value, description, onOpen }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={fieldId}>{label}</FieldLabel>
+      <Button id={fieldId} type="button" variant="outline" className="justify-between font-normal" onClick={onOpen} title={description || value}>
+        <span className="truncate">{value}</span>
+      </Button>
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
+  );
+}
+
+function TextListFilterField({ fieldId, label, value, onChange, placeholder, description }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={fieldId}>{label}</FieldLabel>
+      <Input id={fieldId} type="text" value={value} placeholder={placeholder} onInput={(e) => onChange(e.currentTarget.value)} />
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
+  );
+}
+
+function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchFilters, defaultFiltersForTab, openFilterPicker, queryConditionCount, hasPendingQueryChanges }) {
+  const snap = useSnapshot(state);
+  const [open, setOpen] = useState(false);
+  const snapshotRef = useRef(null);
+  const committedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    for (const type of Object.values(dropdownTypeMap)) {
+      if (!snap.filterOptions[type]?.loaded) {
+        app.tree.loadFilterOptions(type, {}, 1, "").catch(app.showError);
+      }
+    }
+  }, [app, dropdownTypeMap, open, snap.filterOptions]);
+
+  if (!activeSearchTab?.draftFilters) return null;
+
+  // Writes go to the original proxy, reads go through valtio snapshot for reactivity
+  const proxyTab = activeSearchTab;
+  const snapTab = snap.courseTabs.find((tab) => tab.id === snap.activeCourseTabId);
+
+  function snapshotCurrentState() {
+    snapshotRef.current = {
+      query: proxyTab.query || "",
+      draftFilters: cloneDialogFilters(proxyTab.draftFilters),
+    };
+    committedRef.current = false;
   }
 
-  function toggleItem(item) {
-    const t = activeSearchTab;
-    if (!t) return;
-    const current = [...selected];
-    const idx = current.findIndex((s) => filterValue(s) === item.value);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push({ value: item.value, label: item.displayLabel || item.label });
-    t.draftFilters[field] = current;
+  function restoreSnapshot() {
+    if (!snapshotRef.current) return;
+    proxyTab.query = snapshotRef.current.query;
+    proxyTab.draftFilters = cloneDialogFilters(snapshotRef.current.draftFilters);
     app.tree.saveTabsState();
     app.tree.renderTree();
   }
 
+  function handleOpenChange(nextOpen) {
+    if (nextOpen) {
+      snapshotCurrentState();
+      setOpen(true);
+      return;
+    }
+    if (!committedRef.current) restoreSnapshot();
+    setOpen(false);
+  }
+
+  function setList(field, text) {
+    proxyTab.draftFilters[field] = text.split(/[ ,，]+/).map((item) => item.trim()).filter(Boolean);
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+  }
+
+  function setItems(field, items) {
+    proxyTab.draftFilters[field] = items;
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+  }
+
+  function commitDraft() {
+    committedRef.current = true;
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+    setOpen(false);
+  }
+
+  function runQuery() {
+    committedRef.current = true;
+    app.tree.runSearchTab(proxyTab, true).catch(app.showError);
+    setOpen(false);
+  }
+
+  function resetDraft() {
+    proxyTab.query = "";
+    proxyTab.draftFilters = defaultFiltersForTab(proxyTab);
+    app.tree.saveTabsState();
+    app.tree.renderTree();
+  }
+
+  const optionItems = (field) => snap.filterOptions[dropdownTypeMap[field]]?.items || [];
+  const draft = snapTab?.draftFilters || {};
+  const queryValue = snapTab?.query || "";
+  const selectedCollegeIds = (draft.collegeIds || []).map(filterValue).filter(Boolean);
+  const majorDescription = selectedCollegeIds.length === 1
+    ? describeFilterValues(draft, "majorIds")
+    : "选择 1 个学院可缩小专业范围";
+
   return (
-    <div className="multi-select-dropdown">
-      <Button variant="ghost" size="sm" className="query-filter-button" onClick={() => toggleDropdown(field)}>
-        <span>{label}</span>
-        <strong>{selectedSummary(field)}</strong>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Button type="button" variant="ghost" size="sm" className={cx("menu-button query-toggle-button min-w-[84px]", { "is-dirty": hasPendingQueryChanges() })} onClick={() => handleOpenChange(true)}>
+        {`查询(${queryConditionCount()})`}
       </Button>
-      {isOpen && (
-        <div className="multi-select-menu">
-          {options.map((item) => (
-            <label key={item.value} className="multi-select-option">
-              <Checkbox checked={isSelected(item)} onCheckedChange={() => toggleItem(item)} />
-              <span>{item.displayLabel || item.label}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
+      <DialogPopup className="course-filter-dialog sm:max-w-4xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>课程查询</DialogTitle>
+          <DialogDescription>关键词和筛选条件统一放在这里；学院、专业、开课学院继续使用独立对话框选择。</DialogDescription>
+        </DialogHeader>
+        <form className="contents" onSubmit={(e) => { e.preventDefault(); runQuery(); }}>
+          <DialogPanel className="course-filter-panel" scrollFade={false}>
+            <div className="course-filter-grid">
+              <Field className="course-filter-keyword">
+                <FieldLabel htmlFor="query-filter-keyword">关键词</FieldLabel>
+                <Input id="query-filter-keyword" type="search" value={queryValue} placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..." onInput={(e) => { proxyTab.query = e.currentTarget.value; app.tree.saveTabsState(); app.tree.renderTree(); }} />
+                <FieldDescription>支持课程号、课程名、教学班名、教师姓名或工号。</FieldDescription>
+              </Field>
+              <PickerFilterField fieldId="query-filter-college" label="学院" value={summarizeFilterValues(draft, "collegeIds")} description={describeFilterValues(draft, "collegeIds")} onOpen={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} />
+              <PickerFilterField fieldId="query-filter-major" label="专业" value={summarizeFilterValues(draft, "majorIds")} description={majorDescription} onOpen={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })} />
+              <PickerFilterField fieldId="query-filter-teaching-college" label="开课学院" value={summarizeFilterValues(draft, "teachingCollegeIds")} description={describeFilterValues(draft, "teachingCollegeIds")} onOpen={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })} />
+              <TextListFilterField fieldId="query-filter-grade" label="年级" value={(draft.gradeIds || []).map(filterValue).join(",")} onChange={(text) => setList("gradeIds", text)} placeholder="例如 2023,2024" description="支持逗号或空格分隔多个值" />
+              <StaticFilterCombobox fieldId="query-filter-course-category" label="课程类别" items={optionItems("courseCategoryIds")} value={draft.courseCategoryIds} onChange={(items) => setItems("courseCategoryIds", items)} placeholder="搜索课程类别" />
+              <StaticFilterCombobox fieldId="query-filter-course-nature" label="课程性质" items={optionItems("courseNatureIds")} value={draft.courseNatureIds} onChange={(items) => setItems("courseNatureIds", items)} placeholder="搜索课程性质" />
+              <StaticFilterCombobox fieldId="query-filter-course-ownership" label="课程归属" items={optionItems("courseOwnershipIds")} value={draft.courseOwnershipIds} onChange={(items) => setItems("courseOwnershipIds", items)} placeholder="搜索课程归属" />
+              <StaticFilterCombobox fieldId="query-filter-teaching-mode" label="教学模式" items={optionItems("teachingModeIds")} value={draft.teachingModeIds} onChange={(items) => setItems("teachingModeIds", items)} placeholder="搜索教学模式" />
+              <StaticFilterCombobox fieldId="query-filter-weekday" label="上课星期" items={optionItems("weekdayIds")} value={draft.weekdayIds} onChange={(items) => setItems("weekdayIds", items)} placeholder="搜索上课星期" />
+              <StaticFilterCombobox fieldId="query-filter-period" label="上课节次" items={optionItems("periodIds")} value={draft.periodIds} onChange={(items) => setItems("periodIds", items)} placeholder="搜索上课节次" />
+              <TextListFilterField fieldId="query-filter-class-name" label="教学班" value={(draft.classNames || []).map(filterValue).join(",")} onChange={(text) => setList("classNames", text)} placeholder="支持多个教学班名称" description="支持逗号或空格分隔多个值" />
+              <TextListFilterField fieldId="query-filter-credit" label="学分" value={(draft.credits || []).map(filterValue).join(",")} onChange={(text) => setList("credits", text)} placeholder="例如 2,3,4" description="按教务系统原值匹配" />
+              <StaticFilterCombobox fieldId="query-filter-retake" label="是否重修" items={[{ value: "1", label: "是" }, { value: "0", label: "否" }]} value={draft.retake} onChange={(items) => setItems("retake", items)} placeholder="选择是否重修" />
+              <StaticFilterCombobox fieldId="query-filter-has-capacity" label="有无余量" items={[{ value: "1", label: "有" }, { value: "0", label: "无" }]} value={draft.hasCapacity} onChange={(items) => setItems("hasCapacity", items)} placeholder="选择余量状态" />
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={resetDraft}>清空</Button>
+            <DialogClose render={<Button type="button" variant="ghost" />}>取消</DialogClose>
+            <Button type="button" variant="secondary" onClick={commitDraft}>应用条件</Button>
+            <Button type="submit" className={cx("query-dialog-submit", { "is-dirty": hasPendingQueryChanges() })}>查询</Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
+    </Dialog>
   );
 }
 
@@ -196,31 +385,15 @@ function WorkspaceTabs() {
   const activeCourseTab = app.tree.activeCourseTab();
   const activeSearchTab = activeCourseTab?.type === "query" ? activeCourseTab : null;
 
-  function toggleMenu(menu) {
-    state.openMenu = state.openMenu === menu ? null : menu;
-  }
-
-  function closeMenus() {
-    state.openMenu = null;
-  }
-
   useEffect(() => {
     const closeOutside = (e) => {
       if (e.target.closest?.('[data-slot="menu-trigger"]')) return;
       if (e.target.closest?.('[data-slot="menu-popup"]')) return;
-      if (e.target.closest?.(".multi-select-dropdown")) return;
       state.openMenu = null;
-      state.openDropdown = null;
     };
     document.addEventListener("click", closeOutside);
     return () => document.removeEventListener("click", closeOutside);
   }, []);
-
-  function runRemoteSearch() {
-    const tab = activeSearchTab;
-    if (!tab) return;
-    app.tree.runSearchTab(tab, true).catch(app.showError);
-  }
 
   function applyResultFilter(value) {
     const tab = activeSearchTab;
@@ -230,38 +403,11 @@ function WorkspaceTabs() {
     app.tree.applyLocalSearch();
   }
 
-  function setFilterList(field, value) {
-    const tab = activeSearchTab;
-    if (!tab) return;
-    tab.draftFilters[field] = value.split(/[ ,，]+/).map((s) => s.trim()).filter(Boolean);
-    app.tree.saveTabsState();
-  }
-
-  function filterText(field) {
-    return (activeSearchTab?.draftFilters[field] || []).map(filterValue).join(",");
-  }
-
-  function optionKey(type, parent = {}, query = "") {
-    return `${type}${parent.collegeId ? `:${parent.collegeId}` : ""}${query ? `:${query}` : ""}`;
-  }
-
-  function selectedLabels(field) {
-    const values = activeSearchTab?.draftFilters[field] || [];
-    if (!values.length) return "全部";
-    return values.map(filterLabel).join(", ");
-  }
-
-  function selectedSummary(field) {
-    const values = activeSearchTab?.draftFilters[field] || [];
-    if (!values.length) return "全部";
-    if (values.length === 1) return filterLabel(values[0]);
-    return `${values.length} 项`;
-  }
-
   function openFilterPicker(config) {
     const tab = activeSearchTab;
     if (!tab) return;
-    const parent = config.type === "major" ? { collegeId: filterText("collegeIds") } : {};
+    const collegeIds = (tab.draftFilters?.collegeIds || []).map(filterValue).filter(Boolean);
+    const parent = config.type === "major" && collegeIds.length === 1 ? { collegeId: collegeIds[0] } : {};
     state.filterPicker = {
       ...config,
       parent,
@@ -353,17 +499,6 @@ function WorkspaceTabs() {
     periodIds: "period",
   };
 
-  function toggleDropdown(field) {
-    if (state.openDropdown === field) { state.openDropdown = null; return; }
-    state.openDropdown = field;
-    const type = dropdownTypeMap[field];
-    if (type && !state.filterOptions[type]?.loaded) app.tree.loadFilterOptions(type, {}, 1, "").catch(app.showError);
-  }
-
-  function multiSelectCtx() {
-    return { activeSearchTab, dropdownTypeMap, toggleDropdown, selectedSummary, app };
-  }
-
   return (
     <>
       <TabsPanel value="tree" className="flex flex-col overflow-hidden">
@@ -376,39 +511,6 @@ function WorkspaceTabs() {
           ))}
           <Button variant="ghost" size="sm" className="course-tab-new rounded text-muted-foreground hover:bg-accent" onClick={app.tree.createSearchTab}>+ 新查询</Button>
         </div>
-        {activeSearchTab?.queryPanelOpen && (
-          <div className="course-query-panel">
-            <div className="course-query-main">
-              <Input
-                id="course-query-keyword"
-                type="search"
-                placeholder="课程号/课程名称/教学班名称/教师姓名/教师工号..."
-                className="max-lg:col-span-full max-sm:col-span-full"
-                value={activeSearchTab?.query || ""}
-                onInput={(e) => { activeSearchTab.query = e.currentTarget.value; app.tree.saveTabsState(); }}
-                onKeyDown={(e) => { if (e.key === "Enter") runRemoteSearch(); }}
-              />
-              <Button variant="default" id="remote-search" className={cx("whitespace-nowrap", { "is-dirty": hasPendingQueryChanges() })} onClick={runRemoteSearch}>查询</Button>
-              <Button variant="ghost" id="reset-query" className="whitespace-nowrap" onClick={resetQueryConditions}>{activeSearchTab?.id === "default" ? "恢复默认" : "重置条件"}</Button>
-            </div>
-            <div className="course-query-grid">
-              <Button variant="ghost" size="sm" className="filter-picker-button query-filter-button" onClick={() => openFilterPicker({ type: "college", field: "collegeIds", title: "学院" })} title={selectedLabels("collegeIds")}><span>学院</span><strong>{selectedSummary("collegeIds")}</strong></Button>
-              <Button variant="ghost" size="sm" className="filter-picker-button query-filter-button" onClick={() => openFilterPicker({ type: "major", field: "majorIds", title: "专业" })} title={selectedLabels("majorIds")}><span>专业</span><strong>{selectedSummary("majorIds")}</strong></Button>
-              <label className="query-filter-field"><span>年级</span><Input value={filterText("gradeIds")} placeholder="全部" onInput={(e) => setFilterList("gradeIds", e.currentTarget.value)} /></label>
-              <Button variant="ghost" size="sm" className="filter-picker-button query-filter-button" onClick={() => openFilterPicker({ type: "teachingCollege", field: "teachingCollegeIds", title: "开课学院" })} title={selectedLabels("teachingCollegeIds")}><span>开课学院</span><strong>{selectedSummary("teachingCollegeIds")}</strong></Button>
-              <MultiSelectDropdown label="课程类别" field="courseCategoryIds" ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="课程性质" field="courseNatureIds" ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="课程归属" field="courseOwnershipIds" ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="教学模式" field="teachingModeIds" ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="上课星期" field="weekdayIds" ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="上课节次" field="periodIds" ctx={multiSelectCtx()} />
-              <label className="query-filter-field"><span>教学班</span><Input value={filterText("classNames")} placeholder="全部" onInput={(e) => setFilterList("classNames", e.currentTarget.value)} /></label>
-              <label className="query-filter-field"><span>学分</span><Input value={filterText("credits")} placeholder="全部" onInput={(e) => setFilterList("credits", e.currentTarget.value)} /></label>
-              <MultiSelectDropdown label="是否重修" field="retake" staticOptions={[{ value: "1", label: "是" }, { value: "0", label: "否" }]} ctx={multiSelectCtx()} />
-              <MultiSelectDropdown label="有无余量" field="hasCapacity" staticOptions={[{ value: "1", label: "有" }, { value: "0", label: "无" }]} ctx={multiSelectCtx()} />
-            </div>
-          </div>
-        )}
         <div className="flex items-center gap-1 toolbar-tight tree-result-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border max-lg:items-stretch">
           <div className="tree-actions flex flex-none items-center gap-1 mr-3.5">
             <Menu open={snap.openMenu === "display-menu"} onOpenChange={(open) => { state.openMenu = open ? "display-menu" : null; }}>
@@ -428,9 +530,8 @@ function WorkspaceTabs() {
                 <MenuItem onClick={() => { app.tree.runFeatureAction("export-courses"); }}>导出所有课程</MenuItem>
               </MenuPopup>
             </Menu>
-            <Button variant="ghost" size="sm" className="menu-button query-toggle-button min-w-[72px]" onClick={() => { activeSearchTab.queryPanelOpen = !activeSearchTab.queryPanelOpen; app.tree.saveTabsState(); app.tree.renderTree(); }}>
-              查询({queryConditionCount()})
-            </Button>
+            <QueryFilterDialog activeSearchTab={activeSearchTab} app={app} dropdownTypeMap={dropdownTypeMap} emptySearchFilters={emptySearchFilters} defaultFiltersForTab={defaultFiltersForTab} openFilterPicker={openFilterPicker} queryConditionCount={queryConditionCount} hasPendingQueryChanges={hasPendingQueryChanges} />
+            <Button variant="ghost" size="sm" id="reset-query" className="menu-button whitespace-nowrap" onClick={resetQueryConditions}>{activeSearchTab?.id === "default" ? "恢复默认" : "重置条件"}</Button>
             <Button variant="ghost" size="sm" className="menu-button tree-selection-button min-w-[88px] disabled:opacity-45" disabled={!hasTreeSelection()} onClick={() => app.grab.openGrabModalFromSelection()}>
               添加抢课任务
             </Button>
@@ -755,16 +856,19 @@ function ModalLayer() {
   })();
   const pickerOptionSelected = (value) => (picker?.selected || []).some((item) => filterValue(item) === value);
   const togglePickerValue = (value, label) => {
-    const selected = picker.selected;
+    const proxyPicker = state.filterPicker;
+    if (!proxyPicker) return;
+    const selected = proxyPicker.selected;
     const idx = selected.findIndex((item) => filterValue(item) === value);
     if (idx >= 0) selected.splice(idx, 1);
     else selected.push({ value, label: label || value });
   };
   const applyPicker = () => {
     const tab = app.tree.activeCourseTab();
-    if (tab?.type === "query" && picker) {
-      tab.draftFilters[picker.field] = [...picker.selected];
-      if (picker.field === "collegeIds") tab.draftFilters.majorIds = [];
+    const proxyPicker = state.filterPicker;
+    if (tab?.type === "query" && proxyPicker) {
+      tab.draftFilters[proxyPicker.field] = [...proxyPicker.selected];
+      if (proxyPicker.field === "collegeIds") tab.draftFilters.majorIds = [];
     }
     state.filterPicker = null;
     app.tree.saveTabsState();
@@ -817,11 +921,16 @@ function ModalLayer() {
                   </Table>
                 ) : (
                   pickerOptions.map((item) => (
-                    <label key={item.value} className="filter-picker-option grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 min-h-7 py-0.5 px-1.5 rounded hover:bg-accent">
-                      <Checkbox checked={pickerOptionSelected(item.value)} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} />
+                    <button
+                      key={item.value}
+                      type="button"
+                      className="filter-picker-option grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 min-h-7 py-0.5 px-1.5 rounded text-left hover:bg-accent"
+                      onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)}
+                    >
+                      <Checkbox checked={pickerOptionSelected(item.value)} onClick={(e) => e.stopPropagation()} onCheckedChange={() => togglePickerValue(item.value, item.displayLabel || item.label)} />
                       <span>{item.displayLabel || item.label}</span>
                       <span className="text-muted-foreground">{item.value}</span>
-                    </label>
+                    </button>
                   ))
                 )}
                 {!pickerOptions.length && <div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">无选项，输入关键词后搜索或稍后重试</div>}
@@ -1099,8 +1208,8 @@ function ModalLayer() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {snap.academicCourseDetail.hoursBreakdown.map((row, i) => (
-                          <TableRow key={i}>
+                        {snap.academicCourseDetail.hoursBreakdown.map((row) => (
+                          <TableRow key={`${row.item}-${row.weekly || "-"}-${row.total || "-"}-${row.mark || "-"}`}>
                             <TableCell>{row.item}</TableCell>
                             <TableCell>{row.weekly || "-"}</TableCell>
                             <TableCell>{row.total || "-"}</TableCell>

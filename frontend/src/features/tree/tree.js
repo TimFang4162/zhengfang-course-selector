@@ -223,7 +223,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
       title: tab.title,
       query: tab.query || "",
       localFilter: tab.localFilter || "",
-      queryPanelOpen: Boolean(tab.queryPanelOpen),
       draftFilters: cloneSearchFilters(tab.draftFilters || defaultSearchFilters("")),
       appliedFilters: cloneSearchFilters(tab.appliedFilters || tab.draftFilters || defaultSearchFilters("")),
       appliedScope: tab.appliedScope || "all",
@@ -235,7 +234,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
       title: raw?.title || "查询",
       query: typeof raw?.query === "string" ? raw.query : "",
       localFilter: typeof raw?.localFilter === "string" ? raw.localFilter : "",
-      queryPanelOpen: typeof raw?.queryPanelOpen === "boolean" ? raw.queryPanelOpen : true,
       draftFilters: cloneSearchFilters(raw?.draftFilters || defaultSearchFilters("")),
       appliedFilters: cloneSearchFilters(raw?.appliedFilters || raw?.draftFilters || defaultSearchFilters("")),
       appliedScope: raw?.appliedScope || "all",
@@ -289,7 +287,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
         type: "query",
         title: "默认查询",
         localFilter: "",
-        queryPanelOpen: true,
         draftFilters: cloneSearchFilters(filters),
         appliedFilters: cloneSearchFilters(filters),
         results: {},
@@ -313,7 +310,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
     if (!tab.loadingCategories) tab.loadingCategories = new Set();
     if (!tab.loadingCourses) tab.loadingCourses = new Set();
     if (typeof tab.localFilter !== "string") tab.localFilter = "";
-    if (typeof tab.queryPanelOpen !== "boolean") tab.queryPanelOpen = true;
     if (tab.id === "default") {
       const majorId = state.categories.find((category) => category.zyhId)?.zyhId;
       if (majorId && !tab.draftFilters.majorIds.length) {
@@ -342,7 +338,6 @@ export function createTreeFeature({ state, getApp, helpers }) {
       query: state.search.query,
       scope: "all",
       localFilter: "",
-      queryPanelOpen: true,
       draftFilters: cloneSearchFilters(filters),
       appliedFilters: cloneSearchFilters(filters),
       appliedScope: "all",

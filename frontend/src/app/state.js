@@ -18,7 +18,6 @@ export const state = proxy({
   speedRows: [],
   floatingMenu: null,
   openMenu: null,
-  openDropdown: null,
   categories: [],
   courseEntities: {
     categories: {},
@@ -27,7 +26,7 @@ export const state = proxy({
   },
   filters: { conflict: true, credit: false, completed: true, noCapacity: false, highlightCapacity: true },
   search: { query: "", scope: "all" },
-  courseTabs: [{ id: "default", type: "query", title: "默认查询", localFilter: "", queryPanelOpen: true, draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
+  courseTabs: [{ id: "default", type: "query", title: "默认查询", localFilter: "", draftFilters: null, appliedFilters: null, appliedScope: "all", results: {}, expandedCategories: new Set(), expandedCourses: new Set(), loadingCategories: new Set(), loadingCourses: new Set() }],
   activeCourseTabId: "default",
   nextCourseTabId: 1,
   filterOptions: {},
