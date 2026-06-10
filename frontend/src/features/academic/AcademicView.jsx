@@ -127,7 +127,7 @@ function AcademicNode({ node, level }) {
         app.academic.loadAcademicNodeCourses(node.id);
       }
     }}>
-      <AccordionTrigger className="academic-node-trigger">
+      <AccordionTrigger className="academic-node-trigger py-px min-h-[26px] rounded-none text-[13px] font-normal">
         <span className="academic-node-title">{node.name}</span>
         <span className="academic-node-credit">{node.earnedCredit || "0.0"}/{node.requiredCredit || "-"} 学分</span>
         <span className="academic-node-state">
@@ -149,8 +149,11 @@ function AcademicNode({ node, level }) {
       <AccordionPanel>
         <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
         <div className="academic-children">
-          {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
-          {!children.length && (
+          {children.length ? (
+            <Accordion multiple>
+              {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
+            </Accordion>
+          ) : (
             nodeLoading ? (
               <div className="academic-empty text-muted-foreground">加载课程明细中...</div>
             ) : nodeError ? (
@@ -193,7 +196,7 @@ export function AcademicStatusView() {
           <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span><span></span>
         </div>
         {visibleNodes.length ? (
-          <Accordion>
+          <Accordion multiple>
             {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
           </Accordion>
         ) : (
