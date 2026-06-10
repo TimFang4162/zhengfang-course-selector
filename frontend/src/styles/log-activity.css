@@ -39,6 +39,10 @@
   background: var(--vscode-list-hover-bg);
 }
 
+.activity-table tr:hover td {
+  background: var(--vscode-hover-alpha);
+}
+
 .log-line.is-business .log-message,
 .log-line.is-business .log-type {
   color: var(--vscode-fg);

@@ -33,7 +33,7 @@ function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyD
       ) : (
         <span className="" />
       )}
-      <div className={cx("flex-1 min-w-0 whitespace-pre-wrap break-words text-[13px] leading-[1.45]", labelColor)}>{children}</div>
+      <div className={cx("tree-label flex-1 min-w-0 whitespace-pre-wrap break-words text-[13px] leading-[1.45]", labelColor)}>{children}</div>
     </div>
   );
 }
@@ -137,7 +137,7 @@ function ClassSummary({ category, course, item }) {
         <Cell className="tree-table-time text-muted-foreground">{item.sksj} {timeReasons.map((r) => <TreeChip key={r}>{r}</TreeChip>)}</Cell>
         <Cell className="tree-table-location text-muted-foreground">{item.location}</Cell>
         <Cell className="tree-table-prop text-muted-foreground">{item.courseProperty}</Cell>
-        <Cell className={cx(snap.filters.highlightCapacity && hasCap ? "text-success" : "text-muted-foreground")}>{item.selectedCount}/{item.capacity}</Cell>
+        <Cell className={cx("tree-table-count", snap.filters.highlightCapacity && hasCap ? "is-has-capacity text-success" : "text-muted-foreground")}>{item.selectedCount}/{item.capacity}</Cell>
       </div>
       <RowMoreMenu>
         <MenuItem onClick={() => app.timetable.openClassModal(category.id, course, item)}><Eye aria-hidden="true" />显示详情</MenuItem>
@@ -252,13 +252,13 @@ function CategoryRows({ category, shouldRenderCourse }) {
       {expanded && (
         <div className="tree-children">
           {(!bucket?.loaded && loading) ? (
-            <div className="py-[5px] px-2 pl-6 text-muted-foreground text-xs">加载课程中...</div>
+            <div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">加载课程中...</div>
           ) : !bucket?.loaded ? (
-            <div className="py-[5px] px-2 pl-6 text-muted-foreground text-xs">展开后加载课程</div>
+            <div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">展开后加载课程</div>
           ) : (
             <>
               {renderCourses.map((course) => <CourseRows key={course.kchId} category={category} course={course} />)}
-              {loading && <div className="py-[5px] px-2 pl-6 text-muted-foreground text-xs">加载更多课程中...</div>}
+              {loading && <div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">加载更多课程中...</div>}
               {!loading && bucket?.hasMore && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   app.tree.loadSearchCategoryCourses(tab, category.id, bucket.nextPage).catch(app.showError);
@@ -281,7 +281,7 @@ export function TreeView() {
   };
 
   return (
-    <div id="course-tree" className="flex-1 py-1 pb-2 bg-background" data-tree-version={snap.treeVersion}>
+    <div id="course-tree" className="tree-view flex-1 py-1 pb-2 bg-background" data-tree-version={snap.treeVersion}>
       {snap.categories.map((category) => <CategoryRows key={category.id} category={category} shouldRenderCourse={shouldRenderCourse} />)}
     </div>
   );
