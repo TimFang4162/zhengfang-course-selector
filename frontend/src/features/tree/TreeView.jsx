@@ -4,6 +4,7 @@ import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseEx
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
 
@@ -25,15 +26,13 @@ function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyD
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(e); }
       })}
     >
-      <span className={cx(
-        "tree-arrow",
-        expandable && "is-expandable",
-        expanded && "is-expanded",
-        "inline-flex shrink-0 w-4 h-5 items-center justify-center text-[11px] text-muted-foreground",
-        expandable && "hover:text-foreground"
-      )}>
-        {expandable ? (expanded ? "▾" : "▸") : "·"}
-      </span>
+      {expandable ? (
+        <Button variant="ghost" size="icon-xs">
+          {expanded ? <ChevronDown /> : <ChevronRight />}
+        </Button>
+      ) : (
+        <span className="inline-flex shrink-0 w-4 h-5 items-center justify-center text-[11px] text-muted-foreground">·</span>
+      )}
       <div className={cx("tree-label flex-1 min-w-0 whitespace-pre-wrap break-words text-[13px] leading-[1.45]", labelColor)}>{children}</div>
     </div>
   );

@@ -175,11 +175,11 @@ export function AcademicStatusView() {
   const summary = academicCreditSummary(nodes);
   const serverSummary = snap.academicStatus?.summary || {};
 
-  if (snap.academicLoading) return <div id="academic-status" className="academic-view"><div className="academic-empty text-muted-foreground">正在拉取学业情况和课程明细...</div></div>;
-  if (!nodes.length) return <div id="academic-status" className="academic-view"><div className="academic-empty text-muted-foreground">暂无学业情况数据，点击刷新重新获取。</div></div>;
+  if (snap.academicLoading) return <div id="academic-status" className="academic-view flex-1"><div className="academic-empty text-muted-foreground">正在拉取学业情况和课程明细...</div></div>;
+  if (!nodes.length) return <div id="academic-status" className="academic-view flex-1"><div className="academic-empty text-muted-foreground">暂无学业情况数据，点击刷新重新获取。</div></div>;
 
   return (
-    <div id="academic-status" className="academic-view">
+    <div id="academic-status" className="academic-view flex-1">
       <div className="academic-overview">
         <div><span className="text-muted-foreground">方案</span><strong>{summary.plan}</strong></div>
         <div><span className="text-muted-foreground">学分</span><strong>{summary.earned}/{summary.required}</strong></div>

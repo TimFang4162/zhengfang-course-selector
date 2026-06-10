@@ -366,7 +366,7 @@ function WorkspaceTabs() {
 
   return (
     <>
-      <TabsPanel value="tree">
+      <TabsPanel value="tree" className="flex flex-col overflow-hidden">
         <div className="course-tab-strip">
           {snap.courseTabs.map((tab) => (
             <span key={tab.id} className={cx("course-tab-shell hover:bg-accent", { active: snap.activeCourseTabId === tab.id })}>
@@ -454,11 +454,11 @@ function WorkspaceTabs() {
         <TreeView />
       </TabsPanel>
 
-      <TabsPanel value="timetable">
+      <TabsPanel value="timetable" className="flex flex-col overflow-hidden">
         <TimetableView />
       </TabsPanel>
 
-      <TabsPanel value="academic">
+      <TabsPanel value="academic" className="flex flex-col overflow-hidden">
         <div className="flex items-center gap-1 toolbar-tight academic-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
           <Menu open={snap.openMenu === "academic-filter-menu"} onOpenChange={(open) => { state.openMenu = open ? "academic-filter-menu" : null; }}>
             <MenuTrigger><Button variant="ghost" size="sm" id="academic-filter-button">{activeAcademicFilterCount(snap) > 0 ? `筛选(${activeAcademicFilterCount(snap)})` : "筛选"}</Button></MenuTrigger>
@@ -662,7 +662,7 @@ function AppShell() {
     <div className="app-shell h-dvh overflow-hidden">
       <div className="main-layout h-dvh overflow-hidden">
         <main className="left-pane min-h-0 overflow-hidden flex flex-col h-full gap-0 p-0 bg-card border-r border-border">
-          <Tabs value={snap.activeTab} onValueChange={(v) => app.tree.switchTab(v)}>
+          <Tabs className="flex-1 min-h-0" value={snap.activeTab} onValueChange={(v) => app.tree.switchTab(v)}>
             <div className="workspace-header grid grid-cols-[minmax(0,1fr)_auto] items-stretch min-h-[35px] bg-muted border-b border-border">
               <TabsList variant="underline" className="p-0">
                 <TabsTab value="tree">课程树</TabsTab>
