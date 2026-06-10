@@ -6,6 +6,7 @@ import { maxJieci, maxWeek, weekdayNames, DETAIL_HEIGHT_KEY } from "../../shared
 import { formatWeekRanges, clamp } from "../../shared/utils.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
 import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuCheckboxItem } from "../../components/ui/menu";
 
@@ -48,7 +49,7 @@ function selectedCourseCount(snap) {
 function DetailCourseName({ entry }) {
   return (
     <>
-      {entry.name}<br />
+      <span className="font-medium">{entry.name}</span><br />
       <span className="text-muted-foreground">{[entry.kchId, entry.classNo].filter(Boolean).join("/")}</span>
     </>
   );
@@ -109,7 +110,7 @@ function TimetableDetail() {
           {(selectedCell ? rows.map((r) => ({ ...r })) : entries.map((entry) => ({ entry }))).map(({ entry, weeks }) => (
             <TableRow key={entry.doJxbId || [entry.kchId, entry.classNo].join("/")}>
               <TableCell><DetailCourseName entry={entry} /></TableCell>
-              <TableCell>{entry.creditText || ""}</TableCell>
+              <TableCell>{entry.creditText ? <Badge variant="outline">{entry.creditText}</Badge> : ""}</TableCell>
               <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
               {selectedCell && <TableCell>{formatWeekRanges(weeks)}</TableCell>}
               <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
