@@ -909,14 +909,21 @@ function ModalLayer() {
             <DialogTitle>{picker?.title || "..."}</DialogTitle>
           </DialogHeader>
           <DialogPanel className="flex flex-col gap-3" scrollFade={false}>
-            <div className="flex gap-1.5">
+            <form className="flex gap-1.5" onSubmit={(e) => {
+              e.preventDefault();
+              state.filterPicker.page = 1;
+              app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
+            }}>
               <Input type="search" className="flex-1" placeholder="搜索选项" value={picker?.query || ""} onInput={(e) => { state.filterPicker.query = e.currentTarget.value; }} onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
                 state.filterPicker.page = 1;
                 app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError);
               }} />
-              <Button variant="ghost" size="sm" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, 1, state.filterPicker.query).catch(app.showError)}>搜索</Button>
-            </div>
+              <Button variant="ghost" size="sm" type="submit" disabled={pickerLoading}>
+                {pickerLoading && <Spinner />}
+                {pickerLoading ? "搜索中..." : "搜索"}
+              </Button>
+            </form>
             {pickerSelectedItems.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-muted-foreground text-xs">已选</span>
@@ -929,11 +936,8 @@ function ModalLayer() {
               </div>
             )}
             <div className="max-h-[min(420px,55vh)] overflow-auto">
-              {pickerLoading && !pickerOptions.length ? (
-                <div className="flex items-center gap-2 py-3 px-2 text-muted-foreground text-sm">
-                  <Spinner className="size-4" />
-                  加载中...
-                </div>
+              {!pickerOptions.length ? (
+                !pickerLoading && <div className="py-2 px-2 text-muted-foreground text-sm">无选项，输入关键词后搜索或稍后重试</div>
               ) : pickerIsMajor ? (
                 <Table className="w-full min-w-max border-collapse text-xs">
                   <TableHeader><TableRow><TableHead className="w-[34px] text-center"></TableHead><TableHead className="text-muted-foreground font-semibold">专业代码</TableHead><TableHead className="text-muted-foreground font-semibold">专业名称</TableHead><TableHead className="text-muted-foreground font-semibold">学院</TableHead></TableRow></TableHeader>
@@ -962,10 +966,12 @@ function ModalLayer() {
                   </button>
                 ))
               )}
-              {!pickerOptions.length && !pickerLoading && <div className="py-2 px-2 text-muted-foreground text-sm">无选项，输入关键词后搜索或稍后重试</div>}
             </div>
             {pickerHasMore && (
-              <Button variant="ghost" size="sm" className="text-info" onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage + 1, state.filterPicker.query).catch(app.showError)}>加载更多...</Button>
+              <Button variant="ghost" size="sm" className="self-start text-info" disabled={pickerLoading} onClick={() => app.tree.loadFilterOptions(state.filterPicker.type, state.filterPicker.parent || {}, pickerPage + 1, state.filterPicker.query).catch(app.showError)}>
+                {pickerLoading && <Spinner />}
+                加载更多
+              </Button>
             )}
           </DialogPanel>
           <DialogFooter>

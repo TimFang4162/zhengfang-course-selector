@@ -4,7 +4,7 @@ import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseEx
 import { classMatchesSearch, courseMatchesSearch, normalizedSearchQuery, textMatchesSearch } from "./search.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, Ellipsis, Minus, X } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
 
@@ -31,7 +31,7 @@ function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyD
           {expanded ? <ChevronDown /> : <ChevronRight />}
         </Button>
       ) : (
-        <span className="inline-flex shrink-0 w-4 h-5 items-center justify-center text-[11px] text-muted-foreground">·</span>
+        <span className="" />
       )}
       <div className={cx("tree-label flex-1 min-w-0 whitespace-pre-wrap break-words text-[13px] leading-[1.45]", labelColor)}>{children}</div>
     </div>
@@ -40,16 +40,26 @@ function TreeRow({ level, selected, muted, expandable, expanded, onClick, onKeyD
 
 function RowChrome({ selectionState, checkLabel, onToggleCheck, children }) {
   const sel = selectionState || "inherit";
-  const checkChar = sel === "include" ? "✓" : sel === "exclude" ? "-" : sel === "inherited" ? "✓" : sel === "partial" ? "·" : "";
   return (
     <div className="tree-row-grid">
       <button
         type="button"
-        className={cx(`tree-check is-${sel}`, "group-[.muted]:opacity-55")}
+        className={cx(
+          "relative inline-flex size-4 shrink-0 items-center justify-center rounded-[.25rem] border transition-colors",
+          sel === "include" ? "border-primary bg-primary text-primary-foreground" :
+          sel === "exclude" ? "border-destructive bg-destructive text-primary" :
+          sel === "inherited" ? "border-primary/30 bg-primary/10 text-primary" :
+          sel === "partial" ? "border-primary/30 bg-primary/10 text-primary" :
+          "border-input bg-background shadow-xs/5 dark:bg-input/32",
+          "group-[.muted]:opacity-55"
+        )}
         aria-label={checkLabel || "切换选择"}
         onClick={(e) => { e.stopPropagation(); onToggleCheck?.(e); }}
       >
-        {checkChar}
+        {sel === "include" && <Check className="size-3" strokeWidth={3} />}
+        {sel === "exclude" && <X className="size-3" strokeWidth={2.5} />}
+        {sel === "inherited" && <Check className="size-3" strokeWidth={3} />}
+        {sel === "partial" && <Minus className="size-3" strokeWidth={3} />}
       </button>
       {children}
     </div>
@@ -59,7 +69,11 @@ function RowChrome({ selectionState, checkLabel, onToggleCheck, children }) {
 function RowMoreMenu({ children }) {
   return (
     <Menu>
-      <MenuTrigger><button type="button" className="tree-more-dot inline-flex size-5 items-center justify-center rounded-[2px] text-muted-foreground text-base leading-none opacity-0 group-hover:opacity-100 group-[.selected]:opacity-100 hover:bg-accent hover:text-foreground" onClick={(e) => e.stopPropagation()}>⋯</button></MenuTrigger>
+      <MenuTrigger>
+        <Button variant="ghost" size="icon-xs" className="opacity-0 group-hover:opacity-100 group-[.selected]:opacity-100" onClick={(e) => e.stopPropagation()}>
+          <Ellipsis />
+        </Button>
+      </MenuTrigger>
       <MenuPopup align="end">{children}</MenuPopup>
     </Menu>
   );
@@ -147,13 +161,13 @@ function ClassRows({ category, course }) {
   }
   const loading = app.tree.loadingCourses(tab)?.has(courseKey);
 
-  if (loading) return <div className="tree-children"><div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">加载教学班中...</div></div>;
-  if (!classItems.length) return <div className="tree-children"><div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">展开后加载教学班</div></div>;
-  if (!classItems.length) return <div className="tree-children"><div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">无教学班</div></div>;
-  if (!renderItems.length) return <div className="tree-children"><div className="tree-placeholder py-[5px] px-2 pl-6 text-muted-foreground text-xs">无匹配教学班</div></div>;
+  if (loading) return <div className="text-muted-foreground text-xs py-0.5 pl-2">加载教学班中...</div>;
+  if (!classItems.length) return <div className="text-muted-foreground text-xs py-0.5 pl-2">展开后加载教学班</div>;
+  if (!classItems.length) return <div className="text-muted-foreground text-xs py-0.5 pl-2">无教学班</div>;
+  if (!renderItems.length) return <div className="text-muted-foreground text-xs py-0.5 pl-2">无匹配教学班</div>;
 
   return (
-    <div className="tree-children">
+    <div className="ml-5 pl-1 border-l-2 border-border/50">
       {renderItems.map((item) => (
         <TreeRow
           key={`${item.classKey || item.jxbId}`}
