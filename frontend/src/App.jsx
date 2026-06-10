@@ -324,7 +324,7 @@ function QueryFilterDialog({ activeSearchTab, app, dropdownTypeMap, emptySearchF
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <Button type="button" variant="ghost" size="sm" className={cx("menu-button query-toggle-button min-w-[84px]", { "is-dirty": hasPendingQueryChanges() })} onClick={() => handleOpenChange(true)}>
+      <Button type="button" variant={hasPendingQueryChanges() ? "secondary" : "ghost"} size="sm" onClick={() => handleOpenChange(true)}>
         {`查询(${queryConditionCount()})`}
       </Button>
       <DialogPopup className="course-filter-dialog" showCloseButton={false}>
@@ -489,29 +489,8 @@ function WorkspaceTabs() {
     return false;
   }
 
-  function treeSelectionText() {
-    const stats = app.tree.selectionStats();
-    return stats.total ? `规则 ${stats.total} 项` : "未选择";
-  }
-
   function hasTreeSelection() {
     return app.tree.selectionStats().total > 0;
-  }
-
-  function resetQueryConditions() {
-    const tab = activeSearchTab;
-    if (!tab) return;
-    tab.query = "";
-    tab.draftFilters = defaultFiltersForTab(tab);
-    tab.appliedFilters = defaultFiltersForTab(tab);
-    tab.scope = "all";
-    tab.appliedScope = "all";
-    tab.results = {};
-    tab.expandedCategories.clear();
-    tab.expandedCourses.clear();
-    tab.title = tab.id === "default" ? "默认查询" : "查询";
-    app.tree.saveTabsState();
-    app.tree.renderTree();
   }
 
   const dropdownTypeMap = {
@@ -555,14 +534,15 @@ function WorkspaceTabs() {
               </MenuPopup>
             </Menu>
             <QueryFilterDialog activeSearchTab={activeSearchTab} app={app} dropdownTypeMap={dropdownTypeMap} emptySearchFilters={emptySearchFilters} defaultFiltersForTab={defaultFiltersForTab} openFilterPicker={openFilterPicker} queryConditionCount={queryConditionCount} hasPendingQueryChanges={hasPendingQueryChanges} />
-            <Button variant="ghost" size="sm" id="reset-query" className="menu-button whitespace-nowrap" onClick={resetQueryConditions}>{activeSearchTab?.id === "default" ? "恢复默认" : "重置条件"}</Button>
-            <Button variant="ghost" size="sm" className="menu-button tree-selection-button min-w-[88px] disabled:opacity-45" disabled={!hasTreeSelection()} onClick={() => app.grab.openGrabModalFromSelection()}>
-              添加抢课任务
-            </Button>
-            <Button variant="ghost" size="sm" className="menu-button tree-selection-button min-w-[88px] disabled:opacity-45" disabled={!hasTreeSelection()} onClick={() => app.tree.clearTreeSelection()}>
-              清空选择
-            </Button>
-            <span className="tree-selection-status text-muted-foreground text-xs whitespace-nowrap">{treeSelectionText()}</span>
+            {hasTreeSelection() && (
+              <Menu open={snap.openMenu === "selection-menu"} onOpenChange={(open) => { state.openMenu = open ? "selection-menu" : null; }}>
+                <MenuTrigger><Button variant="secondary" size="sm">选择({app.tree.selectionStats().total})</Button></MenuTrigger>
+                <MenuPopup>
+                  <MenuItem onClick={() => app.grab.openGrabModalFromSelection()}>添加到抢课任务</MenuItem>
+                  <MenuItem onClick={() => app.tree.clearTreeSelection()}>清空全部选择</MenuItem>
+                </MenuPopup>
+              </Menu>
+            )}
           </div>
           <div className="tree-result-filter">
             <Input
