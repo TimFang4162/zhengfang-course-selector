@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSnapshot } from "valtio";
 import { useAppContext } from "../../app/app-context.jsx";
 import { classConflicts, classHasCapacity, classMuted, courseCompleted, courseExceedsCredit, courseMuted, isSelectedClass, isSelectedCourse, state } from "../../app/state.js";
@@ -276,12 +277,30 @@ export function TreeView() {
   const app = useAppContext();
   const snap = useSnapshot(state);
   void snap.treeVersion;
+  const treeRef = useRef(null);
+  const prevTabId = useRef(snap.activeCourseTabId);
+
+  useEffect(() => {
+    const container = treeRef.current;
+    if (!container) return;
+    // restore new tab's scroll
+    const newTab = app.tree.activeCourseTab();
+    requestAnimationFrame(() => { container.scrollTop = newTab.scrollTop || 0; });
+    prevTabId.current = snap.activeCourseTabId;
+  }, [snap.activeCourseTabId]);
+
   const shouldRenderCourse = (categoryId, course) => {
     return courseMatchesSearch(state, categoryId, course, app.tree.activeCourseTab()?.localFilter || "");
   };
 
   return (
-    <div id="course-tree" className="tree-view flex-1 py-1 pb-2 bg-background" data-tree-version={snap.treeVersion}>
+    <div
+      id="course-tree"
+      ref={treeRef}
+      className="tree-view flex-1 py-1 pb-2 bg-background"
+      data-tree-version={snap.treeVersion}
+      onScroll={(e) => { app.tree.activeCourseTab().scrollTop = e.currentTarget.scrollTop; }}
+    >
       {snap.categories.map((category) => <CategoryRows key={category.id} category={category} shouldRenderCourse={shouldRenderCourse} />)}
     </div>
   );
