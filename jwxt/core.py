@@ -593,7 +593,6 @@ def do_login(log_func, debug_func):
         )
         if req.status_code == 302:
             log_func("登录成功！")
-            debug_func("登录成功 (302 Redirect)")
             return True
         log_func(f"登录失败 状态码: {req.status_code}")
         debug_func(f"登录失败: {req.text}")
@@ -608,7 +607,6 @@ def fetch_big_list(log_func, debug_func):
     global bh_id, xsbj, njdm_id, xkxnm, xkxqm, xqh_id, jg_id, zyfx_id, xbm
     global xslbdm, mzm, xz, ccdm, max_credit_limit, current_credit_display
     try:
-        debug_func("GET zzxkyzb_cxZzxkYzbIndex.html")
         text = http_get(
             base_url + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512",
             timeout=REQ_TIMEOUT["big_list"],
@@ -710,7 +708,6 @@ def fetch_small_list(target, log_func, debug_func, page=1, remote_filters=None):
     }
     data.update(build_remote_filter_params(remote_filters))
     try:
-        debug_func(f"Fetch small list: {target[0]} [range {start}-{end}]")
         req = http_post(
             url=base_url
             + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512",
@@ -790,7 +787,6 @@ def fetch_class_detail_and_plan(
     }
     data.update(build_remote_filter_params(remote_filters))
     try:
-        debug_func(f"查询班级详情: KCH={kch_id}")
         return http_post(
             url=base_url
             + "/jwglxt/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512",
@@ -1068,8 +1064,6 @@ def fetch_choosed_list(log_func=None, debug_func=None):
         "xkly": "1",
     }
     try:
-        if debug_func:
-            debug_func("GET ChoosedDisplay")
         return http_post(
             url=base_url
             + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512",
@@ -1359,8 +1353,6 @@ def fetch_academic_node_courses(
 
 def fetch_academic_status(tree_only=False, log_func=None, debug_func=None):
     try:
-        if debug_func:
-            debug_func("GET 学业情况页面")
         page = http_get(
             base_url
             + "/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html?gnmkdm=N105515&layout=default",

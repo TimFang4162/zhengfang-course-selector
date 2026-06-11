@@ -238,9 +238,6 @@ class JWXTWebService(GrabTaskMixin):
             categories = self.fetch_categories(refresh=True)
             timetable = self.fetch_timetable(refresh=True)
             tree = self.tree_state()
-            self._log_info(
-                f"登录成功 {self.mod.mask_student_number(student_number)}，已加载 {len(categories.get('items', []))} 个课程大类"
-            )
             return {
                 "ok": True,
                 "message": "登录成功",
@@ -519,7 +516,7 @@ class JWXTWebService(GrabTaskMixin):
             page_state["hasMore"] = result.get("has_more", False)
             page_state["nextPage"] = result.get("next_page", page + 1)
         self._log_info(
-            f"{log_prefix}完成: {target[0]} 第 {result.get('page', page)} 页，{len(items)} 门课程"
+            f"搜索完成: {target[0]} 第{result.get('page', page)}页 · {len(items)}门"
         )
         return {
             "categoryId": category_id,
@@ -722,9 +719,6 @@ class JWXTWebService(GrabTaskMixin):
             )
             self.class_cache[(category_id, kch_id)] = final_data
             course_name = course_info_list[0].get("kcmc", kch_id)
-            self._log_info(
-                f"教学班详情加载完成: {course_name}，{len(final_data)} 个教学班"
-            )
             return {
                 "categoryId": category_id,
                 "kchId": kch_id,
@@ -802,7 +796,6 @@ class JWXTWebService(GrabTaskMixin):
         with self.lock:
             self._require_auth()
             if not refresh and self.timetable_cache is not None:
-                self._log_debug("课表缓存命中")
                 return self.timetable_cache
             self._log_info("刷新已选课程" if refresh else "课表缓存未命中，开始加载")
             choosed = self.mod.fetch_choosed_list(self._log_renderable, self._log_debug)
