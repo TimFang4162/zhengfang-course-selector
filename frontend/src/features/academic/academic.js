@@ -142,8 +142,18 @@ export function createAcademicFeature({ state }) {
     await loadAcademicNodeCourses(nodeId, true);
   }
 
+  function toggleAcademicNode(nodeId) {
+    if (state.academicExpandedNodes.has(nodeId)) {
+      state.academicExpandedNodes.delete(nodeId);
+    } else {
+      state.academicExpandedNodes.add(nodeId);
+    }
+    renderAcademicStatus();
+  }
+
   return {
     renderAcademicStatus,
+    toggleAcademicNode,
     refreshAcademicStatus,
     loadAcademicNodeCourses,
     reloadAcademicNodeCourses,

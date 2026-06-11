@@ -5,9 +5,8 @@ import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
-import { Ellipsis, FilterX, RefreshCw } from "lucide-react";
+import { Ellipsis, ChevronRight, ChevronDown, FilterX, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "../../components/ui/accordion";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
 
 export function academicCreditSummary(nodes) {
@@ -121,39 +120,57 @@ function AcademicNode({ node, level }) {
   const progressWidth = Number.isFinite(required) && required > 0 ? Math.min(100, (earned / required) * 100) : 0;
   const nodeLoading = nodeCoursesMap[node.id]?.__loading;
   const nodeError = nodeCoursesMap[node.id]?.__error;
+  const expanded = snap.academicExpandedNodes.has(node.id);
+
+  function handleToggle() {
+    app.academic.toggleAcademicNode(node.id);
+    if (!expanded && academicNodeIsUnloadedLeaf(node, nodeCoursesMap)) {
+      app.academic.loadAcademicNodeCourses(node.id);
+    }
+  }
 
   return (
-    <AccordionItem value={node.id} className={`academic-node level-${level}`} onOpenChange={(open) => {
-      if (open && academicNodeIsUnloadedLeaf(node, nodeCoursesMap)) {
-        app.academic.loadAcademicNodeCourses(node.id);
-      }
-    }}>
-      <AccordionTrigger className="academic-node-trigger py-px min-h-[26px] rounded-none text-[13px] font-normal">
-        <span className="academic-node-title">{node.name}</span>
-        <span className="academic-node-credit">{node.earnedCredit || "0.0"}/{node.requiredCredit || "-"} 学分</span>
-        <span className="academic-node-state">
-          <AcademicBadge type={node.creditStatus}>{node.creditStatusText || "未知"}</AcademicBadge>
-          {node.substituteStatus && node.substituteStatus !== "none" && (
-            <AcademicBadge type="substitute">{node.substituteStatusText || "课程替代"}</AcademicBadge>
-          )}
-        </span>
-        <span className="academic-node-count">
-          {children.length ? `${children.length} 子项` : (nodeLoading ? "加载中..." : nodeError ? "加载失败" : `${passedCount}/${courses.length || "-"} 课程`)}
-        </span>
-        <Menu>
-          <MenuTrigger><Button variant="ghost" size="icon-xs" className="academic-node-more" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
-          <MenuPopup>
-            <MenuItem onClick={() => { app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新此节点</MenuItem>
-          </MenuPopup>
-        </Menu>
-      </AccordionTrigger>
-      <AccordionPanel>
-        <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
+    <>
+      <div
+        className={cx(
+          "group flex items-center min-h-[26px] gap-1 py-px px-2 border border-transparent text-foreground text-[13px] cursor-pointer hover:bg-accent",
+          `level-${level}`
+        )}
+        role="treeitem"
+        tabIndex="0"
+        onClick={handleToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggle(); }
+        }}
+      >
+        <Button variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); handleToggle(); }}>
+          {expanded ? <ChevronDown /> : <ChevronRight />}
+        </Button>
+        <div className="flex-1 min-w-0 grid academic-node-grid items-center gap-2">
+          <span className="academic-node-title">{node.name}</span>
+          <span className="academic-node-credit">{node.earnedCredit || "0.0"}/{node.requiredCredit || "-"} 学分</span>
+          <span className="academic-node-state">
+            <AcademicBadge type={node.creditStatus}>{node.creditStatusText || "未知"}</AcademicBadge>
+            {node.substituteStatus && node.substituteStatus !== "none" && (
+              <AcademicBadge type="substitute">{node.substituteStatusText || "课程替代"}</AcademicBadge>
+            )}
+          </span>
+          <span className="academic-node-count">
+            {children.length ? `${children.length} 子项` : (nodeLoading ? "加载中..." : nodeError ? "加载失败" : `${passedCount}/${courses.length || "-"} 课程`)}
+          </span>
+          <Menu>
+            <MenuTrigger><Button variant="ghost" size="icon-xs" className="opacity-0 group-hover:opacity-100 focus:opacity-100" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
+            <MenuPopup align="end">
+              <MenuItem onClick={() => { app.academic.reloadAcademicNodeCourses(node.id).catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新此节点</MenuItem>
+            </MenuPopup>
+          </Menu>
+        </div>
+      </div>
+      {expanded && (
         <div className="academic-children">
+          <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
           {children.length ? (
-            <Accordion multiple>
-              {children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)}
-            </Accordion>
+            children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)
           ) : (
             nodeLoading ? (
               <div className="academic-empty text-muted-foreground">加载课程明细中...</div>
@@ -164,8 +181,8 @@ function AcademicNode({ node, level }) {
             )
           )}
         </div>
-      </AccordionPanel>
-    </AccordionItem>
+      )}
+    </>
   );
 }
 
@@ -184,22 +201,20 @@ export function AcademicStatusView() {
 
   return (
     <div id="academic-status" className="academic-view flex-1">
-      <div className="academic-overview">
-        <div><span className="text-muted-foreground">方案</span><strong>{summary.plan}</strong></div>
-        <div><span className="text-muted-foreground">学分</span><strong>{summary.earned}/{summary.required}</strong></div>
-        <div><span className="text-muted-foreground">未获</span><strong>{summary.remaining}</strong></div>
-        <div><span className="text-muted-foreground">GPA</span><strong>{serverSummary.serverGpa || "-"}</strong></div>
-        <div><span className="text-muted-foreground">计划课程</span><strong>{serverSummary.planPassedCourses ?? 0}/{serverSummary.planTotalCourses ?? 0}</strong></div>
-        <div><span className="text-muted-foreground">未修/在读</span><strong>{serverSummary.planUnstartedCourses ?? 0}/{serverSummary.planStudyingCourses ?? 0}</strong></div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-px border-b border-border bg-border">
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">方案</span><strong className="text-foreground text-sm font-medium truncate">{summary.plan}</strong></div>
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">学分</span><strong className="text-foreground text-sm font-medium truncate">{summary.earned}/{summary.required}</strong></div>
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">未获</span><strong className="text-foreground text-sm font-medium truncate">{summary.remaining}</strong></div>
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">GPA</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.serverGpa || "-"}</strong></div>
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">计划课程</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.planPassedCourses ?? 0}/{serverSummary.planTotalCourses ?? 0}</strong></div>
+        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">未修/在读</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.planUnstartedCourses ?? 0}/{serverSummary.planStudyingCourses ?? 0}</strong></div>
       </div>
       <div className="academic-tree">
         <div className="academic-tree-head">
           <span></span><span>学分要求节点</span><span>学分</span><span>状态</span><span>明细</span><span></span>
         </div>
         {visibleNodes.length ? (
-          <Accordion multiple>
-            {visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)}
-          </Accordion>
+          visibleNodes.map((node) => <AcademicNode key={node.id} node={node} level={0} />)
         ) : (
           <div className="academic-empty text-muted-foreground"><FilterX className="inline size-4 mr-1 align-[-2px]" />当前筛选下没有匹配课程。</div>
         )}
