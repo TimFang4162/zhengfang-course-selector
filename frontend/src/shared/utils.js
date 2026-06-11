@@ -1,3 +1,12 @@
+export function filterValue(item) {
+  return item && typeof item === "object" ? item.value : item;
+}
+
+export function filterLabel(item) {
+  if (item && typeof item === "object") return item.label || item.value;
+  return item;
+}
+
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
