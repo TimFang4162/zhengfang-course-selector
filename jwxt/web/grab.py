@@ -4,8 +4,7 @@ import time
 
 
 class GrabTaskMixin:
-    _DYNAMIC_GRAB_NAMES = {"conflicts", "has_capacity"}
-    _DYNAMIC_GRAB_CLASS_FIELDS = {"selected", "capacityLeft"}
+    _DYNAMIC_GRAB_CLASS_FIELDS = {"selected", "capacity", "has_capacity"}
 
     def _class_identity_set(self, class_item: dict | None):
         if not class_item:
@@ -52,11 +51,7 @@ class GrabTaskMixin:
         return False
 
     def _expr_needs_classes(self, expression: str) -> bool:
-        return bool(
-            re.search(
-                r"\bclass\.|\bteachers\b|\bconflicts\b|\bhas_capacity\b", expression
-            )
-        )
+        return bool(re.search(r"\bclass\.", expression))
 
     def _extract_scan_scope(self, expression: str):
         try:
@@ -199,19 +194,12 @@ class GrabTaskMixin:
                 "location": class_item.get("location", ""),
                 "selected": selected,
                 "capacity": capacity,
-                "capacityLeft": max(0, capacity - selected),
+                "has_capacity": bool(capacity > selected),
+                "not_conflicts": not self._class_conflicts(class_item, conflict_context),
             }
         return {
             "course": self._AttrDict(course_obj),
             "class_": self._AttrDict(class_obj or {}),
-            "teachers": [
-                class_item.get("teacherName", ""),
-                class_item.get("teacherTitle", ""),
-            ]
-            if class_item
-            else [],
-            "conflicts": self._class_conflicts(class_item, conflict_context),
-            "has_capacity": bool(class_item and capacity > selected),
         }
 
     def _normalize_selection_rule(self, selection: dict | None):
@@ -319,8 +307,6 @@ class GrabTaskMixin:
 
     def _grab_node_has_dynamic_value(self, node) -> bool:
         for child in ast.walk(node):
-            if isinstance(child, ast.Name) and child.id in self._DYNAMIC_GRAB_NAMES:
-                return True
             if (
                 isinstance(child, ast.Attribute)
                 and child.attr in self._DYNAMIC_GRAB_CLASS_FIELDS

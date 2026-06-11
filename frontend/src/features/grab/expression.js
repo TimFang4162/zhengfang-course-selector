@@ -8,14 +8,12 @@ export const grabSymbols = [
   "class.id",
   "class.no",
   "class.teacher",
-  "teachers",
   "class.time",
   "class.location",
-  "class.capacityLeft",
-  "class.capacity",
   "class.selected",
-  "conflicts",
-  "has_capacity",
+  "class.capacity",
+  "class.has_capacity",
+  "class.not_conflicts",
 ];
 
 export const grabSymbolDocs = {
@@ -26,14 +24,12 @@ export const grabSymbolDocs = {
   "class.id": "string：教学班操作 ID，通常对应 doJxbId。",
   "class.no": "string：教学班号。",
   "class.teacher": "string：教师姓名。",
-  teachers: "string[]：教师姓名和职称数组，可写 \"张\" in teachers。",
   "class.time": "string：上课时间文本。",
   "class.location": "string：上课地点。",
-  "class.capacityLeft": "number：剩余容量。",
-  "class.capacity": "number：容量。",
-  "class.selected": "number：已选人数。",
-  conflicts: "boolean：是否与当前课表冲突。动态条件，不会缩小候选扫描范围。",
-  has_capacity: "boolean：是否有余量。动态条件，不会缩小候选扫描范围。",
+  "class.selected": "number：已选人数。运行时获取最新值。动态条件，不会缩小候选扫描范围。",
+  "class.capacity": "number：容量。运行时获取最新值。动态条件，不会缩小候选扫描范围。",
+  "class.has_capacity": "boolean：是否有余量（capacity > selected）。动态条件，不会缩小候选扫描范围。",
+  "class.not_conflicts": "boolean：是否不与当前课表冲突。静态条件，可缩小候选扫描范围。",
 };
 
 export function defaultGrabExpression(context) {
@@ -51,8 +47,8 @@ export function buildSelectionGrabExpression(selection) {
   const excludes = selection?.excludes || [];
   const includeExpr = includes.length ? includes.map(renderRuleItem).join(" or ") : "False";
   const excludeExpr = excludes.length ? excludes.map(renderRuleItem).join(" or ") : "False";
-  if (excludes.length) return `(${includeExpr}) and not (${excludeExpr}) and has_capacity and not conflicts`;
-  return `(${includeExpr}) and has_capacity and not conflicts`;
+  if (excludes.length) return `(${includeExpr}) and not (${excludeExpr}) and class.has_capacity and class.not_conflicts`;
+  return `(${includeExpr}) and class.has_capacity and class.not_conflicts`;
 }
 
 export function translateGrabExpression(expression) {
@@ -67,7 +63,7 @@ export function translateGrabExpression(expression) {
 export function validateGrabExpression(expression) {
   const jsExpression = translateGrabExpression(expression);
   try {
-    Function("course", "classItem", "teachers", "conflicts", "has_capacity", `return Boolean(${jsExpression});`);
+    Function("course", "classItem", `return Boolean(${jsExpression});`);
     return { ok: true, jsExpression };
   } catch (error) {
     return { ok: false, error: error.message, jsExpression };
@@ -93,10 +89,8 @@ export function buildGrabContext(course, category, classItem = null) {
       location: classItem.location,
       selected,
       capacity,
-      capacityLeft: Math.max(0, capacity - selected),
+      has_capacity: capacity > selected,
+      not_conflicts: !classConflicts(classItem),
     } : null,
-    teachers: [classItem?.teacherName, classItem?.teacherTitle].filter(Boolean),
-    conflicts: classItem ? classConflicts(classItem) : false,
-    has_capacity: classItem ? capacity > selected : true,
   };
 }

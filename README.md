@@ -1,72 +1,181 @@
-# JWXT
+# 正方教务选课工具
 
-当前目录结构：
+适用于正方教务系统的第三方选课 Web 前端。基于正方教务`学生选课`与`学业情况查询`页面接口构建，旨在提升选课体验与个人学业规划。
 
-```text
-jwxt/
-├── main.py                   # Web UI 默认入口
-├── frontend/
-│   ├── index.html            # Bun 前端入口 HTML
-│   ├── build.ts              # Bun 静态构建脚本
-│   ├── dev.ts                # Bun HMR 开发服务器，代理 /api/* 到 Python
-│   └── src/                  # 前端源码
-├── jwxt/
-│   ├── core.py               # 教务登录、请求、解析、选退课核心逻辑
-│   └── web/
-│       ├── static/           # Bun 构建后的 Web UI 静态资源
-│       │   ├── index.html
-│       │   └── chunk-*.{js,css}
-│       ├── grab.py           # 抢课表达式、预览和任务调度
-│       ├── service.py        # Web API 业务服务
-│       └── server.py         # 本地 Web UI HTTP 服务
-├── pyproject.toml            # Python 依赖
-├── package.json              # Bun 前端脚本和依赖
-├── bun.lock                  # Bun 锁文件
-├── uv.lock                   # uv 锁文件
-├── .jwxt_credentials.json    # 本地保存的凭据
-└── docs/                     # 接口分析文档和本地抓包证据
-```
+## 功能
 
-当前实现：
+适配的接口能力：
 
-- 项目已移除 Textual TUI，仅保留本地 Web UI。
-- `jwxt/core.py` 提供教务系统核心请求与解析逻辑。
-- `jwxt/web/server.py` 提供本地 HTTP API 和静态文件服务。
-- Web UI 使用两栏布局：
-  - 左侧：课程树 / 当前课表
-  - 右侧：日志 / 活动
+- 鉴权
+  - 账号密码登录
+  - Cookie 登录
+- 学生选课
+  - 课程/教学班查询检索
+  - 选课/退课
+  - 课程/教学班详情信息
+  - 已选课程列表
+- 学业情况
+  - 学业情况获取
 
-运行 Web UI：
+项目特色功能：
+
+- 现代化 WebUI 界面，以树状列表展示课程
+- 纯 api 操作，提高选课效率
+- 选课
+  - 筛选时间冲突教学班、超学分课程、无余量教学班
+  - 抢课引擎 — 基于表达式的可编程自动选课。定义筛选规则（按课程/教学班、教师、时间等），后台轮询检测余量，自动提交抢课。支持定时启停、错误重试、多任务并行
+  - 可视化展示已选课程表格
+- 学业情况
+  - 按学期、课程性质等筛选课程
+
+## 截图
+
+（待补充）
+
+## 快速开始
+
+需要 Python >= 3.14，建议使用 uv 管理环境。前端已预构建好
 
 ```bash
+# 安装 Python 依赖
+uv sync
+
+# 启动服务器
 uv run python main.py
 ```
 
-打开：
+打开 [127.0.0.1:8765](http://127.0.0.1:8765) ，选择教务地址并登录即可使用。 项目在正方教务 V-9.1.064（ZJNU）和 V-9.0（WMU） 上测试成功，因不同高校定制差异，登录逻辑可能不同，但 Cookie 登录应该是通用的。如果您想帮助本项目适配更多高校，参见 贡献指南。
 
-```text
-http://127.0.0.1:8765
+### 抢课表达式
+
+表达式使用 Python 语法，对每个候选教学班执行 `eval()`，返回 `True` 时自动提交选课。
+
+| 符号 | 类别 | 类型 | 说明 | 示例 |
+|------|------|------|------|------|
+| `course.id` | 课程静态 | string | 课程号 | `course.id == "123456789"` |
+| `course.name` | 课程静态 | string | 课程名称 | `"Python" in course.name` |
+| `course.credit` | 课程静态 | number\|null | 课程学分 | `course.credit and course.credit > 2` |
+| `course.categoryId` | 课程静态 | string | 课程所属大类 ID | `course.categoryId == "1"` |
+| `class.id` | 教学班静态 | string | 教学班操作 ID | `class.id == "abc123"` |
+| `class.no` | 教学班静态 | string | 教学班号 | `class.no == "01"` |
+| `class.teacher` | 教学班静态 | string | 教师姓名 | `"张" in class.teacher` |
+| `class.time` | 教学班静态 | string | 上课时间文本 | `"周三" in class.time` |
+| `class.location` | 教学班静态 | string | 上课地点 | `class.location == "25-102"` |
+| `class.not_conflicts` | 教学班静态 | boolean | 是否不与当前课表时间冲突 | `class.not_conflicts` |
+| `class.selected` | 教学班动态 | number | 已选人数（运行时最新值） | `class.selected < class.capacity` |
+| `class.capacity` | 教学班动态 | number | 总容量（运行时最新值） | `class.capacity > 100` |
+| `class.has_capacity` | 教学班动态 | boolean | 是否有余量（`capacity > selected`） | `class.has_capacity` |
+
+> **课程静态**、**教学班静态** — 引擎可据此缩小扫描范围。<br>
+> **教学班动态** — 运行时从最新教学班数据取值，**不会缩小候选扫描范围**。
+
+```python
+# 组合示例
+class.has_capacity and class.not_conflicts              # 有余量且无冲突（默认规则）
+class.has_capacity and "深度学习" in course.name        # 有余量且课程名匹配
+course.id == "xxxxxxxxx" and class.not_conflicts         # 指定课程号且无冲突
+"Python" in course.name or "AI" in course.name           # 满足任一课程名
 ```
 
-前端开发模式：
+## 开发
+
+### 技术栈
+
+| 层    | 技术                                                   |
+|-------|-------------------------------------------------------|
+| 后端  | Python 3.14+，stdlib `ThreadingHTTPServer`，`requests`，`pycryptodome`，`rsa` |
+| 前端  | React 19，Vite 8，Tailwind CSS 4，Coss UI（Base UI），Valtio，Monaco Editor |
+| 工具  | uv（Python），Bun（JavaScript）            |
 
 ```bash
+# 终端 1：启动后端 API 服务
 uv run python main.py
+
+# 终端 2：启动前端开发服务器（HMR）
 bun run dev
 ```
 
-打开：
-
-```text
-http://127.0.0.1:5173
-```
-
-`bun run dev` 会启用 Bun HMR，并将 `/api/*` 代理到 `http://127.0.0.1:8765`。
-
-状态职责、上游请求边界和 SSE/普通请求分工见 `docs/state-and-events.md`。
-
-构建前端静态资源：
+开发模式下打开 [127.0.0.1:5173](http://127.0.0.1:5173) ，Vite 将 `/api/*` 代理到 Python 后端。
 
 ```bash
+# 构建前端静态资源
 bun run build
+
+# 构建检查（不写入 dist）
+bun run check
+
+# Python 语法检查
+uv run python -m py_compile main.py jwxt/core.py jwxt/web/grab.py jwxt/web/service.py jwxt/web/server.py
 ```
+
+### 架构
+
+```mermaid
+graph LR
+    subgraph Frontend["前端 React"]
+        UI["课程浏览 / 筛选 / 选课退课<br/>抢课面板 / 课表 / 日志流"]
+    end
+
+    subgraph Backend["后端 Python — ThreadingHTTPServer :8765"]
+        SVC["JWXTWebService"]
+        Auth["auth"]
+        CourseAPI["course / class API"]
+        Tb["timetable"]
+        AS["academic status"]
+        Grab["grab engine"]
+        LogS["log / event pub/sub"]
+        Core["jwxt.core"]
+        Sess["requests.Session"]
+        RSA["RSA 加密"]
+        Wrap["教务 API wrapper"]
+
+        SVC --- Auth
+        SVC --- CourseAPI
+        SVC --- Tb
+        SVC --- AS
+        SVC --- Grab
+        SVC --- LogS
+        SVC --- Core
+        Core --- Sess
+        Core --- RSA
+        Core --- Wrap
+    end
+
+    subgraph JWXT["正方教务系统"]
+        ZJNU["jwxt.zjnu.cn"]
+    end
+
+    Frontend -->|HTTP REST / SSE| Backend
+    Wrap -->|HTTP| JWXT
+```
+
+后端无框架依赖，全部基于 Python 标准库 `http.server`。抢课调度器运行在独立后台线程中，通过 SSE 向前端推送状态。
+
+### API
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/api/bootstrap` | GET | 获取登录状态、当前学期等信息 |
+| `/api/login` | POST | 学号密码登录 |
+| `/api/login/cookie` | POST | Cookie 登录 |
+| `/api/categories` | GET | 课程分类列表 |
+| `/api/courses` | GET | 某分类下的课程列表 |
+| `/api/courses/search` | POST | 带筛选条件的课程搜索 |
+| `/api/classes` | GET | 某课程的教学班详情 |
+| `/api/choose` | POST | 选课 |
+| `/api/withdraw` | POST | 退课 |
+| `/api/timetable` | GET | 已选课表 |
+| `/api/academic-status` | GET | 培养方案进度 |
+| `/api/addresses/test` | POST | 测试教务地址连通性 |
+| `/api/grab/tasks` | GET/POST | 抢课任务列表/创建 |
+| `/api/grab/tasks/start\|stop` | POST | 启停抢课任务 |
+| `/api/grab/preview` | POST | 预览抢课匹配结果 |
+| `/api/grab/load-missing` | POST | 加载缺失的课程/教学班数据 |
+| `/api/logs` | GET | 获取日志 |
+| `/api/logs/clear` | POST | 清空日志 |
+| `/api/logs/stream` | GET | SSE 日志流 |
+| `/api/events` | GET | SSE 事件流 |
+
+## 许可
+
+MIT

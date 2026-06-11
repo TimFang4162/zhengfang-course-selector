@@ -51,7 +51,7 @@ export function createGrabFeature({ state, getApp }) {
       tokenizer: {
         root: [
           [/\b(and|or|not|in)\b/, "keyword"],
-          [/\b(course|class|teachers|conflicts|has_capacity)\b/, "variable"],
+          [/\b(course|class|has_capacity|not_conflicts)\b/, "variable"],
           [/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/, "string"],
           [/\b\d+(\.\d+)?\b/, "number"],
           [/[=!<>]=?|[()]/, "operator"],
@@ -177,7 +177,7 @@ export function createGrabFeature({ state, getApp }) {
     };
     state.grabDraft = context;
     state.grabDraftLabel = context.label;
-    setGrabExpressionValue('((course.categoryId == "2" and course.id == "000000X121A165")) and has_capacity and not conflicts');
+    setGrabExpressionValue('((course.categoryId == "2" and course.id == "000000X121A165")) and class.has_capacity and class.not_conflicts');
     state.grabPreviewData = null;
     state.grabStatusText = "";
     state.grabStatusClass = "grab-status";
