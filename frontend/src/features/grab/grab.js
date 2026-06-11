@@ -108,12 +108,23 @@ export function createGrabFeature({ state, getApp }) {
   }
 
   function grabProgressText(task) {
-    const debug = task.lastTickDebug || {};
-    const base = `第 ${task.tickCount || 0} 轮，成功 ${task.successCount || 0} 次，候选 ${task.candidateCourseCount || 0} 门/${task.candidateClassCount || 0} 班`;
-    if (task.status === "waiting") return `待启动，候选 ${task.candidateCourseCount || 0} 门/${task.candidateClassCount || 0} 班`;
-    if (!task.tickCount) return `${base}，等待首次扫描`;
-    if (task.status === "running") return `${base}，上轮检查 ${debug.checkedClassCount ?? 0} 班，提交 ${debug.attemptedCount ?? 0} 次`;
-    return `${base}，${task.progress || grabStatusLabel(task.status)}`;
+    const status = task.status;
+    const tc = task.tickCount ?? 0;
+    const sc = task.successCount ?? 0;
+    const d = task.lastTickDebug ?? {};
+    if (status === "waiting") return `候选${task.candidateCourseCount ?? 0}门 · 待启动`;
+    if (status === "running" && !tc) return `候选${task.candidateCourseCount ?? 0}门 · 等待首次扫描`;
+    let parts = [];
+    if (tc) parts.push(`第${tc}轮`);
+    if (sc) parts.push(`成功${sc}次`);
+    if (status === "running") {
+      const checked = d.checkedClassCount ?? 0;
+      const attempted = d.attemptedCount ?? 0;
+      if (checked) parts.push(`检查${checked} 提交${attempted}`);
+    } else {
+      parts.push(task.progress || grabStatusLabel(status));
+    }
+    return parts.join(" · ");
   }
 
   function openGrabModal(context) {
@@ -169,18 +180,18 @@ export function createGrabFeature({ state, getApp }) {
     const candidateCourseText = data.ready ? String(data.candidateCourseCount || 0) : "?";
     const candidateClassText = data.ready ? String(data.candidateClassCount || 0) : "?";
     const requestText = data.ready ? String(data.estimatedRequestsPerTick || 0) : "?";
-    state.grabStatusText = `语法正确，扫描候选 ${data.matches.length} 项，候选课程 ${candidateCourseText} 门，候选教学班 ${candidateClassText} 个，预计每轮扫描 ${requestText} 个请求`;
+    state.grabStatusText = `语法正确 · ${data.matches.length}项匹配 · 候选${candidateCourseText}门${candidateClassText}班 · 预计${requestText}请求/轮`;
     state.grabStatusClass = "grab-status is-ok";
     state.grabPreviewData = data;
   }
 
   async function loadGrabMissing(missing) {
     const app = getApp();
-    app.activity.upsertActivity("grab-preview-load", { name: "加载抢课预览缺失数据", status: "运行中", progress: "加载中" });
+    app.activity.upsertActivity("grab-preview-load", { name: "加载抢课预览", status: "运行中", progress: "加载中" });
     const result = await apiPost("/api/grab/load-missing", { missing });
     app.tree.applyTreeState(result.tree);
     app.tree.renderTree();
-    app.activity.upsertActivity("grab-preview-load", { name: "加载抢课预览缺失数据", status: "完成", progress: "已同步课程树" });
+    app.activity.upsertActivity("grab-preview-load", { name: "加载抢课预览", status: "完成", progress: "已同步课程树" });
     await refreshGrabPreview();
   }
 
@@ -201,6 +212,7 @@ export function createGrabFeature({ state, getApp }) {
     app.activity.upsertActivity(task.id, {
       name: task.name,
       status: grabStatusLabel(task.status),
+      statusKey: task.status,
       progress: grabProgressText(task),
     });
     closeGrabModal();
@@ -214,6 +226,7 @@ export function createGrabFeature({ state, getApp }) {
       app.activity.upsertActivity(task.id, {
         name: task.name,
         status: grabStatusLabel(task.status),
+        statusKey: task.status,
         progress: grabProgressText(task),
       });
     }

@@ -5,6 +5,7 @@ import { state } from "../app/state.js";
 import { cx } from "../shared/utils.js";
 import { Button } from "../components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "../components/ui/select";
+import { Badge } from "../components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../components/ui/menu";
 import { apiPost } from "../api/client.js";
@@ -73,27 +74,27 @@ export function RightPane() {
           </div>
         </div>
         <div className="activity-panel flex-1 min-h-0 overflow-auto">
-          <Table className="activity-table">
+          <Table className="table-fixed border-collapse">
             <TableHeader>
-              <TableRow><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">任务</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">状态</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">进度</TableHead></TableRow>
+               <TableRow><TableHead className="sticky top-0 bg-card z-10">任务</TableHead><TableHead className="sticky top-0 bg-card z-10">状态</TableHead><TableHead className="sticky top-0 bg-card z-10">进度</TableHead></TableRow>
             </TableHeader>
             <TableBody id="activity-list">
               {snap.activities.length ? snap.activities.map((item) => (
                 <TableRow key={item.id} className={cx("activity-row", { "is-clickable": Boolean(state.grabTasks[item.id]) })} onClick={() => { const task = state.grabTasks[item.id]; if (task) app.grab.showGrabTaskDetail(task); }}>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.name}</TableCell>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.status}</TableCell>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.progress} {snap.grabTasks[item.id] && (
+                  <TableCell className="overflow-hidden text-ellipsis">{item.name}</TableCell>
+                  <TableCell><Badge variant={{ waiting: "secondary", running: "default", stopped: "secondary", timeout: "destructive", failed: "destructive", success: "success" }[item.statusKey] || "secondary"} className="font-normal">{item.status}</Badge></TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+              <span className="flex items-center justify-between gap-1 overflow-hidden"><span className="truncate">{item.progress}</span>
               <Menu>
-                <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px]" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
+                <MenuTrigger><Button variant="ghost" size="icon-xs" className="min-w-[22px] min-h-5 shrink-0 px-[5px]" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
                 <MenuPopup>
                   {snap.grabTasks[item.id] && <MenuItem onClick={() => app.grab.showGrabTaskDetail(snap.grabTasks[item.id])}><Eye aria-hidden="true" />详情</MenuItem>}
                   <MenuItem onClick={() => { apiPost("/api/grab/tasks/start", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Play aria-hidden="true" />启动</MenuItem>
                   <MenuItem onClick={() => { apiPost("/api/grab/tasks/stop", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Square aria-hidden="true" />停止</MenuItem>
                 </MenuPopup>
-              </Menu>
-            )}</TableCell>
+              </Menu></span></TableCell>
                 </TableRow>
-              )) : <TableRow><TableCell colSpan="3" className="text-muted-foreground"><Inbox className="inline size-4 mr-1 align-[-2px]" />暂无活动</TableCell></TableRow>}
+              )) : <TableRow><TableCell colSpan={3}><span className="inline-flex items-center gap-1.5 text-muted-foreground"><Inbox className="size-4" aria-hidden="true" />暂无活动</span></TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
