@@ -167,8 +167,8 @@ export function ModalLayer() {
               {!pickerOptions.length ? (
                 !pickerLoading && <div className="py-2 px-2 text-muted-foreground text-sm">无选项，输入关键词后搜索或稍后重试</div>
               ) : pickerIsMajor ? (
-                <Table className="w-full min-w-max border-collapse text-xs">
-                  <TableHeader><TableRow><TableHead className="w-[34px] text-center"></TableHead><TableHead className="text-muted-foreground font-semibold">专业代码</TableHead><TableHead className="text-muted-foreground font-semibold">专业名称</TableHead><TableHead className="text-muted-foreground font-semibold">学院</TableHead></TableRow></TableHeader>
+                <Table className="min-w-max border-collapse text-xs">
+                  <TableHeader><TableRow><TableHead className="w-[34px] text-center"></TableHead><TableHead className="font-semibold">专业代码</TableHead><TableHead className="font-semibold">专业名称</TableHead><TableHead className="font-semibold">学院</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {pickerOptions.map((item) => (
                       <TableRow key={item.value} onClick={() => togglePickerValue(item.value, item.displayLabel || item.label)} className={cx("hover:bg-accent", { "bg-accent/50": pickerOptionSelected(item.value) })}>
@@ -248,9 +248,9 @@ export function ModalLayer() {
                     <div className="class-meta"><div>冲突课程</div><div>{classConflictEntries.map((entry) => <div key={entry.doJxbId}>{entry.name} <span className="text-muted-foreground">{entry.classNo || "-"} / {entry.sksj || "-"}</span></div>)}</div></div>
                   )}
                   {snap.teacherDetail === null && (
-                    <Button variant="link" size="sm" onClick={() => app.timetable.loadTeacherDetail(modalClass.item.teacherJghId, modalClass.item.kchId || modalClass?.course?.kchId)} style={{ marginTop: 8 }}>查看教师详情</Button>
+                    <Button variant="link" size="sm" onClick={() => app.timetable.loadTeacherDetail(modalClass.item.teacherJghId, modalClass.item.kchId || modalClass?.course?.kchId)} className="mt-2">查看教师详情</Button>
                   )}
-                  {snap.teacherDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载教师详情中...</div>}
+                  {snap.teacherDetail?._loading && <div className="text-muted-foreground mt-2">加载教师详情中...</div>}
                   {snap.teacherDetail && !snap.teacherDetail._loading && (
                     <Accordion>
                       <AccordionItem value="teacher-detail" defaultOpen>
@@ -269,7 +269,7 @@ export function ModalLayer() {
                           {snap.teacherDetail.office && <><div>科室名称</div><div>{snap.teacherDetail.office}</div></>}
                           {snap.teacherDetail.introduction && <><div>教师简介</div><div>{snap.teacherDetail.introduction}</div></>}
                         </div>
-                      ) : <div className="text-muted-foreground" style={{ marginTop: 6 }}>暂无教师详情数据</div>}
+                      ) : <div className="mt-1.5">暂无教师详情数据</div>}
                         </AccordionPanel>
                       </AccordionItem>
                     </Accordion>
@@ -284,9 +284,9 @@ export function ModalLayer() {
                   <div className="class-meta"><div>教学班</div><div>{modalClass.course.classCount ?? "-"}</div></div>
                   <div className="class-meta"><div>已选</div><div>{snap.timetable.selectedCourseIds?.includes(modalClass.course.kchId) ? "是" : "否"}</div></div>
                   {snap.courseDetail === null && (
-                    <Button variant="link" size="sm" onClick={() => app.timetable.loadCourseDetail(modalClass.course.kchId)} style={{ marginTop: 8 }}>查看课程详情</Button>
+                    <Button variant="link" size="sm" onClick={() => app.timetable.loadCourseDetail(modalClass.course.kchId)} className="mt-2">查看课程详情</Button>
                   )}
-                  {snap.courseDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情中...</div>}
+                  {snap.courseDetail?._loading && <div className="text-muted-foreground mt-2">加载课程详情中...</div>}
                   {snap.courseDetail && !snap.courseDetail._loading && (
                     <Accordion>
                       <AccordionItem value="course-detail" defaultOpen>
@@ -313,7 +313,7 @@ export function ModalLayer() {
                           {snap.courseDetail.introduction && <><div>课程简介</div><div>{snap.courseDetail.introduction}</div></>}
                           {snap.courseDetail.syllabus && <><div>教学大纲</div><div>{snap.courseDetail.syllabus}</div></>}
                         </div>
-                      ) : <div className="text-muted-foreground" style={{ marginTop: 6 }}>暂无课程详情数据</div>}
+                      ) : <div className="mt-1.5">暂无课程详情数据</div>}
                         </AccordionPanel>
                       </AccordionItem>
                     </Accordion>
@@ -376,7 +376,7 @@ export function ModalLayer() {
                 <TableBody>
                   {snap.speedRows.map((row) => (
                     <TableRow key={row.url} className={row.statusClass}>
-                      <TableCell className="py-[7px] px-2 border-b border-border text-left align-top"><Button variant="link" size="sm" className="link-button min-h-0 p-0 border-0 text-info bg-transparent text-left" onClick={() => { app.auth.setLoginBaseUrl(row.url); app.auth.closeSpeedModal(); }}>{row.url}</Button><div className="text-muted-foreground">{row.label}</div></TableCell>
+                      <TableCell className="py-[7px] px-2 border-b border-border text-left align-top"><Button variant="link" size="sm" className="link-button min-h-0 p-0 border-0 text-info text-left" onClick={() => { app.auth.setLoginBaseUrl(row.url); app.auth.closeSpeedModal(); }}>{row.url}</Button><div className="text-muted-foreground">{row.label}</div></TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.status}</TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.ms}</TableCell>
                       <TableCell className="py-[7px] px-2 border-b border-border text-left align-top">{row.message}</TableCell>
@@ -430,8 +430,8 @@ export function ModalLayer() {
             <DialogTitle>{snap.academicCourseDetail?.name || "课程基本信息"}</DialogTitle>
           </DialogHeader>
           <DialogPanel>
-            {snap.academicCourseDetail?._loading && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情中...</div>}
-            {snap.academicCourseDetail?._error && <div className="text-muted-foreground" style={{ marginTop: 8 }}>加载课程详情失败</div>}
+            {snap.academicCourseDetail?._loading && <div className="text-muted-foreground mt-2">加载课程详情中...</div>}
+            {snap.academicCourseDetail?._error && <div className="text-muted-foreground mt-2">加载课程详情失败</div>}
             {snap.academicCourseDetail && !snap.academicCourseDetail._loading && !snap.academicCourseDetail._error && snap.academicCourseDetail.name && (
               <Accordion>
                 <AccordionItem value="academic-course-detail" defaultOpen>
@@ -466,7 +466,7 @@ export function ModalLayer() {
                   <AccordionItem value="hours-breakdown" defaultOpen>
                     <AccordionTrigger>学时分配</AccordionTrigger>
                     <AccordionPanel>
-                    <Table style={{ margin: "4px 0", width: "100%" }}>
+                    <Table className="my-1">
                       <TableHeader>
                         <TableRow>
                           <TableHead>分项</TableHead>

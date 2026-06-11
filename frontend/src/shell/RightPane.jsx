@@ -75,16 +75,16 @@ export function RightPane() {
         <div className="activity-panel flex-1 min-h-0 overflow-auto">
           <Table className="activity-table">
             <TableHeader>
-              <TableRow><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">任务</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">状态</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top text-muted-foreground font-medium">进度</TableHead></TableRow>
+              <TableRow><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">任务</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">状态</TableHead><TableHead className="sticky top-0 bg-card border-b border-border-subtle px-2 py-[5px] text-left align-top">进度</TableHead></TableRow>
             </TableHeader>
             <TableBody id="activity-list">
               {snap.activities.length ? snap.activities.map((item) => (
                 <TableRow key={item.id} className={cx("activity-row", { "is-clickable": Boolean(state.grabTasks[item.id]) })} onClick={() => { const task = state.grabTasks[item.id]; if (task) app.grab.showGrabTaskDetail(task); }}>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</TableCell>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.status}</TableCell>
-                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis whitespace-nowrap">{item.progress} {snap.grabTasks[item.id] && (
+                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.name}</TableCell>
+                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.status}</TableCell>
+                  <TableCell className="border-b border-border-subtle px-2 py-[5px] text-left align-top overflow-hidden text-ellipsis">{item.progress} {snap.grabTasks[item.id] && (
               <Menu>
-                <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px] border-transparent bg-transparent" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
+                <MenuTrigger><Button variant="ghost" size="icon-xs" className="activity-more float-right min-w-[22px] min-h-5 px-[5px]" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
                 <MenuPopup>
                   {snap.grabTasks[item.id] && <MenuItem onClick={() => app.grab.showGrabTaskDetail(snap.grabTasks[item.id])}><Eye aria-hidden="true" />详情</MenuItem>}
                   <MenuItem onClick={() => { apiPost("/api/grab/tasks/start", { id: item.id }).then(() => app.grab.pollGrabTasks()).catch(app.showError); }}><Play aria-hidden="true" />启动</MenuItem>
