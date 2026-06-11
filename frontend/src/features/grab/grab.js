@@ -7,6 +7,23 @@ import { grabContextPayload } from "./preview.js";
 export function createGrabFeature({ state, getApp }) {
   let previewTimer = null;
 
+  function disposeGrabMonaco() {
+    if (!state.grabEditor) return;
+    const model = state.grabEditor.getModel();
+    state.grabEditor.dispose();
+    if (model) model.dispose();
+    state.grabEditor = null;
+    const textarea = document.getElementById("grab-expression");
+    if (textarea) textarea.classList.remove("monaco-enabled");
+  }
+
+  function scheduleGrabMonacoInit() {
+    window.requestAnimationFrame(() => {
+      initGrabMonaco();
+      if (state.grabEditor) state.grabEditor.layout();
+    });
+  }
+
   function scheduleGrabPreview() {
     if (previewTimer) window.clearTimeout(previewTimer);
     previewTimer = window.setTimeout(() => {
@@ -87,6 +104,7 @@ export function createGrabFeature({ state, getApp }) {
   }
 
   function closeGrabModal() {
+    disposeGrabMonaco();
     state.grabDraft = null;
     state.grabDraftLabel = "";
   }
@@ -135,7 +153,7 @@ export function createGrabFeature({ state, getApp }) {
     state.grabPreviewData = null;
     state.grabStatusText = "";
     state.grabStatusClass = "grab-status";
-    if (state.grabEditor) state.grabEditor.layout();
+    scheduleGrabMonacoInit();
     refreshGrabPreview().catch(getApp().showError);
   }
 
@@ -163,7 +181,7 @@ export function createGrabFeature({ state, getApp }) {
     state.grabPreviewData = null;
     state.grabStatusText = "";
     state.grabStatusClass = "grab-status";
-    if (state.grabEditor) state.grabEditor.layout();
+    scheduleGrabMonacoInit();
     refreshGrabPreview().catch(getApp().showError);
   }
 
@@ -311,6 +329,7 @@ export function createGrabFeature({ state, getApp }) {
     confirmGrabExpression,
     pollGrabTasks,
     connectEventStream,
+    disposeGrabMonaco,
     showGrabTaskDetail,
     closeGrabTaskDetail,
     grabStatusLabel,

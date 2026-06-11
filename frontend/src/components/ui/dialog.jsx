@@ -178,6 +178,7 @@ export function DialogDescription(
 export function DialogPanel(
   {
     className,
+    plain = false,
     scrollFade = true,
     render,
     ...props
@@ -191,15 +192,15 @@ export function DialogPanel(
     "data-slot": "dialog-panel",
   };
 
-  return (
-    <ScrollArea scrollFade={scrollFade}>
-      {useRender({
-        defaultTagName: "div",
-        props: mergeProps(defaultProps, props),
-        render,
-      })}
-    </ScrollArea>
-  );
+  const content = useRender({
+    defaultTagName: "div",
+    props: mergeProps(defaultProps, props),
+    render,
+  });
+
+  if (plain) return content;
+
+  return <ScrollArea scrollFade={scrollFade}>{content}</ScrollArea>;
 }
 
 export {

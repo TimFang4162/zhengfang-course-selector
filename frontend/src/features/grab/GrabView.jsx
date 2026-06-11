@@ -118,7 +118,7 @@ export function GrabModal() {
           <div className="eyebrow">Grab Rule</div>
           <DialogTitle>添加抢课任务 / {snap.grabDraftLabel || snap.grabDraft?.type || "-"}</DialogTitle>
         </DialogHeader>
-        <DialogPanel>
+        <DialogPanel plain>
           <div className="grab-editor">
             <Label htmlFor="grab-expression">表达式</Label>
             <div id="grab-monaco" className="grab-monaco"></div>

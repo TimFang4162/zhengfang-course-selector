@@ -87,6 +87,7 @@ export const state = proxy({
   grabTaskDetail: null,
   grabEditor: null,
   rawContentEditor: null,
+  rawContentValue: "",
   rawContentMode: "html",
   rawModalVisible: false,
   rawModalTitle: "教务原始网页",

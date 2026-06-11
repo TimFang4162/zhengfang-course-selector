@@ -5,6 +5,20 @@ import { downloadJson } from "../../shared/utils.js";
 import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 
 export function createAcademicFeature({ state }) {
+  function disposeRawContentMonaco() {
+    if (!state.rawContentEditor) return;
+    const model = state.rawContentEditor.getModel();
+    state.rawContentEditor.dispose();
+    if (model) model.dispose();
+    state.rawContentEditor = null;
+  }
+
+  function scheduleRawContentMonacoInit() {
+    window.requestAnimationFrame(() => {
+      ensureRawContentMonaco();
+    });
+  }
+
   function initRawContentMonaco() {
     const root = document.getElementById("academic-raw-content");
     if (!root || state.rawContentEditor) return;
@@ -19,17 +33,22 @@ export function createAcademicFeature({ state }) {
       fontSize: 13,
       wordWrap: "on",
     }));
+    syncRawContentEditor();
+  }
+
+  function syncRawContentEditor() {
+    if (!state.rawContentEditor) return;
+    const model = state.rawContentEditor.getModel();
+    if (!model) return;
+    monaco.editor.setModelLanguage(model, state.rawContentMode || "html");
+    state.rawContentEditor.setValue(state.rawContentValue || "");
   }
 
   function setRawContentValue(value, language) {
-    initRawContentMonaco();
-    if (!state.rawContentEditor) return;
-    const model = state.rawContentEditor.getModel();
-    if (model) {
-      monaco.editor.setModelLanguage(model, language);
-      state.rawContentEditor.setValue(value || "");
-    }
+    state.rawContentValue = value || "";
     state.rawContentMode = language;
+    initRawContentMonaco();
+    syncRawContentEditor();
   }
 
   function renderAcademicStatus() {
@@ -93,9 +112,10 @@ export function createAcademicFeature({ state }) {
     state.rawModalTitle = "教务原始网页";
     state.rawPreviewVisible = true;
     state.rawPreviewSrcdoc = raw || "<div>暂无原始网页内容</div>";
+    state.rawModalVisible = true;
     setRawContentValue(raw || "暂无原始网页内容", "html");
     switchAcademicRawTab("preview");
-    state.rawModalVisible = true;
+    scheduleRawContentMonacoInit();
   }
 
   function showAcademicDetailJson() {
@@ -103,9 +123,10 @@ export function createAcademicFeature({ state }) {
     state.rawModalTitle = "学业明细原始 JSON";
     state.rawPreviewVisible = false;
     state.rawPreviewSrcdoc = "";
+    state.rawModalVisible = true;
     setRawContentValue(JSON.stringify(raw, null, 2) || "[]", "json");
     switchAcademicRawTab("source");
-    state.rawModalVisible = true;
+    scheduleRawContentMonacoInit();
   }
 
   function exportAcademicDataJson() {
@@ -117,7 +138,14 @@ export function createAcademicFeature({ state }) {
     if (state.rawContentEditor) state.rawContentEditor.layout();
   }
 
+  function ensureRawContentMonaco() {
+    initRawContentMonaco();
+    syncRawContentEditor();
+    if (state.rawContentEditor) state.rawContentEditor.layout();
+  }
+
   function closeAcademicRawModal() {
+    disposeRawContentMonaco();
     state.rawModalVisible = false;
   }
 
@@ -161,6 +189,8 @@ export function createAcademicFeature({ state }) {
     showAcademicDetailJson,
     exportAcademicDataJson,
     switchAcademicRawTab,
+    ensureRawContentMonaco,
+    disposeRawContentMonaco,
     closeAcademicRawModal,
     loadAcademicCourseDetail,
     closeAcademicCourseDetail,

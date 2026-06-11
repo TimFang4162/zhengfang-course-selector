@@ -214,7 +214,7 @@ export function ModalLayer() {
           <DialogHeader>
             <DialogTitle>{modalTitle}</DialogTitle>
           </DialogHeader>
-          <DialogPanel>
+          <DialogPanel plain>
             <div id="modal-content" className="min-h-0 p-2.5 overflow-y-auto bg-background border border-border">
               {modalClass?.entry && (
                 <>

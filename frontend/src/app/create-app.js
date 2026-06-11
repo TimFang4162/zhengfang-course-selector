@@ -28,7 +28,6 @@ export function createApp() {
   app.start = async () => {
     applyStoredLayout();
     bindSplitters();
-    app.grab.initGrabMonaco();
     app.tree.setFilterStatus();
     app.activity.renderActivities();
     if (!state.bootstrap) await app.auth.loadBootstrap();
