@@ -96,6 +96,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 refresh = query.get("refresh", ["0"])[0] == "1"
                 self._write_json(SERVICE.fetch_timetable(refresh=refresh))
                 return
+            if parsed.path == "/api/academic-gpa-detail":
+                self._write_json(SERVICE.fetch_academic_gpa_detail())
+                return
             if parsed.path == "/api/academic-course-detail":
                 kch_id = str(query.get("kch_id", [""])[0])
                 self._write_json(SERVICE.fetch_academic_course_basic_info(kch_id))

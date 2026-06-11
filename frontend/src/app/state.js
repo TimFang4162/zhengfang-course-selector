@@ -55,6 +55,7 @@ export const state = proxy({
   academicStatus: null,
   academicExpandedNodes: new Set(),
   academicCourseDetail: null,
+  academicGpaDetail: null,
   academicNodeCourses: {},
   academicLoading: false,
   academicVersion: 0,

@@ -911,6 +911,17 @@ class JWXTWebService(GrabTaskMixin):
                 "cacheStatus": cache_status,
             }
 
+    def fetch_academic_gpa_detail(self):
+        with self.lock:
+            self._require_auth()
+            self._log_info("获取 GPA 明细")
+            xh_id = ""
+            if self.academic_status_cache:
+                xh_id = self.academic_status_cache.get("params", {}).get("xh_id", "")
+            return self.mod.fetch_academic_gpa_detail(
+                xh_id=xh_id, debug_func=self._log_debug
+            )
+
     def fetch_academic_node_courses(self, node_id: str, refresh: bool = False):
         with self.lock:
             self._require_auth()

@@ -149,6 +149,15 @@ export function createAcademicFeature({ state }) {
     state.rawModalVisible = false;
   }
 
+  async function loadAcademicGpaDetail() {
+    state.academicGpaDetail = null;
+    try {
+      state.academicGpaDetail = await apiGet("/api/academic-gpa-detail");
+    } catch {
+      state.academicGpaDetail = [];
+    }
+  }
+
   async function loadAcademicCourseDetail(kchId) {
     if (!kchId) return;
     state.academicCourseDetail = { _loading: true };
@@ -192,6 +201,7 @@ export function createAcademicFeature({ state }) {
     ensureRawContentMonaco,
     disposeRawContentMonaco,
     closeAcademicRawModal,
+    loadAcademicGpaDetail,
     loadAcademicCourseDetail,
     closeAcademicCourseDetail,
   };

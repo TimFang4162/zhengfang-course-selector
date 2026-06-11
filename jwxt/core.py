@@ -1351,6 +1351,47 @@ def fetch_academic_node_courses(
         return []
 
 
+def fetch_academic_gpa_detail(xh_id="", log_func=None, debug_func=None):
+    try:
+        if debug_func:
+            debug_func("获取 GPA 明细")
+        ts = int(time.time() * 1000)
+        data = {
+            "xh_id": xh_id or STUDENT_NUMBER,
+            "_search": "false",
+            "nd": str(ts),
+            "queryModel.showCount": "15",
+            "queryModel.currentPage": "1",
+            "queryModel.sortName": " ",
+            "queryModel.sortOrder": "asc",
+            "time": "0",
+        }
+        resp = http_post(
+            base_url
+            + "/jwglxt/xsxy/xsxyqk_cxKczxAllIndex.html?doType=query&gnmkdm=N105515",
+            data=data,
+            timeout=REQ_TIMEOUT["academic_detail"],
+        )
+        result = resp.json()
+        items = result.get("items", [])
+        return [
+            {
+                "gpa": item.get("gpa", ""),
+                "credits": item.get("hdxf", ""),
+                "courseNatureCode": item.get("kcxzdm", ""),
+                "courseNature": item.get("kcxzmc", ""),
+                "year": item.get("year", ""),
+            }
+            for item in items
+        ]
+    except Exception as exc:
+        if log_func:
+            log_func(f"获取 GPA 明细失败: {exc}")
+        if debug_func:
+            debug_func(f"GPA 明细异常: {exc}")
+        return []
+
+
 def fetch_academic_status(tree_only=False, log_func=None, debug_func=None):
     try:
         page = http_get(

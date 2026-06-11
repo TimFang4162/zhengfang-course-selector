@@ -19,7 +19,7 @@
   top: 0;
   z-index: 3;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) minmax(82px, 112px) minmax(54px, 64px) minmax(58px, 78px) 24px;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(160px, 220px) minmax(54px, 64px) minmax(58px, 78px) 24px;
   min-height: 27px;
   align-items: center;
   gap: 8px;
@@ -32,7 +32,7 @@
 
 .academic-node-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(82px, 112px) minmax(54px, 64px) minmax(58px, 78px) 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) minmax(54px, 64px) minmax(58px, 78px) 24px;
   align-items: center;
   gap: 8px;
 }
@@ -61,7 +61,6 @@
   white-space: nowrap;
 }
 
-.academic-node-credit,
 .academic-node-state,
 .academic-node-count {
   min-width: 0;
@@ -72,35 +71,22 @@
   white-space: nowrap;
 }
 
+.academic-node-credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--vscode-fg-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .academic-node-state {
   display: flex;
   gap: 3px;
 }
 
-.academic-progress {
-  height: 2px;
-  margin-left: 25px;
-  background: var(--vscode-border-subtle);
-}
 
-.academic-progress span {
-  display: block;
-  height: 100%;
-  background: var(--vscode-warning);
-}
-
-.academic-progress.is-full span,
-.academic-progress.is-passed span {
-  background: var(--vscode-success);
-}
-
-.academic-progress.is-overflow span {
-  background: var(--vscode-purple);
-}
-
-.academic-progress.is-node_failed span {
-  background: var(--vscode-error);
-}
 
 .academic-course-table {
   width: calc(100% - 25px);
@@ -153,22 +139,7 @@
   background: var(--vscode-list-hover-bg);
 }
 
-.academic-course-table tr.is-passed td:first-child,
-.academic-course-table tr.is-substituted td:first-child {
-  border-left: 2px solid var(--vscode-success);
-}
 
-.academic-course-table tr.is-failed td:first-child {
-  border-left: 2px solid var(--vscode-error);
-}
-
-.academic-course-table tr.is-studying td:first-child {
-  border-left: 2px solid var(--vscode-info);
-}
-
-.academic-course-table tr.is-not_started td:first-child {
-  border-left: 2px solid var(--vscode-warning);
-}
 
 .academic-empty {
   padding: 8px 25px;
@@ -212,7 +183,7 @@
 
 @media (max-width: 900px) {
   .academic-tree-head {
-    grid-template-columns: 18px minmax(0, 1fr) minmax(74px, 92px) minmax(48px, 58px) 24px;
+    grid-template-columns: 18px minmax(0, 1fr) minmax(140px, 190px) minmax(48px, 58px) 24px;
   }
 
   .academic-tree-head > span:nth-child(5) {
@@ -224,7 +195,7 @@
   }
 
   .academic-node-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(74px, 92px) minmax(48px, 58px) 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 150px) minmax(48px, 58px) 24px;
   }
 
   .academic-node-grid > *:nth-child(4) {
@@ -239,7 +210,7 @@
 
 @media (max-width: 640px) {
   .academic-tree-head {
-    grid-template-columns: 18px minmax(0, 1fr) minmax(62px, 78px) 24px;
+    grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 160px) 24px;
     gap: 6px;
   }
 
@@ -248,7 +219,7 @@
   }
 
   .academic-node-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(62px, 78px) 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px) 24px;
     gap: 6px;
   }
 

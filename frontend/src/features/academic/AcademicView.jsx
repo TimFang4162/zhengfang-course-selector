@@ -5,6 +5,8 @@ import { academicFilterNatures, academicFilterTerms } from "./filters.js";
 import { cx } from "../../shared/utils.js";
 import { Button } from "../../components/ui/button";
 import { Menu, MenuTrigger, MenuPopup, MenuItem } from "../../components/ui/menu";
+import { Popover, PopoverTrigger, PopoverPopup } from "../../components/ui/popover";
+import { Progress, ProgressTrack, ProgressIndicator } from "../../components/ui/progress";
 import { Ellipsis, ChevronRight, ChevronDown, FilterX, RefreshCw } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../components/ui/table";
@@ -62,7 +64,7 @@ function academicNodeHasVisibleContent(node, filters, nodeCoursesMap) {
 }
 
 function AcademicBadge({ type, children }) {
-  const typeMap = { passed: "success", substituted: "info", studying: "warning", failed: "destructive" };
+  const typeMap = { passed: "success", substituted: "warning", studying: "info", failed: "destructive" };
   return <Badge variant={typeMap[type] || "secondary"}>{children || "未知"}</Badge>;
 }
 
@@ -148,7 +150,14 @@ function AcademicNode({ node, level }) {
         </Button>
         <div className="flex-1 min-w-0 grid academic-node-grid items-center gap-2">
           <span className="academic-node-title">{node.name}</span>
-          <span className="academic-node-credit">{node.earnedCredit || "0.0"}/{node.requiredCredit || "-"} 学分</span>
+          <span className="academic-node-credit">
+            <Progress value={progressWidth} className="w-[120px] shrink-0" data-status={node.creditStatus}>
+              <ProgressTrack className="h-1.5">
+                <ProgressIndicator className="transition-all duration-500" style={{ background: { full: "var(--vscode-success)", passed: "var(--vscode-success)", overflow: "var(--vscode-warning)", node_failed: "var(--vscode-error)" }[node.creditStatus] || "var(--vscode-info)" }} />
+              </ProgressTrack>
+            </Progress>
+            {node.earnedCredit || "0.0"}/{node.requiredCredit || "-"}
+          </span>
           <span className="academic-node-state">
             <AcademicBadge type={node.creditStatus}>{node.creditStatusText || "未知"}</AcademicBadge>
             {node.substituteStatus && node.substituteStatus !== "none" && (
@@ -168,7 +177,6 @@ function AcademicNode({ node, level }) {
       </div>
       {expanded && (
         <div className="academic-children">
-          <div className={`academic-progress is-${node.creditStatus || "unknown"}`}><span style={{ width: `${progressWidth}%` }}></span></div>
           {children.length ? (
             children.map((child) => <AcademicNode key={child.id} node={child} level={level + 1} />)
           ) : (
@@ -187,6 +195,7 @@ function AcademicNode({ node, level }) {
 }
 
 export function AcademicStatusView() {
+  const app = useAppContext();
   const snap = useSnapshot(state);
   void snap.academicVersion;
   const nodes = snap.academicStatus?.nodes || [];
@@ -205,7 +214,41 @@ export function AcademicStatusView() {
         <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">方案</span><strong className="text-foreground text-sm font-medium truncate">{summary.plan}</strong></div>
         <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">学分</span><strong className="text-foreground text-sm font-medium truncate">{summary.earned}/{summary.required}</strong></div>
         <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">未获</span><strong className="text-foreground text-sm font-medium truncate">{summary.remaining}</strong></div>
-        <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">GPA</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.serverGpa || "-"}</strong></div>
+        <Popover onOpenChange={(open) => { if (open && !snap.academicGpaDetail) app.academic.loadAcademicGpaDetail(); }}>
+          <PopoverTrigger className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card cursor-pointer hover:bg-accent text-left">
+            <span className="text-muted-foreground text-xs">GPA</span>
+            <strong className="text-foreground text-sm font-medium truncate">{serverSummary.serverGpa || "-"}</strong>
+          </PopoverTrigger>
+          <PopoverPopup side="bottom" align="start" className="min-w-[280px]">
+            <div className="text-sm font-semibold mb-2">绩点明细</div>
+            {snap.academicGpaDetail === null ? (
+              <div className="text-muted-foreground text-xs">加载中...</div>
+            ) : snap.academicGpaDetail.length === 0 ? (
+              <div className="text-muted-foreground text-xs">暂无数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-muted-foreground border-b border-border/50">
+                      <th className="text-left font-medium py-1 pr-2">课程性质</th>
+                      <th className="text-right font-medium px-2">学分</th>
+                      <th className="text-right font-medium pl-2">绩点</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {snap.academicGpaDetail.map((item, i) => (
+                      <tr key={i} className="border-b border-border/30">
+                        <td className="py-1.5 pr-2">{item.courseNature}</td>
+                        <td className="text-right px-2">{item.credits}</td>
+                        <td className="text-right pl-2 font-medium">{item.gpa}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </PopoverPopup>
+        </Popover>
         <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">计划课程</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.planPassedCourses ?? 0}/{serverSummary.planTotalCourses ?? 0}</strong></div>
         <div className="grid gap-0.5 min-w-0 px-2.5 py-2 bg-card"><span className="text-muted-foreground text-xs">未修/在读</span><strong className="text-foreground text-sm font-medium truncate">{serverSummary.planUnstartedCourses ?? 0}/{serverSummary.planStudyingCourses ?? 0}</strong></div>
       </div>
