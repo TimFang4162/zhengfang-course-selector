@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
 import rsa
 import urllib3
-from Crypto.Util.number import bytes_to_long
+
 from fake_useragent import UserAgent
 
 
@@ -406,7 +406,8 @@ def http_post(url: str, **kwargs):
 
 def rsa_encryption(n, e, msg):
     key = rsa.PublicKey(
-        bytes_to_long(base64.b64decode(n)), bytes_to_long(base64.b64decode(e))
+        int.from_bytes(base64.b64decode(n), "big"),
+        int.from_bytes(base64.b64decode(e), "big"),
     )
     return rsa.encrypt(msg.encode("UTF-8"), key)
 
