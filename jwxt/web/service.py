@@ -941,6 +941,7 @@ class JWXTWebService(GrabTaskMixin):
             node = next((n for n in flat if n["id"] == node_id), None)
             if node is None:
                 raise ValueError(f"未找到节点: {node_id}")
+            self._log_info(f"展开学业情况节点: {node['name']}")
             courses = self.mod.fetch_academic_node_courses(
                 node_id, node.get("courseSource", ""), params, self._log_debug
             )
