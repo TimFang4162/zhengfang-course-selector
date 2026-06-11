@@ -13,8 +13,46 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "../components/ui/accordion";
 import { Spinner } from "../components/ui/spinner";
 import { Tabs, TabsList, TabsTab } from "../components/ui/tabs";
-import { BookOpen, Braces, Clock, KeyRound, Trash2, User, XIcon } from "lucide-react";
+import { BookOpen, Braces, Clock, Database, KeyRound, Trash2, User, XIcon } from "lucide-react";
 import { GrabModal, GrabTaskModal } from "../features/grab/GrabView.jsx";
+
+const CHOOSED_LABELS = {
+  kcmc: '课程名称', jxbmc: '教学班名称', sksj: '上课时间',
+  jsxx: '教师信息', jxdd: '教学地点',
+  kch_id: '课程号', t_kch_id: '课程号(教务)',
+  jxb_id: '教学班ID', do_jxb_id: '选课教学班ID', jxbh: '教学班号',
+  xf: '学分', jxbxf: '学分(教学班)',
+  zixf: '自选否', kklxmc: '课程类型', kklxdm: '课程类型代码',
+  rwlx: '任务类型', sxbj: '选上标记', cxbj: '重修标记',
+  xxkbj: '已修过标记', sfktk: '是否可退课', tktjrs: '退课提交人数',
+  jxbrs: '已选人数', yxzrs: '容量', qz: '权重',
+  zckz: 'ZCKZ', zntgpk: '智能投排课', ddkzbj: '单独控制学分',
+  isInxksj: '是否在选课时间内', krrl: 'Krrl', sfxkbj: '是否可选',
+  bhbcyxkjxb: 'Bhbcyxkjxb', bdzcbj: 'Bdzcbj', jdlx: 'Jdlx',
+  jxbzls: 'Jxbzls', kklxpx: 'Kklxpx', rlkz: 'Rlkz', rlzlkz: 'Rlzlkz', zy: '专业',
+};
+
+function RawDataAccordion({ rawData }) {
+  const entries = Object.entries(CHOOSED_LABELS).filter(([k]) => {
+    const v = rawData[k];
+    return v != null && v !== '';
+  });
+  return (
+    <Accordion>
+      <AccordionItem value="choosed-fields">
+        <AccordionTrigger><span className="inline-flex items-center gap-1.5"><Database className="size-4" />教务原始数据 ({entries.length} 字段)</span></AccordionTrigger>
+        <AccordionPanel>
+          <div className="debug-grid">
+            {entries.map(([key, label]) => (
+              <><div key={`${key}-l`}>{label}</div><div key={`${key}-v`}>{String(rawData[key])}</div></>
+            ))}
+          </div>
+          <pre className="max-h-[260px] mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.45] text-foreground">{formatDebugJson(rawData)}</pre>
+        </AccordionPanel>
+      </AccordionItem>
+    </Accordion>
+  );
+}
 
 export function ModalLayer() {
   const app = useAppContext();
@@ -182,13 +220,19 @@ export function ModalLayer() {
                 <>
                   <div className="class-meta"><div>课程</div><div>{modalClass.entry.name}</div></div>
                   <div className="class-meta"><div>课程号</div><div>{modalClass.entry.kchId || "-"}</div></div>
+                  <div className="class-meta"><div>课程类型</div><div>{modalClass.entry.kklxmc || "-"}</div></div>
                   <div className="class-meta"><div>教学班</div><div>{modalClass.entry.classNo || "-"}</div></div>
                   <div className="class-meta"><div>学分</div><div>{modalClass.entry.creditText || "-"}</div></div>
                   <div className="class-meta"><div>上课教师</div><div>{modalClass.entry.teacherName || ""} <span className="text-muted-foreground">{modalClass.entry.teacherTitle || ""}</span></div></div>
                   <div className="class-meta"><div>上课时间</div><div>{modalClass.entry.sksj || "-"}</div></div>
                   <div className="class-meta"><div>教学地点</div><div>{modalClass.entry.location || "-"}</div></div>
+                  <div className="class-meta"><div>重修标记</div><div>{modalClass.entry.cxbj === "1" ? <Badge variant="destructive" size="sm">重修</Badge> : "正常"}</div></div>
+                  <div className="class-meta"><div>选课方式</div><div>{modalClass.entry.zixf === "1" ? "自选上" : "系统调整"}</div></div>
+                  <div className="class-meta"><div>选课状态</div><div>{modalClass.entry.sxbj === "1" ? "已选上" : "待筛选"}</div></div>
+                  <div className="class-meta"><div>允许退课</div><div>{modalClass.entry.sfktk === "1" ? "是" : "否"}</div></div>
                 </>
               )}
+              {modalClass?.entry?.rawData && <RawDataAccordion rawData={modalClass.entry.rawData} />}
               {modalClass?.item && (
                 <>
                   <div className="class-meta"><div>教学班</div><div>{modalClass.item.classNo}</div></div>

@@ -819,6 +819,11 @@ class JWXTWebService(GrabTaskMixin):
                     item.get("jsxx", "")
                 )
                 location = item.get("jxdd", "").replace("<br/>", ", ")
+                cxbj = item.get("cxbj", "0")
+                kklxmc = item.get("kklxmc", "")
+                zixf = item.get("zixf", "0")
+                sxbj = item.get("sxbj", "0")
+                sfktk = item.get("sfktk", "1")
                 kch_id = str(item.get("t_kch_id") or item.get("kch_id") or "")
                 jxb_id = str(item.get("jxb_id") or "")
                 do_jxb_id = str(
@@ -849,11 +854,17 @@ class JWXTWebService(GrabTaskMixin):
                         "classNo": class_no,
                         "creditText": credit_text,
                         "creditValue": self._to_float_or_none(credit_text),
+                        "cxbj": cxbj,
+                        "kklxmc": kklxmc,
+                        "zixf": zixf,
+                        "sxbj": sxbj,
+                        "sfktk": sfktk,
                         "teacherName": teacher_name,
                         "teacherTitle": teacher_title,
                         "location": location,
                         "sksj": sksj,
                         "slots": self.mod.parse_sksj_to_slots(sksj),
+                        "rawData": item,
                     }
                 )
             max_credit = self.mod.max_credit_limit or 32.0

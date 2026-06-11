@@ -48,12 +48,15 @@ function selectedCourseCount(snap) {
   return snap.timetable.selectedCourseIds?.length || snap.timetable.entries?.length || 0;
 }
 
-function DetailCourseName({ entry }) {
+function DetailCourseName({ entry, app }) {
   return (
-    <>
-      <span className="font-medium">{entry.name}</span><br />
+    <button type="button" className="text-left cursor-pointer hover:underline" onClick={() => { state.modalClass = { entry }; }}>
+      <span className="font-medium">
+        {entry.name}
+        {entry.cxbj === "1" && <Badge variant="destructive" size="sm" className="ml-1 align-middle">重修</Badge>}
+      </span><br />
       <span className="text-muted-foreground">{[entry.kchId, entry.classNo].filter(Boolean).join("/")}</span>
-    </>
+    </button>
   );
 }
 
@@ -63,7 +66,7 @@ function DetailActionMenu({ entry, app }) {
       <MenuTrigger><Button variant="ghost" size="icon-xs" onClick={(e) => e.stopPropagation()}><Ellipsis /></Button></MenuTrigger>
       <MenuPopup>
         <MenuItem onClick={() => { state.modalClass = { entry }; }}><Eye aria-hidden="true" />详细信息</MenuItem>
-        <MenuItem onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}><CircleMinus aria-hidden="true" />退课</MenuItem>
+        <MenuItem disabled={entry.sfktk !== "1"} onClick={() => app.timetable.withdrawSelectedEntry(entry).catch(app.showError)}><CircleMinus aria-hidden="true" />退课</MenuItem>
       </MenuPopup>
     </Menu>
   );
@@ -99,24 +102,37 @@ function TimetableDetail() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[28%]">名称</TableHead>
-            <TableHead className="w-[50px]">学分</TableHead>
-            <TableHead className="w-[13%]">教师</TableHead>
-            {selectedCell && <TableHead className="w-[10%]">周次</TableHead>}
+            <TableHead className="w-[22%]">名称</TableHead>
+            <TableHead className="w-[72px]">课程类型</TableHead>
+            <TableHead className="w-[44px]">学分</TableHead>
+            <TableHead className="w-[12%]">教师</TableHead>
+            {selectedCell && <TableHead className="w-[8%]">周次</TableHead>}
             <TableHead>时间</TableHead>
             <TableHead>地点</TableHead>
+            <TableHead className="w-[72px]">状态</TableHead>
             <TableHead className="w-[34px] p-0 text-center" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {(selectedCell ? rows.map((r) => ({ ...r })) : entries.map((entry) => ({ entry }))).map(({ entry, weeks }) => (
             <TableRow key={entry.doJxbId || [entry.kchId, entry.classNo].join("/")}>
-              <TableCell><DetailCourseName entry={entry} /></TableCell>
+              <TableCell><DetailCourseName entry={entry} app={app} /></TableCell>
+              <TableCell>{entry.kklxmc || ""}</TableCell>
               <TableCell>{entry.creditText ? <Badge variant="outline">{entry.creditText}</Badge> : ""}</TableCell>
               <TableCell>{entry.teacherName || ""}<br /><span className="text-muted-foreground text-xs">{entry.teacherTitle || ""}</span></TableCell>
               {selectedCell && <TableCell>{formatWeekRanges(weeks)}</TableCell>}
               <TableCell className="whitespace-normal">{entry.sksj || ""}</TableCell>
               <TableCell className="whitespace-normal">{entry.location || ""}</TableCell>
+              <TableCell>
+                <div className="flex flex-col gap-0.5">
+                  {entry.zixf === "1"
+                    ? <Badge variant="success" size="sm">自选上</Badge>
+                    : <Badge variant="warning" size="sm">系统调整</Badge>}
+                  {entry.sxbj === "1"
+                    ? <Badge variant="default" size="sm">已选上</Badge>
+                    : <Badge variant="error" size="sm">待筛选</Badge>}
+                </div>
+              </TableCell>
               <TableCell className="w-[34px] p-0 text-center"><DetailActionMenu entry={entry} app={app} /></TableCell>
             </TableRow>
           ))}
