@@ -88,8 +88,8 @@ export function LoginOverlay() {
           <div className="flex flex-col">
             {savedAvailable && snap.bootstrap?.savedCredentials && (
               <div className="flex items-center gap-1.5 justify-between mb-3 p-2.5 border border-border bg-background">
-                <span className="text-muted-foreground">已保存账号 {snap.bootstrap.savedCredentials.masked}</span>
-                <Button variant="default" id="saved-login-button" onClick={() => app.auth.doLogin(true).catch(app.showError)}>以 {snap.bootstrap.savedCredentials.masked} 登录</Button>
+                <span className="text-muted-foreground">已保存账号</span>
+                <Button variant="default" id="saved-login-button" onClick={() => app.auth.doLogin(true).catch(app.showError)}>以 {snap.bootstrap.savedCredentials.studentNumber} 登录</Button>
               </div>
             )}
           </div>

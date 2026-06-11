@@ -15,9 +15,7 @@ export function AppShell() {
 
   function accountLabel() {
     const studentNumber = snap.auth.studentNumber || snap.bootstrap?.savedCredentials?.studentNumber || "";
-    if (!studentNumber) return "未登录账号";
-    if (studentNumber.length <= 4) return studentNumber;
-    return `${studentNumber.slice(0, 2)}***${studentNumber.slice(-2)}`;
+    return studentNumber || "未登录账号";
   }
 
   function runAddressAction(value) {
