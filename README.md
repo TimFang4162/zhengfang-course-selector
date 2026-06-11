@@ -48,7 +48,9 @@ uv run python main.py
 
 ### 抢课表达式
 
-表达式使用 Python 语法，对每个候选教学班执行 `eval()`，返回 `True` 时自动提交选课。
+表达式使用 Python 语法，对每个候选教学班在运行时 `eval()` 求值，返回 `True` 时提交选课。
+
+**表达式只做过滤，不参与 API 请求组装。** 教务接口所需的课程号（`kch_id`）、教学班 ID（`jxb_ids`）、大类元数据（rwlx/xkkzId 等）来自任务配置和每次轮询拉取的教学班数据，与表达式内容无关。
 
 | 符号 | 类别 | 类型 | 说明 | 示例 |
 |------|------|------|------|------|
@@ -66,8 +68,8 @@ uv run python main.py
 | `class.capacity` | 教学班动态 | number | 总容量（运行时最新值） | `class.capacity > 100` |
 | `class.has_capacity` | 教学班动态 | boolean | 是否有余量（`capacity > selected`） | `class.has_capacity` |
 
-> **课程静态**、**教学班静态** — 引擎可据此缩小扫描范围。<br>
-> **教学班动态** — 运行时从最新教学班数据取值，**不会缩小候选扫描范围**。
+> **静态**（课程静态、教学班静态）— 预览阶段可实际求值，用于缩小扫描范围。<br>
+> **动态** — 运行时从最新拉取的教学班数据取值，预览阶段不做淘汰。
 
 ```python
 # 组合示例
@@ -76,6 +78,37 @@ class.has_capacity and "深度学习" in course.name        # 有余量且课程
 course.id == "xxxxxxxxx" and class.not_conflicts         # 指定课程号且无冲突
 "Python" in course.name or "AI" in course.name           # 满足任一课程名
 ```
+
+### 抢课任务生命周期
+
+一个抢课任务从创建到停止经历以下阶段：
+
+```
+预览 → 创建任务 → 定时 tick（循环）
+```
+
+**预览（`preview_grab`）**
+1. 解析表达式，静态提取 `course.id == "xxx"` 和 `course.categoryId == "xxx"` 约束，确定需扫描的大类和课程范围
+2. 拉取这些课程的列表及教学班数据
+3. 尝试按"静态"字段初步求值表达式，淘汰不匹配的教学班
+4. 返回匹配的候选课程及教学班信息，供用户确认
+
+**创建任务（`create_grab_task`）**
+- 以预览结果为蓝本，持久化 `candidateCourses`（只需 `categoryId`、`kchId`、`courseName`、匹配的 `classNo` 列表）
+
+**每个 tick（`_run_grab_task_tick`）**
+1. 刷新课表冲突上下文
+2. 遍历 `candidateCourses`：
+   a. 调用 `fetch_classes` 重新拉取该课程的所有教学班（获取最新 `selectedCount`、`capacity` 等实时数据）
+   b. 遍历每个教学班：
+      - **按 classNo 过滤** — 只处理预览时匹配过的教学班
+      - **表达式求值** — 传入最新数据对表达式 `eval()`，不通过则跳过
+      - **容量检查** — `capacity > selectedCount` 的硬性检查（独立于表达式）
+      - **获取选课 ID** — `doJxbId` 或回退为 `jxbId`
+      - **提交选课** — 调用教务选课接口
+      - 若成功且任务配置了 `stopOnFirstSuccess`，标记完成
+3. 更新进度统计（已检查 / 跳过 / 已尝试 / 已选中等）
+4. 若任务配置了 tick 间隔，等待后进入下一轮
 
 ## 开发
 
