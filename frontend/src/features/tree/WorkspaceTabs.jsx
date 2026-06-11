@@ -165,11 +165,11 @@ export function WorkspaceTabs() {
             <Menu open={snap.openMenu === "display-menu"} onOpenChange={(open) => { state.openMenu = open ? "display-menu" : null; }}>
               <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
               <MenuPopup>
-                <MenuCheckboxItem checked={snap.filters.conflict} onCheckedChange={() => { app.tree.runDisplayAction("toggle-conflict"); }}>淡化时间冲突教学班</MenuCheckboxItem>
-                <MenuCheckboxItem checked={snap.filters.noCapacity} onCheckedChange={() => { app.tree.runDisplayAction("toggle-no-capacity"); }}>淡化无余量教学班</MenuCheckboxItem>
-                <MenuCheckboxItem checked={snap.filters.highlightCapacity} onCheckedChange={() => { app.tree.runDisplayAction("toggle-highlight-capacity"); }}>突出有余量教学班</MenuCheckboxItem>
-                <MenuCheckboxItem checked={snap.filters.credit} onCheckedChange={() => { app.tree.runDisplayAction("toggle-credit"); }}>淡化超学分课程</MenuCheckboxItem>
-                <MenuCheckboxItem checked={snap.filters.completed} onCheckedChange={() => { app.tree.runDisplayAction("toggle-completed"); }}>淡化已修读课程</MenuCheckboxItem>
+                <MenuCheckboxItem variant="switch" checked={snap.filters.conflict} onCheckedChange={() => { app.tree.runDisplayAction("toggle-conflict"); }}>淡化时间冲突教学班</MenuCheckboxItem>
+                <MenuCheckboxItem variant="switch" checked={snap.filters.noCapacity} onCheckedChange={() => { app.tree.runDisplayAction("toggle-no-capacity"); }}>淡化无余量教学班</MenuCheckboxItem>
+                <MenuCheckboxItem variant="switch" checked={snap.filters.highlightCapacity} onCheckedChange={() => { app.tree.runDisplayAction("toggle-highlight-capacity"); }}>突出有余量教学班</MenuCheckboxItem>
+                <MenuCheckboxItem variant="switch" checked={snap.filters.credit} onCheckedChange={() => { app.tree.runDisplayAction("toggle-credit"); }}>淡化超学分课程</MenuCheckboxItem>
+                <MenuCheckboxItem variant="switch" checked={snap.filters.completed} onCheckedChange={() => { app.tree.runDisplayAction("toggle-completed"); }}>淡化已修读课程</MenuCheckboxItem>
               </MenuPopup>
             </Menu>
             <Menu open={snap.openMenu === "feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "feature-menu" : null; }}>
@@ -222,7 +222,7 @@ export function WorkspaceTabs() {
       <TabsPanel value="academic" className="flex flex-col overflow-hidden">
         <div className="flex items-center gap-1 toolbar-tight academic-toolbar min-h-[34px] flex-wrap py-[3px] px-1.5 bg-card border-b border-border">
           <Menu open={snap.openMenu === "academic-filter-menu"} onOpenChange={(open) => { state.openMenu = open ? "academic-filter-menu" : null; }}>
-            <MenuTrigger><Button variant="ghost" size="sm" id="academic-filter-button">{activeAcademicFilterCount(snap) > 0 ? `筛选(${activeAcademicFilterCount(snap)})` : "筛选"}</Button></MenuTrigger>
+            <MenuTrigger><Button variant="ghost" size="sm" id="academic-filter-button"><Filter aria-hidden="true" />{activeAcademicFilterCount(snap) > 0 ? `筛选(${activeAcademicFilterCount(snap)})` : "筛选"}</Button></MenuTrigger>
             <MenuPopup className="academic-filter-menu">
               <div className="field-group">
                 <span className="text-sm font-medium">建议修读时间</span>

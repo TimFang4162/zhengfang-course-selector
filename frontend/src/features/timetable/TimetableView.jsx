@@ -275,6 +275,24 @@ export function TimetableView() {
     <div id="tab-timetable" className="flex flex-col flex-1 min-h-0">
       <div className="flex items-center gap-2 min-h-[34px] py-[3px] px-1.5 bg-card border-b border-border">
         <div className="flex items-center gap-1">
+          <Menu open={snap.openMenu === "timetable-display-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-display-menu" : null; }}>
+            <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
+            <MenuPopup>
+              {displayFields.map(([field, label]) => (
+                <MenuCheckboxItem key={field} variant="switch" checked={snap.timetableDisplay[field]} onCheckedChange={() => toggleDisplayField(field)}>
+                  {label}
+                </MenuCheckboxItem>
+              ))}
+            </MenuPopup>
+          </Menu>
+          <Menu open={snap.openMenu === "timetable-feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-feature-menu" : null; }}>
+            <MenuTrigger><Button variant="ghost" size="sm"><Wrench aria-hidden="true" />功能</Button></MenuTrigger>
+            <MenuPopup>
+              <MenuItem onClick={() => { app.tree.refreshTimetable().catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新已选课程</MenuItem>
+            </MenuPopup>
+          </Menu>
+        </div>
+        <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" id="week-prev" onClick={() => { state.displayWeek = Math.max(1, state.displayWeek - 1); app.timetable.renderTimetable(); }}><ChevronLeft aria-hidden="true" />上一周</Button>
           <Popover>
             <PopoverTrigger render={<Button variant="outline" size="sm" />}>第 {snap.displayWeek}/{maxWeek} 周</PopoverTrigger>
@@ -330,37 +348,19 @@ export function TimetableView() {
             </PopoverPopup>
           </Popover>
         </div>
-        <div className="flex items-center gap-1">
-          <Menu open={snap.openMenu === "timetable-display-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-display-menu" : null; }}>
-            <MenuTrigger><Button variant="ghost" size="sm"><SlidersHorizontal aria-hidden="true" />显示</Button></MenuTrigger>
-            <MenuPopup>
-              {displayFields.map(([field, label]) => (
-                <MenuCheckboxItem key={field} checked={snap.timetableDisplay[field]} onCheckedChange={() => toggleDisplayField(field)}>
-                  {label}
-                </MenuCheckboxItem>
-              ))}
-            </MenuPopup>
-          </Menu>
-          <Menu open={snap.openMenu === "timetable-feature-menu"} onOpenChange={(open) => { state.openMenu = open ? "timetable-feature-menu" : null; }}>
-            <MenuTrigger><Button variant="ghost" size="sm"><Wrench aria-hidden="true" />功能</Button></MenuTrigger>
-            <MenuPopup>
-              <MenuItem onClick={() => { app.tree.refreshTimetable().catch(app.showError); }}><RefreshCw aria-hidden="true" />刷新已选课程</MenuItem>
-            </MenuPopup>
-          </Menu>
-        </div>
       </div>
       <div className="timetable-wrap">
         <table id="timetable-table">
           <thead>
             <tr>
-              <th>节次</th>
+              <th className="w-[36px] min-w-[32px] max-w-[40px]">节次</th>
               {weekdayNames.map((name) => <th key={name}>{name}</th>)}
             </tr>
           </thead>
           <tbody>
             {jieciRows.map((jieci) => (
               <tr key={jieci}>
-                <th>{jieci}</th>
+                <th className="w-[36px] min-w-[32px] max-w-[40px] text-center">{jieci}</th>
                 {days.map((day) => <TimetableCell key={day} day={day} jieci={jieci} />)}
               </tr>
             ))}
