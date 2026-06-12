@@ -1,12 +1,11 @@
 [project]
-name = "jwxt"
+name = "zhengfang-course-selector"
 version = "0.1.0"
-description = "Add your description here"
+description = "正方教务选课工具 - 第三方教务系统选课 Web 前端"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fake-useragent>=2.2.0",
-    "pycryptodome>=3.23.0",
     "requests>=2.34.2",
     "rsa>=4.9.1",
 ]
