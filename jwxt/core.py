@@ -76,6 +76,8 @@ xz = ""
 ccdm = ""
 max_credit_limit = 0.0
 current_credit_display = 0.0
+xkly = "1"
+xklc = "2"
 is_authenticated = False
 request_logger = None
 request_seq = 0
@@ -414,7 +416,7 @@ def rsa_encryption(n, e, msg):
 
 def reset_runtime_state():
     global bh_id, xsbj, njdm_id, xkxnm, xkxqm, xqh_id, jg_id, zyfx_id, xbm
-    global xslbdm, mzm, xz, ccdm, max_credit_limit, current_credit_display
+    global xslbdm, mzm, xz, ccdm, max_credit_limit, current_credit_display, xkly, xklc
     bh_id = ""
     xsbj = ""
     njdm_id = ""
@@ -430,6 +432,8 @@ def reset_runtime_state():
     ccdm = ""
     max_credit_limit = 0.0
     current_credit_display = 0.0
+    xkly = "1"
+    xklc = "2"
 
 
 def load_saved_credentials():
@@ -606,7 +610,7 @@ def do_login(log_func, debug_func):
 
 def fetch_big_list(log_func, debug_func):
     global bh_id, xsbj, njdm_id, xkxnm, xkxqm, xqh_id, jg_id, zyfx_id, xbm
-    global xslbdm, mzm, xz, ccdm, max_credit_limit, current_credit_display
+    global xslbdm, mzm, xz, ccdm, max_credit_limit, current_credit_display, xkly, xklc
     try:
         text = http_get(
             base_url + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512",
@@ -636,19 +640,62 @@ def fetch_big_list(log_func, debug_func):
                     max_credit_limit = float(max_credit_match[0] or 0)
                 if current_credit_match:
                     current_credit_display = float(current_credit_match[0] or 0)
+                try:
+                    first_kklxdm = re.findall(r'id="firstKklxdm" value="(.*?)"', text)[0]
+                    first_xkkz_id = re.findall(r'id="firstXkkzId" value="(.*?)"', text)[0]
+                    page_zyh_id = re.findall(r'id="zyh_id" value="(.*?)"', text)[0]
+                    xszxzt = re.findall(r'id="xszxzt" value="(.*?)"', text)[0]
+                    display_text = http_post(
+                        url=base_url
+                        + "/jwglxt/xsxk/zzxkyzb_cxZzxkYzbDisplay.html?gnmkdm=N253512",
+                        data={
+                            "xkkz_id": first_xkkz_id,
+                            "kklxdm": first_kklxdm,
+                            "xszxzt": xszxzt,
+                            "njdm_id": njdm_id,
+                            "zyh_id": page_zyh_id,
+                            "kspage": "0",
+                            "jspage": "0",
+                        },
+                        timeout=REQ_TIMEOUT["big_list"],
+                    ).text
+                    xklc_match = re.findall(r'id="xklc" value="(.*?)"', display_text)
+                    if xklc_match and xklc_match[0]:
+                        xklc = xklc_match[0]
+                        debug_func(f"选课轮次 xklc={xklc}")
+                except Exception:
+                    debug_func("获取选课轮次失败，沿用默认 xklc")
                 debug_func("页面参数解析成功")
             except Exception:
                 log_func("解析页面参数失败，请检查是否登录")
                 debug_func("参数解析失败")
                 return []
         lst = re.findall(r'onclick="queryCourse\((.*)\)', text)
-        lst = [item.replace("'", "").split(",")[1:] for item in lst]
-        final_list = []
-        for index, label in enumerate(
-            re.findall(r'role="tab" data-toggle="tab">(.*)</a>', text)
-        ):
-            final_list.append([label] + lst[index])
-        return final_list
+        if lst:
+            lst = [item.replace("'", "").split(",")[1:] for item in lst]
+            final_list = []
+            for index, label in enumerate(
+                re.findall(r'role="tab" data-toggle="tab">(.*)</a>', text)
+            ):
+                final_list.append([label] + lst[index])
+            return final_list
+        first_kklxmc = re.findall(r'id="firstKklxmc" value="(.*?)"', text)
+        first_kklxdm = re.findall(r'id="firstKklxdm" value="(.*?)"', text)
+        first_xkkz_id = re.findall(r'id="firstXkkzId" value="(.*?)"', text)
+        first_njdm_id = re.findall(r'id="firstNjdmId" value="(.*?)"', text)
+        first_zyh_id = re.findall(r'id="firstZyhId" value="(.*?)"', text)
+        first_xkkz_xh = re.findall(r'id="firstXkkzXh" value="(.*?)"', text)
+        if first_kklxdm and first_kklxmc:
+            xkly = "0"
+            return [[
+                first_kklxmc[0],
+                first_kklxdm[0],
+                first_xkkz_id[0] if first_xkkz_id else "",
+                first_njdm_id[0] if first_njdm_id else njdm_id,
+                first_zyh_id[0] if first_zyh_id else "",
+                first_xkkz_xh[0] if first_xkkz_xh else "",
+            ]]
+        return []
     except Exception as exc:
         log_func(f"获取列表异常: {exc}")
         debug_func(f"获取大类异常: {exc}")
@@ -664,9 +711,9 @@ def fetch_small_list(target, log_func, debug_func, page=1, remote_filters=None):
     start = (page - 1) * COURSE_PAGE_SIZE + 1
     end = page * COURSE_PAGE_SIZE
     data = {
-        "xklc": "3",
+        "xklc": xklc,
         "rwlx": rwlx,
-        "xkly": "1",
+        "xkly": xkly,
         "bklx_id": "0",
         "sfkkjyxdxnxq": "0",
         "xqh_id": xqh_id,
@@ -701,6 +748,7 @@ def fetch_small_list(target, log_func, debug_func, page=1, remote_filters=None):
         "kklxdm": kklxdm,
         "bbhzxjxb": "0",
         "xkkz_id": xkkz_id,
+        "xkkz_xh": target[5] if len(target) > 5 else "",
         "rlkz": "0",
         "xkzgbj": "0",
         "kspage": str(start),
@@ -750,7 +798,8 @@ def fetch_class_detail_and_plan(
 ):
     data = {
         "rwlx": rwlx,
-        "xkly": "1",
+        "xklc": xklc,
+        "xkly": xkly,
         "bklx_id": "0",
         "sfkkjyxdxnxq": "0",
         "xqh_id": xqh_id,
@@ -1062,7 +1111,7 @@ def fetch_choosed_list(log_func=None, debug_func=None):
         "xqh_id": xqh_id,
         "xkxnm": xkxnm,
         "xkxqm": xkxqm,
-        "xkly": "1",
+        "xkly": xkly,
     }
     try:
         return http_post(
