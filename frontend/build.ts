@@ -16,6 +16,11 @@ await build({
   configFile: false,
   publicDir: false,
   plugins: [tailwindcss(), react()],
+  resolve: {
+    alias: {
+      "@": import.meta.dir + "/src",
+    },
+  },
   build: {
     outDir: viteOutDir,
     emptyOutDir: false,

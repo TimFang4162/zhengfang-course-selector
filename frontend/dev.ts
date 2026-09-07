@@ -9,6 +9,11 @@ const server = await createServer({
   root: "frontend",
   configFile: false,
   plugins: [tailwindcss(), react()],
+  resolve: {
+    alias: {
+      "@": import.meta.dir + "/src",
+    },
+  },
   server: {
     port: PORT,
     proxy: {
